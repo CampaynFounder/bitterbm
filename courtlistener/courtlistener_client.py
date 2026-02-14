@@ -23,6 +23,22 @@ GEORGIA_COURTS = [
     "gactapp",   # Georgia Court of Appeals
 ]
 
+# State → appellate court_ids (Supreme Court + Court of Appeals)
+# Extend as needed; see https://www.courtlistener.com/help/api/jurisdictions/
+# Pass courts explicitly in search_opinions() if your state isn't mapped.
+STATE_COURTS: dict[str, list[str]] = {
+    "GA": ["gact", "gactapp"],
+    "NC": ["ncct", "ncctapp"],
+    "FL": ["flct", "flctapp"],
+    "TX": ["txct", "txctapp"],
+}
+
+
+def get_courts_for_state(state: str) -> list[str]:
+    """Return CourtListener court_ids for a state. Falls back to GA if unknown."""
+    state_upper = (state or "GA").strip().upper()
+    return STATE_COURTS.get(state_upper, GEORGIA_COURTS)
+
 
 class CourtListenerClient:
     def __init__(self, api_token: str | None = None):
@@ -38,7 +54,7 @@ class CourtListenerClient:
 
     def search_opinions(
         self,
-        query: str = "alienation",
+        query: str = "alienat*",  # prefix match: alienation, alienated, alienating (excludes "alien")
         courts: list[str] | None = None,
         filed_after: str | None = None,
         filed_before: str | None = None,
@@ -46,7 +62,9 @@ class CourtListenerClient:
     ) -> list[dict]:
         """
         Search CourtListener for opinions (case law) matching the query.
-        Uses the Search API with type=o (opinions).
+        Uses the Search API with type=o (opinions) - appellate opinions/case law only.
+        Courts (gact, gactapp, etc.) are appellate; type=o excludes dockets/other docs.
+        Use alienat* to match alienation/alienated/alienating but exclude "alien".
         """
         courts = courts or GEORGIA_COURTS
         endpoint = f"{BASE_URL}/search/"

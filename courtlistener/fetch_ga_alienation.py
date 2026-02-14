@@ -17,13 +17,13 @@ from pathlib import Path
 # Add parent for local imports
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from courtlistener_client import CourtListenerClient
+from courtlistener_client import CourtListenerClient, get_courts_for_state
 from rag_storage import RAGStorage
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Fetch GA alienation cases from CourtListener into RAG storage"
+        description="Fetch cases from CourtListener into RAG storage"
     )
     parser.add_argument(
         "--max",
@@ -49,6 +49,16 @@ def main():
         action="store_true",
         help="Fetch full opinion text for each case (slower, more API calls)",
     )
+    parser.add_argument(
+        "--state",
+        default="GA",
+        help="State code (GA, NC, FL, TX). Default: GA",
+    )
+    parser.add_argument(
+        "--query",
+        default="alienat*",
+        help="Search term(s). alienat* = alienation/alienated/alienating (excludes alien). Default: alienat*",
+    )
     args = parser.parse_args()
 
     token = os.environ.get("COURTLISTENER_API_TOKEN")
@@ -58,12 +68,13 @@ def main():
         sys.exit(1)
 
     client = CourtListenerClient(api_token=token)
-    storage = RAGStorage(base_dir=args.output)
+    courts = get_courts_for_state(args.state)
+    storage = RAGStorage(base_dir=args.output, state=args.state)
 
-    print("Searching CourtListener for Georgia cases with 'alienation'...")
+    print(f"Searching CourtListener for {args.state} cases with '{args.query}'...")
     results = client.search_opinions(
-        query="alienation",
-        courts=["gact", "gactapp"],
+        query=args.query,
+        courts=courts,
         filed_after=args.filed_after,
         filed_before=args.filed_before,
         max_results=args.max,
@@ -92,7 +103,7 @@ def main():
             rel = path
         print(f"  [{i}/{len(results)}] {metadata.get('case_name', 'N/A')} -> {rel}")
 
-    print(f"\nDone. Stored {stored} cases in {args.output}/GA/")
+    print(f"\nDone. Stored {stored} cases in {args.output}/{args.state}/")
 
 
 if __name__ == "__main__":

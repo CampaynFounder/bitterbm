@@ -25,6 +25,7 @@ type RawCase = {
 
 type DashboardState = {
   rawCasesCount: number
+  casesWithPlainText: number
   caseChunksCount: number
   lastFetch: PipelineRun | null
   sampleCases: RawCase[]
@@ -38,6 +39,9 @@ export default function AdminDashboardPage() {
   const [triggering, setTriggering] = useState(false)
   const [triggerResult, setTriggerResult] = useState<Record<string, number> | null>(null)
   const [state, setState] = useState<DashboardState | null>(null)
+  const [fetchQuery, setFetchQuery] = useState("alienat*")
+  const [fetchState, setFetchState] = useState("GA")
+  const [fetchMax, setFetchMax] = useState(100)
   const [user, setUser] = useState<{ email?: string } | null>(null)
 
   useEffect(() => {
@@ -57,8 +61,9 @@ export default function AdminDashboardPage() {
       setLoading(true)
       setError(null)
       try {
-        const [rawRes, chunksRes, runsRes, sampleRes] = await Promise.all([
+        const [rawRes, plainTextRes, chunksRes, runsRes, sampleRes] = await Promise.all([
           supabase.from("raw_cases").select("cluster_id", { count: "exact", head: true }),
+          supabase.from("raw_cases").select("cluster_id", { count: "exact", head: true }).not("plain_text", "is", null),
           supabase.from("case_chunks").select("id", { count: "exact", head: true }),
           supabase
             .from("pipeline_runs")
@@ -75,22 +80,16 @@ export default function AdminDashboardPage() {
         ])
 
         const rawCount = rawRes.count ?? 0
+        const casesWithPlainText = plainTextRes.count ?? 0
         const chunksCount = chunksRes.count ?? 0
         const sampleCases = (sampleRes.data ?? []) as RawCase[]
 
-        const countyRes = await supabase
-          .from("raw_cases")
-          .select("county")
-        const counties = Array.from(
-          new Set(
-            (countyRes.data ?? [])
-              .map((r: { county: string | null }) => r.county)
-              .filter(Boolean) as string[]
-          )
-        ).sort()
+        const countyRes = await supabase.from("raw_cases").select("county")
+        const counties = Array.from(new Set((countyRes.data ?? []).map((r: { county: string | null }) => r.county).filter(Boolean) as string[])).sort()
 
         setState({
           rawCasesCount: rawCount,
+          casesWithPlainText,
           caseChunksCount: chunksCount,
           lastFetch: (runsRes.data as PipelineRun | null) ?? null,
           sampleCases,
@@ -106,7 +105,19 @@ export default function AdminDashboardPage() {
     load()
   }, [user])
 
-  async function handleTriggerFetch(maxResults: number = 20, fetchFullText = false) {
+  async function handleTriggerFetch(params: {
+    maxResults?: number
+    fetchFullText?: boolean
+    query?: string
+    state?: string
+  }) {
+    const {
+      maxResults,
+      fetchFullText = false,
+      query = "alienat*",
+      state = "GA",
+    } = params
+    const max = maxResults ?? fetchMax
     const url = process.env.NEXT_PUBLIC_MODAL_TRIGGER_URL
     const secret = process.env.NEXT_PUBLIC_PIPELINE_TRIGGER_SECRET
     if (!url || !secret) {
@@ -123,7 +134,12 @@ export default function AdminDashboardPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${secret}`,
         },
-        body: JSON.stringify({ max_results: maxResults, fetch_full_text: fetchFullText }),
+        body: JSON.stringify({
+          max_results: Math.min(5000, Math.max(1, max)),
+          fetch_full_text: fetchFullText,
+          query: (query || "alienat*").trim() || "alienat*",
+          state: (state || "GA").trim().toUpperCase() || "GA",
+        }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -131,8 +147,9 @@ export default function AdminDashboardPage() {
       }
       setTriggerResult(data)
       // Refresh status by reloading
-      const [rawRes, runsRes, sampleRes, countyRes] = await Promise.all([
+      const [rawRes, plainTextRes, runsRes, sampleRes, countyRes] = await Promise.all([
         supabase.from("raw_cases").select("cluster_id", { count: "exact", head: true }),
+        supabase.from("raw_cases").select("cluster_id", { count: "exact", head: true }).not("plain_text", "is", null),
         supabase.from("pipeline_runs").select("*").eq("step", "fetch").order("created_at", { ascending: false }).limit(1).maybeSingle(),
         supabase.from("raw_cases").select("cluster_id, case_name, court, county, judge, date_filed").order("date_filed", { ascending: false, nullsFirst: false }).limit(5),
         supabase.from("raw_cases").select("county"),
@@ -143,6 +160,7 @@ export default function AdminDashboardPage() {
           ? {
               ...prev,
               rawCasesCount: rawRes.count ?? 0,
+              casesWithPlainText: plainTextRes.count ?? 0,
               lastFetch: (runsRes.data as PipelineRun | null) ?? prev.lastFetch,
               sampleCases: (sampleRes.data ?? []) as RawCase[],
               counties,
@@ -196,9 +214,46 @@ export default function AdminDashboardPage() {
           <section className="rounded-lg border border-gray-800 bg-[#111] p-4">
             <h2 className="font-medium text-amber-400 mb-3">1. CourtListener API</h2>
             <p className="text-sm text-gray-400 mb-3">
-              Fetches GA cases with “alienation” from courts gact, gactapp. Validates
-              filters and case metadata.
-            </p>
+              Fetch cases by state and search term(s). State maps to appellate courts (GA → gact/gactapp, NC → ncct/ncctapp, etc.).            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+              <div>
+                <label htmlFor="fetch-state" className="block text-xs text-gray-500 mb-1">State</label>
+                <select
+                  id="fetch-state"
+                  value={fetchState}
+                  onChange={(e) => setFetchState(e.target.value)}
+                  className="w-full px-2 py-1.5 rounded bg-[#0a0a0a] border border-gray-700 text-sm text-white"
+                >
+                  <option value="GA">Georgia (GA)</option>
+                  <option value="NC">North Carolina (NC)</option>
+                  <option value="FL">Florida (FL)</option>
+                  <option value="TX">Texas (TX)</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="fetch-query" className="block text-xs text-gray-500 mb-1">Search term(s)</label>
+                <input
+                  id="fetch-query"
+                  type="text"
+                  value={fetchQuery}
+                  onChange={(e) => setFetchQuery(e.target.value)}
+                  placeholder="e.g. alienat* (alienation, alienated), or alienation custody"
+                  className="w-full px-2 py-1.5 rounded bg-[#0a0a0a] border border-gray-700 text-sm text-white placeholder-gray-500"
+                />
+              </div>
+              <div>
+                <label htmlFor="fetch-max" className="block text-xs text-gray-500 mb-1">Max results (1–5000)</label>
+                <input
+                  id="fetch-max"
+                  type="number"
+                  min={1}
+                  max={5000}
+                  value={fetchMax}
+                  onChange={(e) => setFetchMax(Math.min(5000, Math.max(1, parseInt(e.target.value, 10) || 1)))}
+                  className="w-full px-2 py-1.5 rounded bg-[#0a0a0a] border border-gray-700 text-sm text-white"
+                />
+              </div>
+            </div>
             {state?.lastFetch ? (
               <div className="space-y-1 text-sm">
                 <p>
@@ -222,28 +277,22 @@ export default function AdminDashboardPage() {
             ) : (
               <p className="text-gray-500 text-sm">No fetch runs yet.</p>
             )}
-            <div className="mt-3 flex items-center gap-3">
+            <p className="text-xs text-gray-500 mb-2">Uses max results above. Upsert on cluster_id avoids duplicates on re-run.</p>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
               <button
-                onClick={() => handleTriggerFetch(20)}
+                onClick={() => handleTriggerFetch({ query: fetchQuery, state: fetchState })}
                 disabled={triggering}
                 className="px-3 py-1.5 rounded bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-sm font-medium"
               >
-                {triggering ? "Running…" : "Trigger fetch (20)"}
+                {triggering ? "Running…" : `Fetch ${fetchMax}`}
               </button>
               <button
-                onClick={() => handleTriggerFetch(50)}
-                disabled={triggering}
-                className="px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white text-sm"
-              >
-                {triggering ? "…" : "Fetch 50"}
-              </button>
-              <button
-                onClick={() => handleTriggerFetch(20, true)}
+                onClick={() => handleTriggerFetch({ fetchFullText: true, query: fetchQuery, state: fetchState })}
                 disabled={triggering}
                 className="px-3 py-1.5 rounded bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm"
                 title="Fetches full opinion text for RAG (slower)"
               >
-                {triggering ? "…" : "Fetch 20 + text (RAG)"}
+                {triggering ? "…" : `Fetch ${fetchMax} + text (RAG)`}
               </button>
               {triggerResult && (
                 <span className="text-sm text-green-400">
@@ -261,27 +310,35 @@ export default function AdminDashboardPage() {
             </p>
             <div className="space-y-2 text-sm font-mono text-gray-400 mb-3">
               <p>
-                <span className="text-gray-500">CourtListener filter:</span>{" "}
-                <code className="text-amber-200/80">q=alienation type=o court_gact=on court_gactapp=on</code>
+                <span className="text-gray-500">Example:</span>{" "}
+                <code className="text-amber-200/80">q=(alienation) AND (court_id:gact OR court_id:gactapp)</code>
               </p>
               <p>
-                <span className="text-gray-500">Supabase query:</span>{" "}
-                <code className="text-amber-200/80">SELECT county FROM raw_cases</code>
-                <span className="text-gray-500"> (no WHERE)</span>
+                <span className="text-gray-500">Current filters:</span>{" "}
+                state={fetchState}, query=&quot;{fetchQuery}&quot;
               </p>
             </div>
-            <p className="text-xs text-gray-500 mb-3">
-              County defaults to &quot;Georgia&quot;: gact/gactapp are statewide courts (GA Supreme, GA Appeals). County is inferred from court name (e.g. &quot;Fulton County Superior Court&quot;); when missing we use &quot;Georgia&quot;.
-            </p>
-            <div className="space-y-2 text-sm">
+            <div className="space-y-2 text-sm mb-3">
               <p>
-                <span className="text-gray-500">Total raw cases:</span>{" "}
+                <span className="text-gray-500">Total cases (metadata):</span>{" "}
                 {state?.rawCasesCount ?? 0}
               </p>
+              <p>
+                <span className="text-gray-500">Cases with full text (RAG-ready):</span>{" "}
+                <span className={state?.casesWithPlainText ? "text-emerald-400" : "text-amber-400"}>
+                  {state?.casesWithPlainText ?? 0}
+                </span>
+                {state?.rawCasesCount ? ` / ${state.rawCasesCount}` : ""}
+              </p>
+              {state?.rawCasesCount && (state?.casesWithPlainText ?? 0) === 0 && (
+                <p className="text-amber-400/90 text-xs">
+                  Run &quot;Fetch 20 + text (RAG)&quot; to store full opinion text for RAG training.
+                </p>
+              )}
               {state && state.counties.length > 0 && (
                 <p>
-                  <span className="text-gray-500">Counties in DB:</span>{" "}
-                  {state.counties.join(", ")}
+                  <span className="text-gray-500">State / counties:</span>{" "}
+                  GA — {state.counties.length === 1 && state.counties[0] === "Georgia" ? "statewide courts (gact, gactapp)" : state.counties.join(", ")}
                 </p>
               )}
               {state && state.sampleCases.length > 0 && (

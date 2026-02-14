@@ -19,12 +19,12 @@ def safe_filename(s: str) -> str:
 
 class RAGStorage:
     """
-    Stores case documents in a GA County / Judge / Date hierarchy.
-    Structure: rag/GA/{county}/{judge}/{date}/
+    Stores case documents in a State / County / Judge / Date hierarchy.
+    Structure: rag/{state}/{county}/{judge}/{date}/
     """
 
-    def __init__(self, base_dir: str | Path = "rag"):
-        self.base_dir = Path(base_dir) / "GA"
+    def __init__(self, base_dir: str | Path = "rag", state: str = "GA"):
+        self.base_dir = Path(base_dir) / (state or "GA").strip().upper()
 
     def _path_for(self, county: str, judge: str, date: str) -> Path:
         county_safe = safe_filename(county)

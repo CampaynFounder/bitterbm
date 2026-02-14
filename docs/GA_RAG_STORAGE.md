@@ -5,8 +5,9 @@ Storage strategy for Georgia parental alienation case law from CourtListener, op
 ## Data flow
 
 ```
-CourtListener API (GA only)
-    ↓ q=(alienation) AND (court_id:gact OR court_id:gactapp)
+CourtListener API (opinions only, appellate courts)
+    ↓ q=(alienat*) AND (court_id:gact OR court_id:gactapp)
+    ↓ type=o (opinions/case law); alienat* = alienation/alienated/alienating (excludes "alien")
 Modal fetch_and_store
     ↓
 raw_cases (Supabase) + Modal Volume
@@ -18,10 +19,11 @@ RAG retrieval for GA users
 
 ## Storage best practices
 
-### 1. Idempotency
+### 1. Idempotency / Deduplication
 
-- **Upsert** on `(cluster_id, source)` so re-fetching does not create duplicates.
-- Re-running the fetch updates existing rows if metadata changes.
+- **cluster_id** is CourtListener’s case identifier (one case = one cluster, may have multiple opinions).
+- **Unique constraint** on `(cluster_id, source)`; upsert uses `on_conflict="cluster_id,source"`.
+- Re-running the fetch updates existing rows; no duplicates.
 
 ### 2. State / jurisdiction
 
@@ -41,7 +43,7 @@ RAG retrieval for GA users
 
 ### 5. Indexes
 
-- `raw_cases`: cluster_id, state, county, date_filed.
+- `raw_cases`: unique(cluster_id, source), indexes on cluster_id, state, county, date_filed.
 - `case_chunks`: cluster_id, county, date_filed + vector index for similarity search.
 
 ## GA RAG build (next steps)

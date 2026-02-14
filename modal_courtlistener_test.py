@@ -30,7 +30,12 @@ def _supabase_client():
     return create_client(url, key)
 
 
-def _upsert_raw_case(result: dict, metadata: dict, plain_text: str | None = None) -> None:
+def _upsert_raw_case(
+    result: dict,
+    metadata: dict,
+    state: str = "GA",
+    plain_text: str | None = None,
+) -> None:
     sb = _supabase_client()
     date_filed = metadata.get("date_filed")
     try:
@@ -45,7 +50,7 @@ def _upsert_raw_case(result: dict, metadata: dict, plain_text: str | None = None
         "case_name_full": metadata.get("case_name_full"),
         "court": metadata.get("court"),
         "court_id": metadata.get("court_id"),
-        "state": "GA",
+        "state": (state or "GA").strip().upper(),
         "county": metadata.get("county", "Georgia"),
         "judge": metadata.get("judge"),
         "date_filed": date_filed,
@@ -81,11 +86,8 @@ image_web = modal.Image.debian_slim(python_version="3.11").pip_install(
     "fastapi[standard]",
 )
 
-FILTERS = {
-    "query": "alienation",
-    "courts": ["gact", "gactapp"],
-    "state": "GA",
-}
+def _filters(query: str, courts: list[str], state: str) -> dict:
+    return {"query": query, "courts": courts, "state": state}
 
 
 @app.function(
@@ -101,24 +103,34 @@ def fetch_and_store(
     max_results: int = 20,
     write_supabase: bool = True,
     fetch_full_text: bool = False,
+    query: str = "alienat*",  # alienation, alienated, alienating (excludes "alien")
+    state: str = "GA",
+    courts: list[str] | None = None,
 ) -> dict:
     """
-    Fetch GA alienation cases from CourtListener and store in Modal Volume + Supabase.
+    Fetch cases from CourtListener and store in Modal Volume + Supabase.
+    query: search term(s), e.g. "alienation" or "alienation custody"
+    state: state code (GA, NC, FL, TX) - used for court selection and storage
+    courts: optional list of court_ids; if None, derived from state
     fetch_full_text=True fetches opinion text for RAG (slower, more API calls).
     """
     import time
 
-    from courtlistener_client import CourtListenerClient
+    from courtlistener_client import CourtListenerClient, get_courts_for_state
     from rag_storage import RAGStorage
 
+    state = (state or "GA").strip().upper()
+    courts = courts or get_courts_for_state(state)
+    query = (query or "alienat*").strip() or "alienat*"
+
     base_dir = Path("/data/rag")
-    storage = RAGStorage(base_dir=base_dir)
+    storage = RAGStorage(base_dir=base_dir, state=state)
 
     client = CourtListenerClient()
 
     results = client.search_opinions(
-        query="alienation",
-        courts=["gact", "gactapp"],
+        query=query,
+        courts=courts,
         max_results=max_results,
     )
 
@@ -143,7 +155,7 @@ def fetch_and_store(
 
         if write_supabase:
             try:
-                _upsert_raw_case(result, metadata, plain_text=plain_text)
+                _upsert_raw_case(result, metadata, state=state, plain_text=plain_text)
                 supabase_stored += 1
             except Exception as e:
                 print(f"Supabase upsert failed for {metadata.get('cluster_id')}: {e}")
@@ -153,7 +165,7 @@ def fetch_and_store(
     counts = {"fetched": len(results), "volume_stored": len(stored_paths)}
     if write_supabase:
         counts["supabase_stored"] = supabase_stored
-        _log_pipeline_run("fetch", "ok", counts, FILTERS)
+        _log_pipeline_run("fetch", "ok", counts, _filters(query, courts, state))
 
     return {
         "fetched": len(results),
@@ -258,13 +270,20 @@ def trigger_fetch():
                 headers=cors,
             )
         max_results = int(body.get("max_results", 20))
-        max_results = max(1, min(max_results, 500))
+        max_results = max(1, min(max_results, 5000))
         fetch_full_text = bool(body.get("fetch_full_text", False))
+        query = str(body.get("query", "alienat*")).strip() or "alienat*"
+        state = str(body.get("state", "GA")).strip().upper() or "GA"
+        courts_raw = body.get("courts")
+        courts = list(courts_raw) if isinstance(courts_raw, list) else None
         result = await asyncio.to_thread(
             fetch_and_store.remote,
             max_results=max_results,
             write_supabase=True,
             fetch_full_text=fetch_full_text,
+            query=query,
+            state=state,
+            courts=courts,
         )
         return JSONResponse(result, headers=cors)
 
@@ -274,16 +293,29 @@ def trigger_fetch():
 
 
 @app.local_entrypoint()
-def main(action: str = "fetch", max_results: int = 20):
+def main(
+    action: str = "fetch",
+    max_results: int = 20,
+    query: str = "alienation",
+    state: str = "GA",
+    fetch_full_text: bool = False,
+):
     """
-    Test CourtListener fetch and storage.
+    CourtListener fetch and storage.
 
     Actions:
       fetch   - Fetch cases and store to Modal Volume (default)
       verify  - Read back stored documents to confirm retrieval
+
+    Options (fetch): --query, --state, --max-results, --fetch-full-text
     """
     if action == "fetch":
-        out = fetch_and_store.remote(max_results=max_results)
+        out = fetch_and_store.remote(
+            max_results=max_results,
+            query=query,
+            state=state,
+            fetch_full_text=fetch_full_text,
+        )
         print("Fetch & Store Result:")
         print(json.dumps(out, indent=2))
     elif action == "verify":
