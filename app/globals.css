@@ -87,6 +87,51 @@ body {
   padding-inline: var(--space-md);
 }
 
+/* Section with background image + overlay for text visibility */
+.section-with-bg {
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.section-with-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(8, 9, 12, 0.55) 0%,
+    rgba(8, 9, 12, 0.5) 50%,
+    rgba(8, 9, 12, 0.55) 100%
+  );
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Text shadow for readability over lighter overlay */
+.section-with-bg h1,
+.section-with-bg h2,
+.section-with-bg h3 {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 0 24px rgba(0, 0, 0, 0.4);
+}
+
+.section-with-bg p {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.section-with-bg .problem-card,
+.section-with-bg .pricing-card {
+  background: rgba(20, 25, 32, 0.9);
+  backdrop-filter: blur(8px);
+}
+
+.section-with-bg .container,
+.section-with-bg > * {
+  position: relative;
+  z-index: 1;
+}
+
 @media (min-width: 640px) {
   .container {
     padding-inline: var(--space-xl);
@@ -217,15 +262,74 @@ p {
 header .container {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  text-align: center;
   padding-top: var(--space-3xl);
   min-height: 80dvh;
 }
 
+header .container h1,
+header .container p {
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+}
+
+header .container p {
+  max-width: 42ch;
+}
+
 @media (min-width: 640px) {
   header .container {
+    align-items: center;
     padding-top: var(--space-3xl);
     min-height: 85dvh;
+  }
+}
+
+/* Mobile: center all CTA buttons and section content */
+.cta-center .container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.cta-center .btn-primary,
+.cta-center a.btn-primary {
+  align-self: center;
+}
+
+.cta-center h2,
+.cta-center p {
+  text-align: center;
+}
+
+.cta-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.cta-center .cta-buttons {
+  align-items: center;
+}
+
+@media (min-width: 640px) {
+  .cta-center .container {
+    align-items: flex-start;
+    text-align: left;
+  }
+  .cta-center .btn-primary,
+  .cta-center a.btn-primary {
+    align-self: flex-start;
+  }
+  .cta-center h2,
+  .cta-center p {
+    text-align: left;
+  }
+  .cta-center .cta-buttons {
+    align-items: flex-start;
   }
 }
 
@@ -479,14 +583,27 @@ header .container {
 
 /* Pricing card hover */
 .pricing-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   transition: transform var(--duration-normal) var(--ease-out-expo),
     box-shadow var(--duration-normal),
     border-color var(--duration-normal);
 }
 
+.pricing-card .btn-primary {
+  align-self: center;
+}
+
 .pricing-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+
+@media (min-width: 640px) {
+  .pricing-card .btn-primary {
+    align-self: flex-start;
+  }
 }
 
 /* Responsive grids */

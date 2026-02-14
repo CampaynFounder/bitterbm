@@ -1,0 +1,14 @@
+# Cloud RAG Requirements
+# For use with legal_rag.py
+
+# Core dependencies
+openai>=1.12.0
+anthropic>=0.18.0
+qdrant-client>=1.7.0
+
+# Document processing
+pymupdf>=1.23.0  # PDF extraction
+
+# Optional but recommended
+python-dotenv>=1.0.0  # For environment variables
+tqdm>=4.66.0  # Progress bars

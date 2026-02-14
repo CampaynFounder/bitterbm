@@ -46,3 +46,14 @@ export function trackEvent(
     )
   }
 }
+
+/** Set user property for conversion attribution (e.g. hero_image_id) */
+export function setUserProperty(name: string, value: string) {
+  if (typeof window !== "undefined" && "gtag" in window) {
+    ;(window as unknown as { gtag: (a: string, b: string, c: object) => void }).gtag(
+      "set",
+      "user_properties",
+      { [name]: value }
+    )
+  }
+}

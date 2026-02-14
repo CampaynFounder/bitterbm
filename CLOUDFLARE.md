@@ -18,9 +18,10 @@ Configure in Cloudflare Pages dashboard (or `wrangler pages`):
 
 ## Environment Variables
 
-For production (e.g., GA4):
+- `NEXT_PUBLIC_GA4_MEASUREMENT_ID` – GA4 measurement ID
+- `NEXT_PUBLIC_HERO_BG`, `NEXT_PUBLIC_PROBLEM_BG`, `NEXT_PUBLIC_AI_BG`, `NEXT_PUBLIC_PRICING_BG`, `NEXT_PUBLIC_FINAL_CTA_BG` – Custom background image URLs (optional; falls back to Unsplash if unset)
 
-- `NEXT_PUBLIC_GA4_MEASUREMENT_ID` – Add in Cloudflare Pages → Settings → Environment variables
+For local images: put files in `public/images/` and use `/images/hero.jpg` etc.
 
 ## Static Export
 

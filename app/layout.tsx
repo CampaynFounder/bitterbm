@@ -3,7 +3,7 @@ import { GA4Provider } from "@/components/GA4Provider"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "Prove Parental Alienation | Document Denied Visitation - Court-Ready Evidence",
+  title: "Stop Parental Alienation | Your Kids Deserve Better - Court-Ready Evidence",
   description:
     "Document every denied visit, cancelled call, and broken promise. Build court-ready evidence to prove parental alienation. Track visitation denials and get your report in 48 hours.",
   keywords: [

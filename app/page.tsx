@@ -4,6 +4,9 @@ import { useEffect, useState } from "react"
 import { ShaderAnimation } from "@/components/ShaderAnimation"
 import { AnimateOnScroll } from "@/components/AnimateOnScroll"
 import { trackEvent } from "@/components/GA4Provider"
+import { trackCtaWithImage } from "@/lib/analytics"
+import { backgroundImages, backgroundImageIds } from "@/lib/backgroundImages"
+import { useImageViewTracking } from "@/hooks/useImageViewTracking"
 
 const MIN_LOADER_DISPLAY_MS = 2200
 
@@ -83,8 +86,14 @@ export default function LandingPage() {
     return () => clearTimeout(timer)
   }, [loaded])
 
-  const handleCtaClick = (location: string, label: string) => {
-    trackEvent("cta_click", { cta_location: location, cta_label: label })
+  useImageViewTracking()
+
+  const handleCtaClick = (
+    location: string,
+    label: string,
+    sectionImageId: string | null
+  ) => {
+    trackCtaWithImage(location, label, sectionImageId)
   }
 
   return (
@@ -108,21 +117,30 @@ export default function LandingPage() {
       >
         <article>
           {/* HERO */}
-          <header className="section" role="banner">
+          <header
+            className="section section-with-bg cta-center"
+            role="banner"
+            data-bg-image-id={`hero:${backgroundImageIds.hero}`}
+            style={{ backgroundImage: `url('${backgroundImages.hero}')` }}
+          >
             <div className="container">
               <h1>
-                Prove Parental Alienation—Document Every Denied Visit
+                Stop Parental Alienation—Your Kids Deserve Better
               </h1>
               <p>
-                Leverage the latest AI Models Trained and Family Court Data to
-                Generate Strategy to Ensure The Best Outcome for Your Kids
+                Leverage the latest AI models trained on Family Court data to
+                prove and defend your family against parental alienation.
               </p>
               <a
                 href="#assessment"
                 className="btn-primary"
                 data-ga4-cta="hero_stop_the_alienation_now"
                 onClick={() =>
-                  handleCtaClick("hero", "stop_the_alienation_now")
+                  handleCtaClick(
+                    "hero",
+                    "stop_the_alienation_now",
+                    backgroundImageIds.hero
+                  )
                 }
               >
                 Stop The Alienation Now
@@ -158,9 +176,11 @@ export default function LandingPage() {
 
           {/* Problem Agitation - scroll-triggered, staggered */}
           <section
-            className="section"
+            className="section section-with-bg"
             aria-labelledby="problem-heading"
             data-ga4-section="problem_agitation"
+            data-bg-image-id={`problem:${backgroundImageIds.problem}`}
+            style={{ backgroundImage: `url('${backgroundImages.problem}')` }}
           >
             <div className="container">
               <AnimateOnScroll>
@@ -281,9 +301,11 @@ export default function LandingPage() {
 
           {/* AI Benefits - Differentiator Section */}
           <section
-            className="section ai-benefits-section"
+            className="section ai-benefits-section section-with-bg cta-center"
             aria-labelledby="ai-benefits-heading"
             data-ga4-section="ai_benefits"
+            data-bg-image-id={`ai:${backgroundImageIds.ai}`}
+            style={{ backgroundImage: `url('${backgroundImages.ai}')` }}
           >
             <div className="container">
               <AnimateOnScroll>
@@ -324,7 +346,13 @@ export default function LandingPage() {
                   href="#assessment"
                   className="btn-primary"
                   data-ga4-cta="ai_benefits_match_case"
-                  onClick={() => handleCtaClick("ai_benefits", "match_your_case")}
+                  onClick={() =>
+                  handleCtaClick(
+                    "ai_benefits",
+                    "match_your_case",
+                    backgroundImageIds.ai
+                  )
+                }
                 >
                   See How AI Can Build Your Case
                 </a>
@@ -334,7 +362,7 @@ export default function LandingPage() {
 
           {/* CTA Block */}
           <section
-            className="section-sm"
+            className="section-sm cta-center"
             aria-labelledby="cta-block-heading"
             data-ga4-section="cta_block"
           >
@@ -350,7 +378,9 @@ export default function LandingPage() {
                   href="#assessment"
                   className="btn-primary"
                   data-ga4-cta="cta_block_start_free"
-                  onClick={() => handleCtaClick("cta_block", "start_free")}
+                  onClick={() =>
+                    handleCtaClick("cta_block", "start_free", null)
+                  }
                 >
                   Start Documenting Free
                 </a>
@@ -360,9 +390,11 @@ export default function LandingPage() {
 
           {/* Pricing - simplified */}
           <section
-            className="section"
+            className="section section-with-bg"
             aria-labelledby="pricing-heading"
             data-ga4-section="pricing"
+            data-bg-image-id={`pricing:${backgroundImageIds.pricing}`}
+            style={{ backgroundImage: `url('${backgroundImages.pricing}')` }}
           >
             <div className="container">
               <AnimateOnScroll>
@@ -397,7 +429,13 @@ export default function LandingPage() {
                     <a
                       href="#assessment"
                       className="btn-primary"
-                      onClick={() => handleCtaClick("pricing", "start_free")}
+                      onClick={() =>
+                        handleCtaClick(
+                          "pricing",
+                          "start_free",
+                          backgroundImageIds.pricing
+                        )
+                      }
                     >
                       Start Free
                     </a>
@@ -435,7 +473,13 @@ export default function LandingPage() {
                     <a
                       href="#assessment"
                       className="btn-primary"
-                      onClick={() => handleCtaClick("pricing", "begin_monthly")}
+                      onClick={() =>
+                        handleCtaClick(
+                          "pricing",
+                          "begin_monthly",
+                          backgroundImageIds.pricing
+                        )
+                      }
                     >
                       Begin Documenting
                     </a>
@@ -472,7 +516,13 @@ export default function LandingPage() {
                     <a
                       href="#assessment"
                       className="btn-primary"
-                      onClick={() => handleCtaClick("pricing", "protect_rights")}
+                      onClick={() =>
+                        handleCtaClick(
+                          "pricing",
+                          "protect_rights",
+                          backgroundImageIds.pricing
+                        )
+                      }
                     >
                       Protect Your Rights
                     </a>
@@ -532,9 +582,11 @@ export default function LandingPage() {
 
           {/* Final CTA Banner */}
           <section
-            className="section final-cta-banner"
+            className="section final-cta-banner section-with-bg cta-center"
             aria-labelledby="final-cta-heading"
             data-ga4-section="final_cta"
+            data-bg-image-id={`finalCta:${backgroundImageIds.finalCta}`}
+            style={{ backgroundImage: `url('${backgroundImages.finalCta}')` }}
           >
             <div className="container">
               <AnimateOnScroll>
@@ -544,17 +596,17 @@ export default function LandingPage() {
                 <p style={{ marginBottom: "var(--space-xl)" }}>
                   Every day without documentation weakens your case.
                 </p>
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "var(--space-md)",
-                  }}
-                >
+                <div className="cta-buttons">
                   <a
                     href="#assessment"
                     className="btn-primary"
-                    onClick={() => handleCtaClick("final_cta", "upload_first_evidence")}
+                    onClick={() =>
+                      handleCtaClick(
+                        "final_cta",
+                        "upload_first_evidence",
+                        backgroundImageIds.finalCta
+                      )
+                    }
                   >
                     Upload First Evidence
                   </a>
@@ -571,7 +623,13 @@ export default function LandingPage() {
                       borderRadius: "8px",
                       transition: "border-color 0.2s, color 0.2s",
                     }}
-                    onClick={() => handleCtaClick("final_cta", "talk_to_team")}
+                    onClick={() =>
+                      handleCtaClick(
+                        "final_cta",
+                        "talk_to_team",
+                        backgroundImageIds.finalCta
+                      )
+                    }
                   >
                     Talk to Our Team
                   </a>
@@ -600,7 +658,13 @@ export default function LandingPage() {
             href="#assessment"
             className="btn-primary"
             style={{ width: "100%", maxWidth: "400px", margin: "0 auto" }}
-            onClick={() => handleCtaClick("sticky_cta", "stop_the_alienation_now")}
+            onClick={() =>
+              handleCtaClick(
+                "sticky_cta",
+                "stop_the_alienation_now",
+                backgroundImageIds.hero
+              )
+            }
           >
             Stop The Alienation Now
           </a>

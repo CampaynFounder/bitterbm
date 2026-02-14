@@ -24,3 +24,7 @@ yarn-error.log*
 .vscode
 *.swp
 *.swo
+
+# CourtListener RAG data (add your own; don't commit large datasets)
+rag/
+courtlistener_downloads/

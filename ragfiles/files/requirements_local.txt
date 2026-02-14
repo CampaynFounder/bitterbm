@@ -1,0 +1,18 @@
+# Local RAG Requirements
+# For use with legal_rag_local.py
+
+# Core dependencies
+chromadb>=0.4.22
+sentence-transformers>=2.3.0
+ollama>=0.1.6
+
+# Document processing
+pymupdf>=1.23.0  # PDF extraction
+
+# Underlying ML libraries (installed with sentence-transformers)
+# torch>=2.1.0
+# transformers>=4.36.0
+
+# Optional but recommended
+python-dotenv>=1.0.0
+tqdm>=4.66.0
