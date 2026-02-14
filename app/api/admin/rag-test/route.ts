@@ -3,13 +3,6 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { OpenAI } from "openai"
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-
 export async function POST(req: NextRequest) {
   try {
     const { question, state, top_k = 10, provider = "openai" } = await req.json()
@@ -17,6 +10,13 @@ export async function POST(req: NextRequest) {
     if (!question) {
       return NextResponse.json({ error: "Question required" }, { status: 400 })
     }
+
+    // Initialize clients at runtime (not build time)
+    const supabase = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
     // 1. Embed query
     const embResp = await openai.embeddings.create({
