@@ -84,7 +84,7 @@ def main():
 
     stored = 0
     for i, result in enumerate(results, 1):
-        metadata = client.extract_rag_metadata(result)
+        metadata = client.extract_rag_metadata(result, state=args.state)
         text = None
 
         if args.fetch_text and result.get("opinions"):

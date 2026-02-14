@@ -136,24 +136,40 @@ def fetch_and_store(
 
     stored_paths = []
     supabase_stored = 0
+    supabase_skipped = 0
+
+    MIN_PLAIN_TEXT_LEN = 200  # Skip cases without usable text for training
 
     for result in results:
-        metadata = client.extract_rag_metadata(result)
+        metadata = client.extract_rag_metadata(result, state=state)
         plain_text = None
         if fetch_full_text and result.get("opinions"):
             opinion_id = result["opinions"][0].get("id")
             if opinion_id:
                 plain_text = client.get_opinion_text(opinion_id)
                 time.sleep(1)
+        # Only persist to volume when we have usable text (same filter as Supabase)
         text_for_storage = plain_text if fetch_full_text else None
-        path = storage.store_case(
-            metadata, text=text_for_storage, raw_result=result
-        )
-        stored_paths.append(
-            {"path": str(path.relative_to(base_dir)), "case": metadata.get("case_name", "N/A")}
-        )
+        if fetch_full_text and text_for_storage and len((text_for_storage or "").strip()) >= MIN_PLAIN_TEXT_LEN:
+            path = storage.store_case(
+                metadata, text=text_for_storage, raw_result=result
+            )
+            stored_paths.append(
+                {"path": str(path.relative_to(base_dir)), "case": metadata.get("case_name", "N/A")}
+            )
 
         if write_supabase:
+            # Only store cases with usable plain_text for training
+            if not fetch_full_text:
+                supabase_skipped += 1
+                continue
+            text_ok = (
+                plain_text is not None
+                and len((plain_text or "").strip()) >= MIN_PLAIN_TEXT_LEN
+            )
+            if not text_ok:
+                supabase_skipped += 1
+                continue
             try:
                 _upsert_raw_case(result, metadata, state=state, plain_text=plain_text)
                 supabase_stored += 1
@@ -162,15 +178,20 @@ def fetch_and_store(
 
     volume.commit()
 
-    counts = {"fetched": len(results), "volume_stored": len(stored_paths)}
+    counts = {
+        "fetched": len(results),
+        "volume_stored": len(stored_paths),
+        "supabase_stored": supabase_stored,
+        "supabase_skipped": supabase_skipped,
+    }
     if write_supabase:
-        counts["supabase_stored"] = supabase_stored
         _log_pipeline_run("fetch", "ok", counts, _filters(query, courts, state))
 
     return {
         "fetched": len(results),
         "stored": len(stored_paths),
         "supabase_stored": supabase_stored,
+        "supabase_skipped": supabase_skipped,
         "base_dir": str(base_dir),
         "samples": stored_paths[:5],
     }

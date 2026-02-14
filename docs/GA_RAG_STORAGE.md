@@ -30,11 +30,12 @@ RAG retrieval for GA users
 - `state = 'GA'` on all rows (GA appellate courts only).
 - `county` inferred from court name when possible; defaults to `"Georgia"` for statewide courts (gact, gactapp).
 
-### 3. Full text for RAG
+### 3. Training-ready filter (plain text required)
 
-- `plain_text` stores full opinion text when `fetch_full_text=true`.
-- Needed for chunking and embedding. Default fetch stores metadata only (faster).
-- Trigger with full text: `{"max_results": 50, "fetch_full_text": true}` (slower; 1 API call per case).
+- **Only cases with usable plain_text are stored.** Use `fetch_full_text=true`.
+- Minimum 200 chars; cases without text or with stub content are skipped.
+- State and county are always set (statewide appellate courts use state name for county).
+- `training_ready_cases` view: `SELECT * FROM training_ready_cases` for chunk/embed.
 
 ### 4. Audit trail
 

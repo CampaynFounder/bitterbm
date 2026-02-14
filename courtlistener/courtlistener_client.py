@@ -33,6 +33,15 @@ STATE_COURTS: dict[str, list[str]] = {
     "TX": ["txct", "txctapp"],
 }
 
+# Default county for statewide appellate courts (Supreme Court, Court of Appeals)
+# When court name has no "X County", use this; enables state + county for all cases
+STATE_DEFAULT_COUNTY: dict[str, str] = {
+    "GA": "Georgia",
+    "NC": "North Carolina",
+    "FL": "Florida",
+    "TX": "Texas",
+}
+
 
 def get_courts_for_state(state: str) -> list[str]:
     """Return CourtListener court_ids for a state. Falls back to GA if unknown."""
@@ -130,10 +139,11 @@ class CourtListenerClient:
         opinion = response.json()
         return opinion.get("plain_text") or opinion.get("html", "")
 
-    def extract_rag_metadata(self, result: dict) -> dict:
+    def extract_rag_metadata(self, result: dict, state: str = "GA") -> dict:
         """
-        Extract GA County, Judge, Date from a search result for RAG storage.
-        County may be inferred from court name or case metadata when available.
+        Extract state, county, judge, date from a search result for RAG storage.
+        County: inferred from court name (e.g. "Fulton County") or default for
+        statewide appellate courts (Supreme Court, Court of Appeals).
         """
         court = result.get("court", "")
         court_id = result.get("court_id", "")
@@ -142,8 +152,11 @@ class CourtListenerClient:
             judge = ", ".join(str(j) for j in judge) if judge else "Unknown"
         date_filed = result.get("dateFiled", "") or "unknown"
 
+        state_upper = (state or "GA").strip().upper()
+        default_county = STATE_DEFAULT_COUNTY.get(state_upper, state_upper)
+
         # Infer county from court name (e.g. "Fulton County Superior Court")
-        county = "Georgia"  # Default when no county in court name
+        county = default_county
         county_match = re.search(
             r"([A-Za-z\s]+)\s+County", court, re.IGNORECASE
         )

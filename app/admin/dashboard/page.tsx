@@ -277,7 +277,9 @@ export default function AdminDashboardPage() {
             ) : (
               <p className="text-gray-500 text-sm">No fetch runs yet.</p>
             )}
-            <p className="text-xs text-gray-500 mb-2">Uses max results above. Upsert on cluster_id avoids duplicates on re-run.</p>
+            <p className="text-xs text-gray-500 mb-2">
+              Use &quot;Fetch + text (RAG)&quot; to store—only cases with usable plain text (≥200 chars) and state/county are stored. Metadata-only fetch stores nothing.
+            </p>
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <button
                 onClick={() => handleTriggerFetch({ query: fetchQuery, state: fetchState })}
@@ -297,6 +299,9 @@ export default function AdminDashboardPage() {
               {triggerResult && (
                 <span className="text-sm text-green-400">
                   Done: {triggerResult.fetched} fetched, {triggerResult.supabase_stored} stored
+                  {typeof triggerResult.supabase_skipped === "number" && triggerResult.supabase_skipped > 0 && (
+                    <span className="text-amber-400">, {triggerResult.supabase_skipped} skipped (no usable text)</span>
+                  )}
                 </span>
               )}
             </div>
