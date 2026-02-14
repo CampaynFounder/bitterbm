@@ -1,23 +1,21 @@
 #!/usr/bin/env python3
-"""
-Test CourtListener retrieval and storage before RAG.
+"""Test CourtListener retrieval and storage before RAG.
 
 Fetches GA alienation cases from CourtListener, stores to Modal Volume + Supabase.
-Run from project root:
+Run from project root: python3 -m modal run modal_courtlistener_test.py
 
-  python3 -m modal run modal_courtlistener_test.py
-
-Secrets: courtlistener (COURTLISTENER_API_TOKEN), supabase-secret (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+Secrets: courtlistener, supabase-secret, pipeline-trigger
 """
+from __future__ import annotations
 
 import json
+from typing import Optional
 import os
 import sys
 from datetime import datetime
 from pathlib import Path
 
 import modal
-from supabase import create_client
 
 # Add courtlistener for imports when run via modal
 sys.path.insert(0, str(Path(__file__).resolve().parent / "courtlistener"))
@@ -27,6 +25,8 @@ from rag_storage import RAGStorage
 
 
 def _supabase_client():
+    from supabase import create_client
+
     url = os.environ.get("SUPABASE_URL")
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
     if not url or not key:
@@ -61,7 +61,7 @@ def _upsert_raw_case(result: dict, metadata: dict) -> None:
 
 
 def _log_pipeline_run(
-    step: str, status: str, counts: dict, filters: dict | None = None
+    step: str, status: str, counts: dict, filters: Optional[dict] = None
 ) -> None:
     sb = _supabase_client()
     sb.table("pipeline_runs").insert(
@@ -76,6 +76,10 @@ volume = modal.Volume.from_name("courtlistener-rag", create_if_missing=True)
 image = modal.Image.debian_slim(python_version="3.11").pip_install(
     "requests",
     "supabase",
+)
+
+image_web = modal.Image.debian_slim(python_version="3.11").pip_install(
+    "fastapi[standard]",
 )
 
 FILTERS = {"query": "alienation", "courts": ["gact", "gactapp"]}
@@ -171,6 +175,47 @@ def verify_storage() -> dict:
         "base_dir": str(base_dir),
         "samples": samples,
     }
+
+
+@app.function(
+    image=image_web,
+    secrets=[modal.Secret.from_name("pipeline-trigger")],
+)
+@modal.fastapi_endpoint(method="POST")
+async def trigger_fetch(request: "Request"):
+    """HTTP endpoint to trigger CourtListener fetch. Requires Bearer token."""
+    import asyncio
+    import os
+    from fastapi import HTTPException, Request, status
+
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing Authorization: Bearer header",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    token = auth[7:].strip()
+    expected = os.environ.get("TRIGGER_SECRET")
+    if not expected or token != expected:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
+    max_results = int(body.get("max_results", 20))
+    max_results = max(1, min(max_results, 500))
+
+    result = await asyncio.to_thread(
+        fetch_and_store.remote, max_results=max_results, write_supabase=True
+    )
+    return result
 
 
 @app.local_entrypoint()

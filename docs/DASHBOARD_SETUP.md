@@ -40,18 +40,29 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 
 ### 4. Modal secrets
 
-Ensure Modal has both secrets:
+Ensure Modal has all secrets:
 
 ```bash
 modal secret create courtlistener COURTLISTENER_API_TOKEN=xxx
 modal secret create supabase-secret SUPABASE_URL=xxx SUPABASE_SERVICE_ROLE_KEY=xxx
+modal secret create pipeline-trigger TRIGGER_SECRET=your-random-string
 ```
 
-### 5. Run fetch
+### 5. Deploy Modal web endpoint
 
 ```bash
-python3 -m modal run modal_courtlistener_test.py --action fetch --max-results 20
+modal deploy modal_courtlistener_test.py
 ```
+
+Copy the URL for `trigger_fetch` (e.g. `https://vannilli--courtlistener-test-trigger-fetch.modal.run`) and add to Cloudflare:
+
+- `NEXT_PUBLIC_MODAL_TRIGGER_URL` = that URL
+- `NEXT_PUBLIC_PIPELINE_TRIGGER_SECRET` = same value as `TRIGGER_SECRET`
+
+### 6. Run fetch (CLI or dashboard)
+
+CLI: `python3 -m modal run modal_courtlistener_test.py --action fetch --max-results 20`  
+Or use the **Trigger fetch** button on `/admin/dashboard`.
 
 ## Dashboard sections
 

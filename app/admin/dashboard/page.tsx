@@ -35,6 +35,8 @@ export default function AdminDashboardPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [triggering, setTriggering] = useState(false)
+  const [triggerResult, setTriggerResult] = useState<Record<string, number> | null>(null)
   const [state, setState] = useState<DashboardState | null>(null)
   const [user, setUser] = useState<{ email?: string } | null>(null)
 
@@ -104,6 +106,56 @@ export default function AdminDashboardPage() {
     load()
   }, [user])
 
+  async function handleTriggerFetch(maxResults: number = 20) {
+    const url = process.env.NEXT_PUBLIC_MODAL_TRIGGER_URL
+    const secret = process.env.NEXT_PUBLIC_PIPELINE_TRIGGER_SECRET
+    if (!url || !secret) {
+      setError("Set NEXT_PUBLIC_MODAL_TRIGGER_URL and NEXT_PUBLIC_PIPELINE_TRIGGER_SECRET in Cloudflare env")
+      return
+    }
+    setTriggering(true)
+    setTriggerResult(null)
+    setError(null)
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${secret}`,
+        },
+        body: JSON.stringify({ max_results: maxResults }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.detail || `HTTP ${res.status}`)
+      }
+      setTriggerResult(data)
+      // Refresh status by reloading
+      const [rawRes, runsRes, sampleRes, countyRes] = await Promise.all([
+        supabase.from("raw_cases").select("cluster_id", { count: "exact", head: true }),
+        supabase.from("pipeline_runs").select("*").eq("step", "fetch").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+        supabase.from("raw_cases").select("cluster_id, case_name, court, county, judge, date_filed").order("date_filed", { ascending: false, nullsFirst: false }).limit(5),
+        supabase.from("raw_cases").select("county"),
+      ])
+      const counties = Array.from(new Set((countyRes.data ?? []).map((r: { county: string | null }) => r.county).filter(Boolean) as string[])).sort()
+      setState((prev) =>
+        prev
+          ? {
+              ...prev,
+              rawCasesCount: rawRes.count ?? 0,
+              lastFetch: (runsRes.data as PipelineRun | null) ?? prev.lastFetch,
+              sampleCases: (sampleRes.data ?? []) as RawCase[],
+              counties,
+            }
+          : prev
+      )
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Trigger failed")
+    } finally {
+      setTriggering(false)
+    }
+  }
+
   async function handleSignOut() {
     await supabase.auth.signOut()
     router.replace("/admin/login")
@@ -168,8 +220,29 @@ export default function AdminDashboardPage() {
                 )}
               </div>
             ) : (
-              <p className="text-gray-500 text-sm">No fetch runs yet. Run Modal fetch.</p>
+              <p className="text-gray-500 text-sm">No fetch runs yet.</p>
             )}
+            <div className="mt-3 flex items-center gap-3">
+              <button
+                onClick={() => handleTriggerFetch(20)}
+                disabled={triggering}
+                className="px-3 py-1.5 rounded bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-sm font-medium"
+              >
+                {triggering ? "Running…" : "Trigger fetch (20)"}
+              </button>
+              <button
+                onClick={() => handleTriggerFetch(50)}
+                disabled={triggering}
+                className="px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white text-sm"
+              >
+                {triggering ? "…" : "Fetch 50"}
+              </button>
+              {triggerResult && (
+                <span className="text-sm text-green-400">
+                  Done: {triggerResult.fetched} fetched, {triggerResult.supabase_stored} stored
+                </span>
+              )}
+            </div>
           </section>
 
           {/* 2. Storage */}
