@@ -20,9 +20,9 @@ Run the migration in Supabase SQL Editor:
 # Or: supabase db push (if using Supabase CLI)
 ```
 
-SQL: `supabase/migrations/001_pipeline_tables.sql`
+SQL: `supabase/migrations/001_pipeline_tables.sql` then `002_add_state_plaintext.sql` (for state, plain_text).
 
-Creates: `raw_cases`, `pipeline_runs`, `case_chunks` (with pgvector).
+Creates: `raw_cases` (state, plain_text), `pipeline_runs`, `case_chunks` (with pgvector).
 
 ### 2. Supabase Auth
 
@@ -62,7 +62,9 @@ Copy the URL for `trigger_fetch` (e.g. `https://vannilli--courtlistener-test-tri
 ### 6. Run fetch (CLI or dashboard)
 
 CLI: `python3 -m modal run modal_courtlistener_test.py --action fetch --max-results 20`  
-Or use the **Trigger fetch** button on `/admin/dashboard`.
+Or use the **Trigger fetch** buttons on `/admin/dashboard`:
+- **Fetch 20** / **Fetch 50** – metadata only (fast)
+- **Fetch 20 + text (RAG)** – full opinion text for chunk+embed (slower)
 
 ## Dashboard sections
 

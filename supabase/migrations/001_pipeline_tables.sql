@@ -2,6 +2,7 @@
 -- Run in Supabase SQL Editor or via supabase db push
 
 -- Raw cases from CourtListener (before chunking)
+-- GA-focused: all alienation cases from GA appellate courts (gact, gactapp)
 create table if not exists raw_cases (
   id uuid primary key default gen_random_uuid(),
   cluster_id text not null,
@@ -9,18 +10,21 @@ create table if not exists raw_cases (
   case_name_full text,
   court text,
   court_id text,
+  state text default 'GA',
   county text default 'Georgia',
   judge text,
   date_filed date,
   docket_number text,
   citation jsonb,
   source text default 'courtlistener',
+  plain_text text,
   metadata jsonb,
   created_at timestamptz default now(),
   unique(cluster_id, source)
 );
 
 create index if not exists raw_cases_cluster_id on raw_cases(cluster_id);
+create index if not exists raw_cases_state on raw_cases(state);
 create index if not exists raw_cases_county on raw_cases(county);
 create index if not exists raw_cases_date_filed on raw_cases(date_filed);
 

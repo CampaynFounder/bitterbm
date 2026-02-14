@@ -51,14 +51,17 @@ class CourtListenerClient:
         courts = courts or GEORGIA_COURTS
         endpoint = f"{BASE_URL}/search/"
 
+        # Build q with court_id filter (fielded search) so we only get GA courts
+        court_filter = " OR ".join(f"court_id:{c}" for c in courts)
+        q_with_courts = f"({query}) AND ({court_filter})"
+
         all_results = []
         cursor = None
 
         while len(all_results) < max_results:
             params = {
-                "q": query,
+                "q": q_with_courts,
                 "type": "o",  # opinions
-                "order_by": "-dateFiled",
             }
             if filed_after:
                 params["filed_after"] = filed_after
@@ -66,10 +69,6 @@ class CourtListenerClient:
                 params["filed_before"] = filed_before
             if cursor:
                 params["cursor"] = cursor
-
-            # Filter by court: CourtListener frontend uses court_<id>=on
-            for court in courts:
-                params[f"court_{court}"] = "on"
 
             # Cursor-based pagination for Search API
             print(f"Fetching page (cursor={'...' + str(cursor)[-20:] if cursor else 'initial'})...")

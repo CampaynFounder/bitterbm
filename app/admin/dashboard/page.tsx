@@ -106,7 +106,7 @@ export default function AdminDashboardPage() {
     load()
   }, [user])
 
-  async function handleTriggerFetch(maxResults: number = 20) {
+  async function handleTriggerFetch(maxResults: number = 20, fetchFullText = false) {
     const url = process.env.NEXT_PUBLIC_MODAL_TRIGGER_URL
     const secret = process.env.NEXT_PUBLIC_PIPELINE_TRIGGER_SECRET
     if (!url || !secret) {
@@ -123,7 +123,7 @@ export default function AdminDashboardPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${secret}`,
         },
-        body: JSON.stringify({ max_results: maxResults }),
+        body: JSON.stringify({ max_results: maxResults, fetch_full_text: fetchFullText }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -237,6 +237,14 @@ export default function AdminDashboardPage() {
               >
                 {triggering ? "…" : "Fetch 50"}
               </button>
+              <button
+                onClick={() => handleTriggerFetch(20, true)}
+                disabled={triggering}
+                className="px-3 py-1.5 rounded bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm"
+                title="Fetches full opinion text for RAG (slower)"
+              >
+                {triggering ? "…" : "Fetch 20 + text (RAG)"}
+              </button>
               {triggerResult && (
                 <span className="text-sm text-green-400">
                   Done: {triggerResult.fetched} fetched, {triggerResult.supabase_stored} stored
@@ -251,6 +259,20 @@ export default function AdminDashboardPage() {
             <p className="text-sm text-gray-400 mb-3">
               JSON/text from CourtListener stored in Supabase raw_cases table.
             </p>
+            <div className="space-y-2 text-sm font-mono text-gray-400 mb-3">
+              <p>
+                <span className="text-gray-500">CourtListener filter:</span>{" "}
+                <code className="text-amber-200/80">q=alienation type=o court_gact=on court_gactapp=on</code>
+              </p>
+              <p>
+                <span className="text-gray-500">Supabase query:</span>{" "}
+                <code className="text-amber-200/80">SELECT county FROM raw_cases</code>
+                <span className="text-gray-500"> (no WHERE)</span>
+              </p>
+            </div>
+            <p className="text-xs text-gray-500 mb-3">
+              County defaults to &quot;Georgia&quot;: gact/gactapp are statewide courts (GA Supreme, GA Appeals). County is inferred from court name (e.g. &quot;Fulton County Superior Court&quot;); when missing we use &quot;Georgia&quot;.
+            </p>
             <div className="space-y-2 text-sm">
               <p>
                 <span className="text-gray-500">Total raw cases:</span>{" "}
@@ -258,7 +280,7 @@ export default function AdminDashboardPage() {
               </p>
               {state && state.counties.length > 0 && (
                 <p>
-                  <span className="text-gray-500">Counties:</span>{" "}
+                  <span className="text-gray-500">Counties in DB:</span>{" "}
                   {state.counties.join(", ")}
                 </p>
               )}
