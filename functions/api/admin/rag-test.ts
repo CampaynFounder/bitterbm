@@ -23,8 +23,14 @@ export async function onRequestPost(context: {
   const openaiKey = env.OPENAI_API_KEY
 
   if (!supabaseUrl || !supabaseKey || !openaiKey) {
+    const envKeys = typeof env === "object" && env !== null
+      ? Object.keys(env).filter((k) => !k.startsWith("__") && k !== "ASSETS").sort().join(", ")
+      : "(env not available)"
     return json(
-      { error: "Server configuration missing (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY)" },
+      {
+        error: "Server configuration missing (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY)",
+        hint: "Add these in Cloudflare: Settings > Environment variables (Production). Redeploy after adding. Env keys present: " + (envKeys || "none"),
+      },
       500
     )
   }
