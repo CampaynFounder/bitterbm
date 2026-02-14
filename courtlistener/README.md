@@ -61,7 +61,7 @@ rag/
 
 Georgia courts included:
 
-- `gact` – Georgia Supreme Court  
+- `ga` – Georgia Supreme Court  
 - `gactapp` – Georgia Court of Appeals  
 
 Family law opinions (custody, alienation) in Georgia are typically published by these appellate courts.

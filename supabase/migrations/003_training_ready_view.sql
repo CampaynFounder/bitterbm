@@ -16,6 +16,7 @@ select
   citation,
   source,
   plain_text,
+  pdf_url,
   metadata,
   created_at
 from raw_cases

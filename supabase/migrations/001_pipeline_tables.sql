@@ -2,7 +2,7 @@
 -- Run in Supabase SQL Editor or via supabase db push
 
 -- Raw cases from CourtListener (before chunking)
--- GA-focused: all alienation cases from GA appellate courts (gact, gactapp)
+-- GA-focused: all alienation cases from GA appellate courts (ga, gactapp)
 create table if not exists raw_cases (
   id uuid primary key default gen_random_uuid(),
   cluster_id text not null,
@@ -35,7 +35,7 @@ create table if not exists pipeline_runs (
   status text not null default 'ok', -- 'ok' | 'error'
   message text,
   counts jsonb, -- { "fetched": 20, "stored": 20, "skipped": 0 }
-  filters jsonb, -- { "query": "alienation", "courts": ["gact", "gactapp"] }
+  filters jsonb, -- { "query": "alienation", "courts": ["ga", "gactapp"] }
   error_detail text,
   created_at timestamptz default now()
 );

@@ -30,11 +30,42 @@ def _supabase_client():
     return create_client(url, key)
 
 
+PDF_BUCKET = "case-pdfs"
+
+
+def _ensure_pdf_bucket(sb) -> None:
+    """Create case-pdfs bucket if it does not exist (public read for PDF access)."""
+    try:
+        sb.storage.create_bucket(PDF_BUCKET, options={"public": True})
+    except Exception:
+        pass  # Bucket likely already exists
+
+
+def _upload_pdf_to_storage(
+    cluster_id: str, state: str, pdf_bytes: bytes
+) -> str | None:
+    """Upload PDF to Supabase Storage; return public URL or None."""
+    sb = _supabase_client()
+    _ensure_pdf_bucket(sb)
+    path = f"{state}/{cluster_id}.pdf"
+    try:
+        sb.storage.from_(PDF_BUCKET).upload(
+            path,
+            pdf_bytes,
+            file_options={"content-type": "application/pdf", "upsert": True},
+        )
+        return sb.storage.from_(PDF_BUCKET).get_public_url(path)
+    except Exception as e:
+        print(f"PDF upload failed for {cluster_id}: {e}")
+        return None
+
+
 def _upsert_raw_case(
     result: dict,
     metadata: dict,
     state: str = "GA",
     plain_text: str | None = None,
+    pdf_url: str | None = None,
 ) -> None:
     sb = _supabase_client()
     date_filed = metadata.get("date_filed")
@@ -58,6 +89,7 @@ def _upsert_raw_case(
         "citation": metadata.get("citation"),
         "source": "courtlistener",
         "plain_text": plain_text,
+        "pdf_url": pdf_url,
         "metadata": result,
     }
     sb.table("raw_cases").upsert(row, on_conflict="cluster_id,source").execute()
@@ -140,14 +172,28 @@ def fetch_and_store(
 
     MIN_PLAIN_TEXT_LEN = 200  # Skip cases without usable text for training
 
+    pdfs_stored = 0
+
     for result in results:
         metadata = client.extract_rag_metadata(result, state=state)
         plain_text = None
+        pdf_url = None
         if fetch_full_text and result.get("opinions"):
             opinion_id = result["opinions"][0].get("id")
             if opinion_id:
-                plain_text = client.get_opinion_text(opinion_id)
+                opinion = client.get_opinion(opinion_id)
                 time.sleep(1)
+                if opinion:
+                    plain_text = client._extract_text_from_opinion(opinion)
+                    local_path = opinion.get("local_path")
+                    if local_path:
+                        pdf_bytes = client.download_pdf(local_path)
+                        if pdf_bytes and write_supabase:
+                            cluster_id = str(metadata.get("cluster_id", ""))
+                            pdf_url = _upload_pdf_to_storage(cluster_id, state, pdf_bytes)
+                            if pdf_url:
+                                pdfs_stored += 1
+                        time.sleep(0.5)
         # Only persist to volume when we have usable text (same filter as Supabase)
         text_for_storage = plain_text if fetch_full_text else None
         if fetch_full_text and text_for_storage and len((text_for_storage or "").strip()) >= MIN_PLAIN_TEXT_LEN:
@@ -159,7 +205,6 @@ def fetch_and_store(
             )
 
         if write_supabase:
-            # Only store cases with usable plain_text for training
             if not fetch_full_text:
                 supabase_skipped += 1
                 continue
@@ -167,14 +212,18 @@ def fetch_and_store(
                 plain_text is not None
                 and len((plain_text or "").strip()) >= MIN_PLAIN_TEXT_LEN
             )
-            if not text_ok:
+            has_pdf = pdf_url is not None
+            # Store if we have usable text OR a PDF (PDF-only cases saved for later extraction)
+            if text_ok or has_pdf:
+                try:
+                    _upsert_raw_case(
+                        result, metadata, state=state, plain_text=plain_text or None, pdf_url=pdf_url
+                    )
+                    supabase_stored += 1
+                except Exception as e:
+                    print(f"Supabase upsert failed for {metadata.get('cluster_id')}: {e}")
+            else:
                 supabase_skipped += 1
-                continue
-            try:
-                _upsert_raw_case(result, metadata, state=state, plain_text=plain_text)
-                supabase_stored += 1
-            except Exception as e:
-                print(f"Supabase upsert failed for {metadata.get('cluster_id')}: {e}")
 
     volume.commit()
 
@@ -183,6 +232,7 @@ def fetch_and_store(
         "volume_stored": len(stored_paths),
         "supabase_stored": supabase_stored,
         "supabase_skipped": supabase_skipped,
+        "pdfs_stored": pdfs_stored,
     }
     if write_supabase:
         _log_pipeline_run("fetch", "ok", counts, _filters(query, courts, state))
@@ -192,6 +242,7 @@ def fetch_and_store(
         "stored": len(stored_paths),
         "supabase_stored": supabase_stored,
         "supabase_skipped": supabase_skipped,
+        "pdfs_stored": pdfs_stored,
         "base_dir": str(base_dir),
         "samples": stored_paths[:5],
     }

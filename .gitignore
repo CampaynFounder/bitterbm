@@ -26,5 +26,5 @@ yarn-error.log*
 *.swo
 
 # CourtListener RAG data (add your own; don't commit large datasets)
-rag/
+# rag/ directory removed from ignore - needed for RAG module
 courtlistener_downloads/

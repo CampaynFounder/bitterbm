@@ -16,10 +16,13 @@ import requests
 
 # CourtListener API v4 (recommended)
 BASE_URL = "https://www.courtlistener.com/api/rest/v4"
+STORAGE_BASE_URL = "https://storage.courtlistener.com"
 
 # Georgia courts with case law opinions (family/custody cases often in these)
+# court_id:ga = Georgia Supreme Court; court_id:gactapp = Georgia Court of Appeals
+# (gact returns 0 results on CourtListener - use ga)
 GEORGIA_COURTS = [
-    "gact",      # Georgia Supreme Court
+    "ga",        # Georgia Supreme Court
     "gactapp",   # Georgia Court of Appeals
 ]
 
@@ -27,7 +30,7 @@ GEORGIA_COURTS = [
 # Extend as needed; see https://www.courtlistener.com/help/api/jurisdictions/
 # Pass courts explicitly in search_opinions() if your state isn't mapped.
 STATE_COURTS: dict[str, list[str]] = {
-    "GA": ["gact", "gactapp"],
+    "GA": ["ga", "gactapp"],
     "NC": ["ncct", "ncctapp"],
     "FL": ["flct", "flctapp"],
     "TX": ["txct", "txctapp"],
@@ -72,7 +75,7 @@ class CourtListenerClient:
         """
         Search CourtListener for opinions (case law) matching the query.
         Uses the Search API with type=o (opinions) - appellate opinions/case law only.
-        Courts (gact, gactapp, etc.) are appellate; type=o excludes dockets/other docs.
+        Courts (ga, gactapp, etc.) are appellate; type=o excludes dockets/other docs.
         Use alienat* to match alienation/alienated/alienating but exclude "alien".
         """
         courts = courts or GEORGIA_COURTS
@@ -128,16 +131,73 @@ class CourtListenerClient:
 
         return all_results[:max_results]
 
-    def get_opinion_text(self, opinion_id: int) -> str | None:
-        """Fetch full opinion text from the opinions API."""
+    def get_opinion(self, opinion_id: int) -> dict | None:
+        """Fetch full opinion from the opinions API (includes plain_text, local_path, etc.)."""
         endpoint = f"{BASE_URL}/opinions/{opinion_id}/"
         response = requests.get(endpoint, headers=self.headers)
-
         if response.status_code != 200:
             return None
+        return response.json()
 
-        opinion = response.json()
-        return opinion.get("plain_text") or opinion.get("html", "")
+    def get_opinion_text(self, opinion_id: int) -> str | None:
+        """Fetch full opinion text from the opinions API."""
+        opinion = self.get_opinion(opinion_id)
+        if not opinion:
+            return None
+        return self._extract_text_from_opinion(opinion)
+
+    def _extract_text_from_opinion(self, opinion: dict) -> str:
+        """
+        Extract usable text from opinion. CourtListener recommends html_with_citations
+        as most reliable; fall back to plain_text, html, xml_harvard.
+        """
+        text = (
+            opinion.get("plain_text")
+            or opinion.get("html_with_citations")
+            or opinion.get("html")
+            or opinion.get("xml_harvard", "")
+        )
+        if not text or not isinstance(text, str):
+            return ""
+        # Strip HTML tags for a cleaner plain text if we got HTML
+        if "<" in text and ">" in text:
+            text = re.sub(r"<[^>]+>", " ", text)
+            text = re.sub(r"\s+", " ", text).strip()
+        return text
+
+    def get_opinion_pdf_url(self, opinion: dict) -> str | None:
+        """
+        Return the full URL to download the PDF for an opinion, if available.
+        Per CourtListener docs: concatenate local_path with https://storage.courtlistener.com/
+        """
+        local_path = opinion.get("local_path")
+        if not local_path or not isinstance(local_path, str) or not local_path.strip():
+            return None
+        path = local_path.strip()
+        if not path.lower().endswith((".pdf", ".PDF")):
+            return None
+        base = STORAGE_BASE_URL.rstrip("/")
+        path = path if path.startswith("/") else f"/{path}"
+        return f"{base}{path}"
+
+    def download_pdf(self, local_path: str) -> bytes | None:
+        """
+        Download PDF from CourtListener storage.
+        local_path: from opinion['local_path']; will be concatenated with storage.courtlistener.com
+        """
+        if not local_path or not local_path.strip():
+            return None
+        path = local_path.strip()
+        base = STORAGE_BASE_URL.rstrip("/")
+        path = path if path.startswith("/") else f"/{path}"
+        url = f"{base}{path}"
+        response = requests.get(url, timeout=60)
+        if response.status_code != 200:
+            return None
+        content_type = response.headers.get("content-type", "")
+        if "pdf" not in content_type.lower() and not response.content[:4] == b"%PDF":
+            return None
+        return response.content
 
     def extract_rag_metadata(self, result: dict, state: str = "GA") -> dict:
         """
