@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { MenuToggleIcon } from "./MenuToggleIcon"
 
 const MENU_ITEMS = [
   { href: "/assessment", label: "Assessment" },
@@ -55,38 +56,11 @@ export function HamburgerMenu({ visible = true }: Props) {
           WebkitBackdropFilter: "blur(12px)",
         }}
       >
-        <span
-          style={{
-            display: "block",
-            width: 20,
-            height: 2,
-            background: "var(--text-primary)",
-            borderRadius: 1,
-            transform: open ? "rotate(45deg) translate(5px, 5px)" : "none",
-            transition: "transform 0.2s ease",
-          }}
-        />
-        <span
-          style={{
-            display: "block",
-            width: 20,
-            height: 2,
-            background: "var(--text-primary)",
-            borderRadius: 1,
-            opacity: open ? 0 : 1,
-            transition: "opacity 0.2s ease",
-          }}
-        />
-        <span
-          style={{
-            display: "block",
-            width: 20,
-            height: 2,
-            background: "var(--text-primary)",
-            borderRadius: 1,
-            transform: open ? "rotate(-45deg) translate(5px, -5px)" : "none",
-            transition: "transform 0.2s ease",
-          }}
+        <MenuToggleIcon
+          open={open}
+          duration={300}
+          stroke="var(--text-primary)"
+          style={{ width: 24, height: 24 }}
         />
       </button>
 
