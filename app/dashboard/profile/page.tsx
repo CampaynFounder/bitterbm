@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
+import { US_STATES } from "@/lib/constants"
 
 const GOALS = [
   { value: "sole_custody", label: "Sole custody" },
@@ -26,6 +27,7 @@ export default function ProfilePage() {
   const [retainedAttorneyName, setRetainedAttorneyName] = useState("")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState<{ type: string; last4: string | null; brand: string | null; issuer: string | null; pm_metadata?: Record<string, unknown> } | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -39,24 +41,24 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!user) return
-    supabase
-      .from("user_profiles")
-      .select("*")
-      .eq("id", user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) {
-          setState(data.state ?? "")
-          setCounty(data.county ?? "")
-          setPrimaryGoal(data.primary_goal ?? "")
-          setChildAge(data.child_age ?? "")
-          setChildGrade(data.child_grade ?? "")
-          setChildInterests(data.child_interests ?? "")
-          setSituationSynopsis(data.situation_synopsis ?? "")
-          setRetainedAttorneyName(data.retained_attorney_name ?? "")
-        }
-        setLoading(false)
-      })
+    Promise.all([
+      supabase.from("user_profiles").select("*").eq("id", user.id).maybeSingle(),
+      supabase.from("payment_methods").select("type, last4, brand, issuer, pm_metadata").eq("user_id", user.id).eq("is_default", true).maybeSingle(),
+    ]).then(([profileRes, pmRes]) => {
+      if (profileRes.data) {
+        const d = profileRes.data
+        setState(d.state ?? "")
+        setCounty(d.county ?? "")
+        setPrimaryGoal(d.primary_goal ?? "")
+        setChildAge(d.child_age ?? "")
+        setChildGrade(d.child_grade ?? "")
+        setChildInterests(d.child_interests ?? "")
+        setSituationSynopsis(d.situation_synopsis ?? "")
+        setRetainedAttorneyName(d.retained_attorney_name ?? "")
+      }
+      if (pmRes.data) setPaymentMethod(pmRes.data)
+      setLoading(false)
+    })
   }, [user])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -102,14 +104,16 @@ export default function ProfilePage() {
             <label style={{ display: "block", fontSize: "0.875rem", marginBottom: "var(--space-xs)", color: "var(--text-secondary)" }}>
               State <span style={{ color: "var(--accent-cyan)" }}>*</span>
             </label>
-            <input
-              type="text"
+            <select
               value={state}
               onChange={(e) => setState(e.target.value)}
               required
-              placeholder="e.g. GA"
-              style={{ width: "100%", padding: "var(--space-md)", background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)" }}
-            />
+              style={{ width: "100%", padding: "var(--space-md)", background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)", fontSize: "1rem" }}
+            >
+              {US_STATES.map((s) => (
+                <option key={s.value || "empty"} value={s.value}>{s.label}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label style={{ display: "block", fontSize: "0.875rem", marginBottom: "var(--space-xs)", color: "var(--text-secondary)" }}>
@@ -124,6 +128,43 @@ export default function ProfilePage() {
               style={{ width: "100%", padding: "var(--space-md)", background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)" }}
             />
           </div>
+          {paymentMethod && (
+            <div
+              style={{
+                padding: "var(--space-md)",
+                background: "var(--bg-elevated)",
+                borderRadius: "8px",
+                border: "1px solid var(--border)",
+              }}
+            >
+              <p style={{ fontSize: "0.875rem", color: "var(--text-muted)", marginBottom: "var(--space-xs)" }}>Payment method on file</p>
+              <p style={{ fontSize: "1rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                {paymentMethod.type === "card" && paymentMethod.brand
+                  ? `${paymentMethod.brand.charAt(0).toUpperCase() + paymentMethod.brand.slice(1)} •••• ${paymentMethod.last4 ?? "****"}`
+                  : paymentMethod.type === "klarna"
+                  ? "Klarna"
+                  : paymentMethod.type === "cashapp"
+                  ? "Cash App"
+                  : `•••• ${paymentMethod.last4 ?? "****"}`}
+              </p>
+              <div style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginTop: "var(--space-xs)" }}>
+                {paymentMethod.issuer && <p>Issuer: {paymentMethod.issuer}</p>}
+                {paymentMethod.pm_metadata && (
+                  <>
+                    {paymentMethod.pm_metadata.network && (
+                      <p>Scheme: {String(paymentMethod.pm_metadata.network)}</p>
+                    )}
+                    {paymentMethod.pm_metadata.funding && (
+                      <p>Funding: {String(paymentMethod.pm_metadata.funding)}</p>
+                    )}
+                  </>
+                )}
+              </div>
+              <Link href="/dashboard/payment" style={{ fontSize: "0.8125rem", color: "var(--accent-muted)", marginTop: "var(--space-xs)", display: "inline-block" }}>
+                Update payment method
+              </Link>
+            </div>
+          )}
           <div>
             <label style={{ display: "block", fontSize: "0.875rem", marginBottom: "var(--space-sm)", color: "var(--text-secondary)" }}>
               Primary goal

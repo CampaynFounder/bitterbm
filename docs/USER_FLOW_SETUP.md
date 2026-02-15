@@ -44,14 +44,37 @@ Ensure these Secrets are set (Settings → Environment variables → Secrets):
 - `NEXT_PUBLIC_SUPABASE_URL` (build-time)
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` (build-time)
 
-## 5. Stripe (When Ready)
+## 5. Stripe
 
-Add Stripe API keys and wire the Payment Element:
+Stripe integration is implemented. Add these environment variables:
 
-- Create `/api/create-setup-intent` (or Supabase Edge Function) for $0 validation
-- Create `/api/enroll` for $49/mo or $599 one-time
-- Add Stripe webhook for subscription/payment events
-- Update `app/dashboard/payment/page.tsx` to render the Payment Element
+**Local (.env):**
+```
+STRIPE_SECRET_KEY=sk_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_...
+STRIPE_WEBHOOK_SECRET=whsec_...  # for local: stripe listen --forward-to localhost:3000/api/stripe-webhook
+STRIPE_PRICE_MONTHLY=price_xxx   # $49/mo recurring price ID
+STRIPE_PRICE_FLAT=price_xxx      # $599 one-time price ID
+```
+
+**Cloudflare Pages (Settings → Environment variables):**
+- `STRIPE_SECRET_KEY`
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (build-time)
+- `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_PRICE_MONTHLY` – Stripe Price ID for $49/month subscription
+- `STRIPE_PRICE_FLAT` – Stripe Price ID for $599 one-time payment
+
+**Webhook setup:** In Stripe Dashboard → Developers → Webhooks, add endpoint:
+- URL: `https://your-domain.com/api/stripe-webhook`
+- Events: `setup_intent.succeeded`, `payment_intent.succeeded`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`
+
+**Run migration 010** for `payment_methods.pm_metadata` column:
+```bash
+supabase db push
+# Or run supabase/migrations/010_payment_methods_metadata.sql
+```
+
+**Flow:** 1) User validates payment method ($0 charge via SetupIntent). 2) User selects plan ($49/mo or $599 one-time) and clicks Enroll. 3) Stripe charges and webhooks sync subscription state.
 
 ## User Flow Summary
 
@@ -63,7 +86,7 @@ Add Stripe API keys and wire the Payment Element:
 | 4 | `/dashboard` | Evidence, analysis, profile, next steps |
 | 5 | Profile | `/dashboard/profile` – state, county (required), optional details |
 | 6 | Pricing | Modal on "Analyze More" for free users → /dashboard/payment |
-| 7 | Payment | `/dashboard/payment` – placeholder for Stripe |
+| 7 | Payment | `/dashboard/payment` – validate PM ($0), then enroll ($49/mo or $599) |
 
 ## Feature Flag
 
