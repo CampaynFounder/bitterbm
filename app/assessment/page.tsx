@@ -6,6 +6,7 @@ import Link from "next/link"
 import { UploadZone } from "@/components/assessment/UploadZone"
 import { ProgressiveAnalysis } from "@/components/assessment/ProgressiveAnalysis"
 import { ResultsCard, type AnalysisResult } from "@/components/assessment/ResultsCard"
+import { ProgressiveReveal } from "@/components/assessment/ProgressiveReveal"
 import { AuthModal } from "@/components/auth/AuthModal"
 import { supabase } from "@/lib/supabase"
 
@@ -133,7 +134,9 @@ export default function AssessmentPage() {
 
         {step === "results" && result && (
           <div style={{ paddingTop: "var(--space-lg)" }}>
-            <ResultsCard result={result} onSaveAndContinue={handleSaveAndContinue} />
+            <ProgressiveReveal duration={5500} startingDelay={600}>
+              <ResultsCard result={result} onSaveAndContinue={handleSaveAndContinue} />
+            </ProgressiveReveal>
           </div>
         )}
       </div>
