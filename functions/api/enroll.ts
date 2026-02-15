@@ -79,8 +79,8 @@ export async function onRequestPost(context: {
         expand: ["latest_invoice.payment_intent"],
       })
 
-      const latestInvoice = subscription.latest_invoice as Stripe.Invoice | null
-      const pi = latestInvoice?.payment_intent as Stripe.PaymentIntent | undefined
+      const latestInvoice = subscription.latest_invoice as (Stripe.Invoice & { payment_intent?: Stripe.PaymentIntent }) | null
+      const pi = latestInvoice?.payment_intent
       if (pi?.status === "requires_action") {
         return json({
           requiresAction: true,
