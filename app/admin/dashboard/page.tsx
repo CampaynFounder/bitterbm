@@ -47,6 +47,12 @@ export default function AdminDashboardPage() {
   const [fetchMax, setFetchMax] = useState(100)
   const [user, setUser] = useState<{ email?: string } | null>(null)
 
+  // User subscription management
+  const [subUserEmail, setSubUserEmail] = useState("")
+  const [subAction, setSubAction] = useState<"grant_flat" | "grant_monthly" | "revoke">("grant_flat")
+  const [subLoading, setSubLoading] = useState(false)
+  const [subResult, setSubResult] = useState<string | null>(null)
+
   // RAG testing
   const [ragQuestion, setRagQuestion] = useState("How do Georgia courts address parental alienation in custody cases?")
   const [ragState, setRagState] = useState("GA")
@@ -237,6 +243,32 @@ export default function AdminDashboardPage() {
       setError(e instanceof Error ? e.message : "Chunk embed trigger failed")
     } finally {
       setChunking(false)
+    }
+  }
+
+  async function handleSetSubscription() {
+    if (!subUserEmail.trim()) return
+    setSubLoading(true)
+    setSubResult(null)
+    setError(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch("/api/admin/set-subscription", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ userEmail: subUserEmail.trim(), action: subAction }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+      setSubResult(`Success: ${data.email} → ${data.plan}`)
+      setSubUserEmail("")
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Set subscription failed")
+    } finally {
+      setSubLoading(false)
     }
   }
 
@@ -598,10 +630,52 @@ export default function AdminDashboardPage() {
             </div>
           </section>
 
-          {/* 5. User-context retrieval */}
+          {/* 5. User subscription management */}
           <section className="rounded-lg border border-gray-800 bg-[#111] p-4">
-            <h2 className="font-medium text-amber-400 mb-3">5. User-context retrieval</h2>
-            <p className="text-sm text-gray-400">
+            <h2 className="font-medium text-amber-400 mb-3">5. User subscription</h2>
+            <p className="text-sm text-gray-400 mb-3">
+              Grant or revoke plan for a user by email. Requires your admin email in ADMIN_EMAILS, or use X-Admin-Secret for scripts.
+            </p>
+            <div className="flex flex-wrap items-end gap-3 mb-3">
+              <div className="min-w-[200px]">
+                <label htmlFor="sub-email" className="block text-xs text-gray-500 mb-1">User email</label>
+                <input
+                  id="sub-email"
+                  type="email"
+                  value={subUserEmail}
+                  onChange={(e) => setSubUserEmail(e.target.value)}
+                  placeholder="user@example.com"
+                  className="w-full px-2 py-1.5 rounded bg-[#0a0a0a] border border-gray-700 text-sm text-white placeholder-gray-500"
+                />
+              </div>
+              <div>
+                <label htmlFor="sub-action" className="block text-xs text-gray-500 mb-1">Action</label>
+                <select
+                  id="sub-action"
+                  value={subAction}
+                  onChange={(e) => setSubAction(e.target.value as "grant_flat" | "grant_monthly" | "revoke")}
+                  className="px-2 py-1.5 rounded bg-[#0a0a0a] border border-gray-700 text-sm text-white"
+                >
+                  <option value="grant_flat">Grant flat (one-time)</option>
+                  <option value="grant_monthly">Grant monthly</option>
+                  <option value="revoke">Revoke (free)</option>
+                </select>
+              </div>
+              <button
+                onClick={handleSetSubscription}
+                disabled={subLoading}
+                className="px-3 py-1.5 rounded bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-sm"
+              >
+                {subLoading ? "Applying…" : "Apply"}
+              </button>
+            </div>
+            {subResult && <p className="text-sm text-green-400">{subResult}</p>}
+          </section>
+
+          {/* 6. User-context retrieval */}
+          <section className="rounded-lg border border-gray-800 bg-[#111] p-4">
+            <h2 className="font-medium text-amber-400 mb-3">6. User-context retrieval</h2>
+            <p className="text-sm text-gray-400 mb-0">
               Filter by user state, county, judge, alienation behaviors to surface
               cases where alienation was effectively proven. Will use RAG search +
               metadata filters once case_chunks are populated.

@@ -117,27 +117,45 @@ export function EnrollSection() {
         Enroll in a plan
       </h2>
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-md)" }}>
-        <div style={{ display: "flex", gap: "var(--space-md)", flexWrap: "wrap" }}>
-          <label style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)", cursor: "pointer" }}>
-            <input
-              type="radio"
-              name="enrollPlan"
-              value="monthly"
-              checked={plan === "monthly"}
-              onChange={() => setPlan("monthly")}
-            />
-            <span style={{ color: "var(--text-primary)" }}>$49/month</span>
-          </label>
-          <label style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)", cursor: "pointer" }}>
-            <input
-              type="radio"
-              name="enrollPlan"
-              value="flat"
-              checked={plan === "flat"}
-              onChange={() => setPlan("flat")}
-            />
-            <span style={{ color: "var(--text-primary)" }}>$599 one-time</span>
-          </label>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "var(--space-md)" }}>
+          <button
+            type="button"
+            onClick={() => setPlan("monthly")}
+            style={{
+              padding: "var(--space-lg)",
+              background: "var(--bg-card)",
+              borderRadius: "12px",
+              border: plan === "monthly" ? "2px solid var(--accent-primary)" : "1px solid var(--border)",
+              boxShadow: plan === "monthly" ? "0 0 0 1px var(--accent-glow)" : "none",
+              cursor: "pointer",
+              textAlign: "left",
+              fontFamily: "inherit",
+              transition: "border-color 150ms, box-shadow 150ms",
+            }}
+          >
+            <span style={{ fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.05em", color: "var(--accent-muted)" }}>Most Flexible</span>
+            <p style={{ fontSize: "1.25rem", fontWeight: 600, marginTop: "var(--space-xs)", marginBottom: "var(--space-sm)", color: "var(--text-primary)" }}>$49/month</p>
+            <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>Unlimited uploads · Cancel anytime</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setPlan("flat")}
+            style={{
+              padding: "var(--space-lg)",
+              background: "var(--bg-card)",
+              borderRadius: "12px",
+              border: plan === "flat" ? "2px solid var(--accent-primary)" : "1px solid var(--border)",
+              boxShadow: plan === "flat" ? "0 0 0 1px var(--accent-glow)" : "none",
+              cursor: "pointer",
+              textAlign: "left",
+              fontFamily: "inherit",
+              transition: "border-color 150ms, box-shadow 150ms",
+            }}
+          >
+            <span style={{ fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.05em", color: "var(--accent-gold)" }}>Best Value</span>
+            <p style={{ fontSize: "1.25rem", fontWeight: 600, marginTop: "var(--space-xs)", marginBottom: "var(--space-sm)", color: "var(--text-primary)" }}>$599 one-time</p>
+            <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>Valid until case resolves</p>
+          </button>
         </div>
         {error && <p style={{ color: "var(--accent-cyan)", fontSize: "0.875rem" }}>{error}</p>}
         <button

@@ -58,6 +58,8 @@ STRIPE_PRICE_FLAT=price_xxx      # $599 one-time price ID
 ```
 
 **Cloudflare Pages (Settings → Environment variables):**
+- `ADMIN_SECRET` (optional – for grant-test-plan and set-subscription when using scripts)
+- `ADMIN_EMAILS` (optional – comma-separated admin emails for set-subscription from admin dashboard)
 - `STRIPE_SECRET_KEY`
 - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (build-time)
 - `STRIPE_WEBHOOK_SECRET`
@@ -75,6 +77,18 @@ supabase db push
 ```
 
 **Flow:** 1) User validates payment method ($0 charge via SetupIntent). 2) User selects plan ($49/mo or $599 one-time) and clicks Enroll. 3) Stripe charges and webhooks sync subscription state.
+
+**Grant yourself flat plan for testing:**
+Add `ADMIN_SECRET` to .env and Cloudflare (any secret string you choose). Then:
+```bash
+node scripts/grant-test-plan.mjs
+```
+Paste your session access_token when prompted (from DevTools > Application > Local Storage after logging in). Or use curl:
+```bash
+curl -X POST https://your-domain.com/api/admin/grant-test-plan \
+  -H "Authorization: Bearer YOUR_SESSION_ACCESS_TOKEN" \
+  -H "X-Admin-Secret: YOUR_ADMIN_SECRET"
+```
 
 ## User Flow Summary
 

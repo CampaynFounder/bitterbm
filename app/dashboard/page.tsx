@@ -38,7 +38,7 @@ export default function DashboardPage() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
-        router.replace("/assessment")
+        router.replace("/")
         return
       }
       setUser(session.user as User)
@@ -51,13 +51,19 @@ export default function DashboardPage() {
 
     async function load() {
       setLoading(true)
-      const [profileRes, casesRes, subRes] = await Promise.all([
+      const [profileRes, casesRes, subRes, pmRes] = await Promise.all([
         supabase.from("user_profiles").select("state, county, situation_synopsis, child_age, child_grade, retained_attorney_name").eq("id", uid).maybeSingle(),
         supabase.from("cases").select("id").eq("user_id", uid),
         supabase.from("subscriptions").select("plan, status").eq("user_id", uid).maybeSingle(),
+        supabase.from("payment_methods").select("id").eq("user_id", uid).eq("is_default", true).maybeSingle(),
       ])
       setProfile((profileRes.data as Profile) ?? null)
       setSubscription((subRes.data as Subscription) ?? null)
+      const hasPaymentMethod = !!pmRes.data
+      if (!hasPaymentMethod) {
+        router.replace("/dashboard/payment")
+        return
+      }
 
       const caseIds = (casesRes.data ?? []).map((c: { id: string }) => c.id)
       if (caseIds.length > 0) {
@@ -89,7 +95,27 @@ export default function DashboardPage() {
     <main className="section" style={{ minHeight: "80vh", paddingTop: "var(--space-xl)", paddingBottom: "var(--space-2xl)" }}>
       <div className="container" style={{ display: "flex", flexDirection: "column", gap: "var(--space-xl)", maxWidth: 1100 }}>
         <header style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--space-md)", textAlign: "center" }}>
-          <h1 style={{ fontSize: "1.5rem", color: "var(--text-primary)" }}>Your Case Dashboard</h1>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-md)", flexWrap: "wrap", justifyContent: "center" }}>
+            <h1 style={{ fontSize: "1.5rem", color: "var(--text-primary)" }}>Your Case Dashboard</h1>
+            <span
+              style={{
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                letterSpacing: "0.05em",
+                padding: "var(--space-xs) var(--space-sm)",
+                borderRadius: "8px",
+                background: subscription?.plan === "flat" ? "var(--accent-glow)" : subscription?.plan === "monthly" ? "rgba(59, 130, 246, 0.2)" : "var(--bg-elevated)",
+                color: subscription?.plan === "flat" ? "var(--accent-cyan)" : subscription?.plan === "monthly" ? "var(--accent-muted)" : "var(--text-muted)",
+                border: subscription?.plan === "flat" ? "1px solid var(--accent-primary)" : subscription?.plan === "monthly" ? "1px solid var(--accent-muted)" : "1px solid var(--border)",
+              }}
+            >
+              {subscription?.plan === "flat"
+                ? "FLAT · UNLIMITED"
+                : subscription?.plan === "monthly"
+                ? "MONTHLY"
+                : "FREE"}
+            </span>
+          </div>
           <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "var(--space-md)", alignItems: "center" }}>
             <button
               type="button"
@@ -103,7 +129,7 @@ export default function DashboardPage() {
               type="button"
               onClick={async () => {
                 await supabase.auth.signOut()
-                router.replace("/assessment")
+                router.replace("/")
               }}
               style={{
                 background: "none",
@@ -177,6 +203,32 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 {latestAnalysis.summary && <p style={{ fontSize: "0.9375rem", lineHeight: 1.6 }}>{latestAnalysis.summary}</p>}
+                {subscription?.plan === "monthly" && (
+                  <div
+                    style={{
+                      marginTop: "var(--space-lg)",
+                      padding: "var(--space-md)",
+                      background: "rgba(59, 130, 246, 0.08)",
+                      borderRadius: "8px",
+                      border: "1px solid var(--accent-primary)",
+                    }}
+                  >
+                    <p style={{ fontSize: "0.875rem", fontWeight: 600, marginBottom: "var(--space-sm)", color: "var(--accent-muted)" }}>
+                      Upgrade for judge- and attorney-specific strategy
+                    </p>
+                    <p style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", marginBottom: "var(--space-md)", lineHeight: 1.5 }}>
+                      This analysis is based on general case law. Upgrade to get strategy tailored to <strong>your judge</strong> and <strong>GAL</strong>—and to evaluate whether your attorney has won cases with similar facts before similar judges.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowPricingModal(true)}
+                      className="btn-primary"
+                      style={{ fontSize: "0.875rem", padding: "var(--space-sm) var(--space-md)" }}
+                    >
+                      Upgrade to flat
+                    </button>
+                  </div>
+                )}
               </section>
             )}
 
@@ -238,10 +290,27 @@ export default function DashboardPage() {
               <li>Add more evidence to strengthen your case</li>
               <li>Complete your profile (state, county) for case matching</li>
               {!isPaid && <li>Upgrade for full case law matches and attorney analysis</li>}
+              {subscription?.plan === "monthly" && (
+                <>
+                  <li><strong>Select your judge</strong>—upgrade to tailor strategy to how your judge rules on alienation</li>
+                  <li><strong>Evaluate your attorney</strong>—upgrade to see if they&apos;ve won cases with similar facts before similar judges</li>
+                  <li><strong>GAL analysis</strong>—upgrade for recommendations that resonate with your GAL</li>
+                </>
+              )}
             </ul>
             <p style={{ marginTop: "var(--space-lg)", fontSize: "0.875rem", color: "var(--text-muted)" }}>
               Plan: {subscription?.plan ?? "Free"}
             </p>
+            {subscription?.plan === "monthly" && (
+              <button
+                type="button"
+                onClick={() => setShowPricingModal(true)}
+                className="btn-primary"
+                style={{ width: "100%", marginTop: "var(--space-md)", fontSize: "0.875rem" }}
+              >
+                Upgrade to flat for judge & attorney analysis
+              </button>
+            )}
           </aside>
         </div>
       </div>

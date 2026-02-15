@@ -32,7 +32,7 @@ export default function ProfilePage() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
-        router.replace("/assessment")
+        router.replace("/")
         return
       }
       setUser(session.user as { id: string })

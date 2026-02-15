@@ -121,6 +121,9 @@ export function ResultsCard({ result, onHelpMeProveIt, onBack }: Props) {
           </ul>
         </div>
       )}
+      <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginBottom: "var(--space-md)", lineHeight: 1.5 }}>
+        Want strategy tailored to <strong>your judge</strong> and <strong>GAL</strong>—and to evaluate if your attorney has won similar cases? Upgrade to get recommendations that prove alienation in a way that resonates with your specific judge.
+      </p>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--space-md)" }}>
         <button
           type="button"
