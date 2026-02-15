@@ -88,15 +88,37 @@ export default function DashboardPage() {
   return (
     <main className="section" style={{ minHeight: "80vh", paddingTop: "var(--space-xl)", paddingBottom: "var(--space-2xl)" }}>
       <div className="container" style={{ display: "flex", flexDirection: "column", gap: "var(--space-xl)", maxWidth: 1100 }}>
-        <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "var(--space-md)" }}>
+        <header style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--space-md)", textAlign: "center" }}>
           <h1 style={{ fontSize: "1.5rem", color: "var(--text-primary)" }}>Your Case Dashboard</h1>
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => (isPaid ? router.push("/assessment") : setShowPricingModal(true))}
-          >
-            Analyze More Evidence
-          </button>
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "var(--space-md)", alignItems: "center" }}>
+            <button
+              type="button"
+              className="btn-primary"
+              style={{ maxWidth: 280 }}
+              onClick={() => (isPaid ? router.push("/assessment") : setShowPricingModal(true))}
+            >
+              Analyze More Evidence
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                await supabase.auth.signOut()
+                router.replace("/assessment")
+              }}
+              style={{
+                background: "none",
+                border: "1px solid var(--border-accent)",
+                color: "var(--text-secondary)",
+                fontSize: "0.9375rem",
+                padding: "var(--space-sm) var(--space-md)",
+                borderRadius: "8px",
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              Log out
+            </button>
+          </div>
         </header>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "var(--space-xl)" }}>
@@ -189,14 +211,16 @@ export default function DashboardPage() {
                   ))}
                 </ul>
               )}
-              <button
-                type="button"
-                className="btn-primary"
-                style={{ marginTop: "var(--space-md)" }}
-                onClick={() => (isPaid ? router.push("/assessment") : setShowPricingModal(true))}
-              >
-                Analyze More Evidence
-              </button>
+              <div style={{ marginTop: "var(--space-md)", display: "flex", justifyContent: "center" }}>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  style={{ maxWidth: 280, width: "100%" }}
+                  onClick={() => (isPaid ? router.push("/assessment") : setShowPricingModal(true))}
+                >
+                  Analyze More Evidence
+                </button>
+              </div>
             </section>
           </div>
 
