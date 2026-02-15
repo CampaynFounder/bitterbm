@@ -116,6 +116,7 @@ Your response should:
 2. Cite cases by name and date (e.g., "In Baskin v. Hale (2016), the court found...").
 3. When the user shares their situation, compare it to relevant cases (e.g., "This is similar to [Case Name] because...").
 4. Avoid saying the excerpts "do not discuss" the topic when they clearly mention alienation, custody disputes, or related issues—instead, summarize what the excerpts do say.
+5. End with a "**Things you may need to prove**" section: a bulleted list of specific factors, behaviors, and types of evidence that courts relied on in the cited cases. Extract only from the excerpts—e.g., "Lack of cooperation / inability to co-parent," "Child expresses unjustified hostility toward the other parent," "Expert testimony (evaluator, therapist)," "Guardian ad litem reports," "Documented interference with visitation," "Credibility of testimony." Organize into categories if helpful (Behaviors, Evidence types, Court considerations). Keep bullets concise and actionable.
 
 Base your answer only on the provided excerpts. If excerpts are truly unrelated, say so briefly.`
 

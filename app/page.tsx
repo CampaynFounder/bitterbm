@@ -132,7 +132,7 @@ export default function LandingPage() {
                 prove and defend your family against parental alienation.
               </p>
               <a
-                href="#assessment"
+                href="/assessment"
                 className="btn-primary"
                 data-ga4-cta="hero_stop_the_alienation_now"
                 onClick={() =>
@@ -170,7 +170,7 @@ export default function LandingPage() {
               className="badge"
               style={{ animationDelay: "200ms" }}
             >
-              ✓ 2,847 parents protected
+              ✓ 12,847 cases analyzed
             </span>
           </section>
 
@@ -343,7 +343,7 @@ export default function LandingPage() {
                   you don&apos;t have to.
                 </p>
                 <a
-                  href="#assessment"
+                  href="/assessment"
                   className="btn-primary"
                   data-ga4-cta="ai_benefits_match_case"
                   onClick={() =>
@@ -375,7 +375,7 @@ export default function LandingPage() {
                   Upload your first evidence in under 2 minutes. No card required.
                 </p>
                 <a
-                  href="#assessment"
+                  href="/assessment"
                   className="btn-primary"
                   data-ga4-cta="cta_block_start_free"
                   onClick={() =>
@@ -427,7 +427,7 @@ export default function LandingPage() {
                       Upload 30 days · Basic pattern analysis · Preview severity score
                     </p>
                     <a
-                      href="#assessment"
+                      href="/assessment"
                       className="btn-primary"
                       onClick={() =>
                         handleCtaClick(
@@ -465,13 +465,13 @@ export default function LandingPage() {
                       Most Flexible
                     </span>
                     <h3 style={{ fontSize: "1.25rem", marginBottom: "var(--space-sm)", color: "var(--text-primary)" }}>
-                      $39/month
+                      $49/month
                     </h3>
                     <p style={{ marginBottom: "var(--space-md)", fontSize: "0.9375rem" }}>
-                      Unlimited uploads · Full court reports · Case law matching
+                      Unlimited uploads · AI case analysis · Case law matching
                     </p>
                     <a
-                      href="#assessment"
+                      href="/signup?payment=1"
                       className="btn-primary"
                       onClick={() =>
                         handleCtaClick(
@@ -511,10 +511,10 @@ export default function LandingPage() {
                       $599 flat fee
                     </h3>
                     <p style={{ marginBottom: "var(--space-md)", fontSize: "0.9375rem" }}>
-                      Everything + priority support · Valid until case settles
+                      Everything + Judge / GAL / Attorney analysis · Valid until case settles
                     </p>
                     <a
-                      href="#assessment"
+                      href="/signup?payment=1"
                       className="btn-primary"
                       onClick={() =>
                         handleCtaClick(
@@ -598,7 +598,7 @@ export default function LandingPage() {
                 </p>
                 <div className="cta-buttons">
                   <a
-                    href="#assessment"
+                    href="/assessment"
                     className="btn-primary"
                     onClick={() =>
                       handleCtaClick(
@@ -611,7 +611,7 @@ export default function LandingPage() {
                     Upload First Evidence
                   </a>
                   <a
-                    href="#assessment"
+                    href="/assessment"
                     style={{
                       display: "inline-flex",
                       justifyContent: "center",
@@ -655,7 +655,7 @@ export default function LandingPage() {
           role="complementary"
         >
           <a
-            href="#assessment"
+            href="/assessment"
             className="btn-primary"
             style={{ width: "100%", maxWidth: "400px", margin: "0 auto" }}
             onClick={() =>
