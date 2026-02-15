@@ -121,20 +121,20 @@ export function ResultsCard({ result, onHelpMeProveIt, onBack }: Props) {
           </ul>
         </div>
       )}
-      <button
-        type="button"
-        onClick={onHelpMeProveIt}
-        className="btn-primary"
-        style={{ width: "100%" }}
-      >
-        Help Me Prove It
-      </button>
-      {onBack && (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--space-md)" }}>
         <button
           type="button"
-          onClick={onBack}
-          style={{
-            marginTop: "var(--space-md)",
+          onClick={onHelpMeProveIt}
+          className="btn-primary"
+          style={{ width: "100%", maxWidth: 320 }}
+        >
+          Help Me Prove It
+        </button>
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            style={{
             background: "none",
             border: "none",
             padding: 0,
@@ -153,7 +153,8 @@ export function ResultsCard({ result, onHelpMeProveIt, onBack }: Props) {
         >
           My Kids Don&apos;t Need Me
         </button>
-      )}
+        )}
+      </div>
     </div>
   )
 }

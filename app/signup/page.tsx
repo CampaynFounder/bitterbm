@@ -85,9 +85,11 @@ function SignupForm() {
             />
           </label>
           {error && <p style={{ color: "var(--accent-cyan)", fontSize: "0.875rem" }}>{error}</p>}
-          <button type="submit" disabled={loading} className="btn-primary" style={{ width: "100%" }}>
+          <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
+            <button type="submit" disabled={loading} className="btn-primary" style={{ width: "100%", maxWidth: 320 }}>
             {loading ? "Creating account…" : "Create Account"}
-          </button>
+            </button>
+          </div>
         </form>
         <p style={{ marginTop: "var(--space-lg)", fontSize: "0.875rem", color: "var(--text-muted)" }}>
           Already have an account?{" "}

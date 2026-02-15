@@ -97,11 +97,20 @@ export default function AssessmentPage() {
         paddingBottom: "var(--space-2xl)",
       }}
     >
-      <div className="container" style={{ maxWidth: 640 }}>
+      <div
+        className="container assessment-container"
+        style={{
+          maxWidth: 640,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          width: "100%",
+        }}
+      >
         <Link
           href="/"
           style={{
-            display: "inline-block",
+            alignSelf: "flex-start",
             marginBottom: "var(--space-lg)",
             color: "var(--accent-muted)",
             fontSize: "0.9375rem",
@@ -113,23 +122,25 @@ export default function AssessmentPage() {
 
         {step === "upload" && (
           <>
-            <h1 style={{ fontSize: "1.5rem", marginBottom: "var(--space-md)", color: "var(--text-primary)" }}>
+            <h1 style={{ fontSize: "1.5rem", marginBottom: "var(--space-md)", color: "var(--text-primary)", textAlign: "center" }}>
               Free Evidence Analysis
             </h1>
-            <p style={{ marginBottom: "var(--space-xl)", color: "var(--text-secondary)", fontSize: "0.9375rem" }}>
+            <p style={{ marginBottom: "var(--space-xl)", color: "var(--text-secondary)", fontSize: "0.9375rem", textAlign: "center" }}>
               Upload up to 2 screenshots of texts, emails, or evidence. We&apos;ll analyze patterns and show your
               legal standing.
             </p>
             <UploadZone maxFiles={MAX_FREE_FILES} onFilesSelected={setFiles} />
-            <button
-              type="button"
-              className="btn-primary"
-              disabled={files.length === 0}
-              onClick={handleAnalyzeClick}
-              style={{ marginTop: "var(--space-xl)", width: "100%" }}
-            >
-              Analyze Evidence
-            </button>
+            <div style={{ marginTop: "var(--space-xl)", width: "100%", display: "flex", justifyContent: "center" }}>
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={files.length === 0}
+                onClick={handleAnalyzeClick}
+                style={{ width: "100%", maxWidth: 320 }}
+              >
+                Analyze Evidence
+              </button>
+            </div>
           </>
         )}
 

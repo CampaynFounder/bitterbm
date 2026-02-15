@@ -317,19 +317,19 @@ header .container p {
 
 @media (min-width: 640px) {
   .cta-center .container {
-    align-items: flex-start;
-    text-align: left;
+    align-items: center;
+    text-align: center;
   }
   .cta-center .btn-primary,
   .cta-center a.btn-primary {
-    align-self: flex-start;
+    align-self: center;
   }
   .cta-center h2,
   .cta-center p {
-    text-align: left;
+    text-align: center;
   }
   .cta-center .cta-buttons {
-    align-items: flex-start;
+    align-items: center;
   }
 }
 
@@ -613,7 +613,7 @@ header .container p {
 
 @media (min-width: 640px) {
   .pricing-card .btn-primary {
-    align-self: flex-start;
+    align-self: center;
   }
 }
 

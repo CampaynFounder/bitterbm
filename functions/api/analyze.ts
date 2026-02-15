@@ -45,7 +45,7 @@ function fallbackResult(): AnalysisResult {
     likelihoodAllEvidenceReviewed: randomEvidenceReviewed(),
     alienationTactics: [],
     thingsToProve: [],
-    summary: "Unable to analyze the provided images. Please ensure they are clear screenshots of text messages or emails.",
+    summary: "Network connection errors happen. Don't give up. Please check your network connection & try again.",
   }
 }
 
