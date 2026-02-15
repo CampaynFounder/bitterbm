@@ -57,12 +57,17 @@ export function ProgressiveReveal({
   } = labels
 
   React.useEffect(() => {
+    let rafId: number
+    let cancelled = false
+
     const startingTimeout = setTimeout(() => {
+      if (cancelled) return
       setLoadingState("generating")
 
       const startTime = Date.now()
 
-      const interval = setInterval(() => {
+      const tick = () => {
+        if (cancelled) return
         const elapsedTime = Date.now() - startTime
         const linearT = Math.min(1, elapsedTime / duration)
         const easedT = easeProgress(linearT, easing)
@@ -70,16 +75,21 @@ export function ProgressiveReveal({
 
         setProgress(progressPercentage)
 
-        if (progressPercentage >= 100) {
-          clearInterval(interval)
+        if (progressPercentage < 100) {
+          rafId = requestAnimationFrame(tick)
+        } else {
           setLoadingState("completed")
         }
-      }, 16)
+      }
 
-      return () => clearInterval(interval)
+      rafId = requestAnimationFrame(tick)
     }, startingDelay)
 
-    return () => clearTimeout(startingTimeout)
+    return () => {
+      cancelled = true
+      clearTimeout(startingTimeout)
+      cancelAnimationFrame(rafId)
+    }
   }, [duration, startingDelay, easing])
 
   return (
@@ -117,7 +127,7 @@ export function ProgressiveReveal({
         }}
       >
         {children}
-        <motion.div
+        <div
           style={{
             position: "absolute",
             top: 0,
@@ -129,13 +139,11 @@ export function ProgressiveReveal({
             backdropFilter: "blur(16px)",
             WebkitBackdropFilter: "blur(16px)",
             background: "rgba(8, 9, 12, 0.7)",
-          }}
-          initial={false}
-          animate={{
             clipPath: `polygon(0 ${progress}%, 100% ${progress}%, 100% 100%, 0 100%)`,
+            WebkitClipPath: `polygon(0 ${progress}%, 100% ${progress}%, 100% 100%, 0 100%)`,
             opacity: loadingState === "completed" ? 0 : 1,
+            transition: "opacity 0.3s ease-out",
           }}
-          transition={{ opacity: { duration: 0.4 } }}
         />
       </div>
     </div>
