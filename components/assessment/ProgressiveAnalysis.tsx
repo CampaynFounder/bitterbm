@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 
 const STAGES = [
   { label: "Extracting text from images...", progress: 20, duration: 1500 },
@@ -21,26 +21,30 @@ export function ProgressiveAnalysis({ onComplete, analyze }: Props) {
   const [stageIndex, setStageIndex] = useState(0)
   const [progress, setProgress] = useState(0)
   const [label, setLabel] = useState(STAGES[0].label)
+  const onCompleteRef = useRef(onComplete)
+  const analyzeRef = useRef(analyze)
+  onCompleteRef.current = onComplete
+  analyzeRef.current = analyze
 
   useEffect(() => {
     let cancelled = false
     const start = Date.now()
 
     const run = async () => {
-      await analyze()
+      await analyzeRef.current()
       if (cancelled) return
       const elapsed = Date.now() - start
       const wait = Math.max(0, MIN_TOTAL_MS - elapsed)
       if (wait > 0) await new Promise((r) => setTimeout(r, wait))
       if (cancelled) return
-      onComplete()
+      onCompleteRef.current()
     }
 
     run()
     return () => {
       cancelled = true
     }
-  }, [analyze, onComplete])
+  }, [])
 
   useEffect(() => {
     if (stageIndex >= STAGES.length) return

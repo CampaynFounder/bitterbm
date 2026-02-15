@@ -48,9 +48,9 @@ export default function AssessmentPage() {
     setStep("analyzing")
   }
 
-  const handleAnalysisComplete = () => {
+  const handleAnalysisComplete = useCallback(() => {
     setStep("results")
-  }
+  }, [])
 
   const handleSaveAndContinue = () => {
     setShowAuthModal(true)
