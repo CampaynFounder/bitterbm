@@ -59,8 +59,9 @@ export default function DashboardPage() {
       ])
       setProfile((profileRes.data as Profile) ?? null)
       setSubscription((subRes.data as Subscription) ?? null)
+      const plan = (subRes.data as Subscription | null)?.plan ?? "free"
       const hasPaymentMethod = !!pmRes.data
-      if (!hasPaymentMethod) {
+      if (!hasPaymentMethod && plan === "free") {
         router.replace("/dashboard/payment")
         return
       }

@@ -127,7 +127,7 @@ export default function LandingPage() {
           >
             <div className="container">
               <h1>
-                Stop Parental Alienation—Your Kids Deserve Better
+                Stop Parental Alienation—<br />Your Kids Deserve Better
               </h1>
               <p>
                 Leverage the latest AI models trained on Family Court data to
@@ -540,13 +540,13 @@ export default function LandingPage() {
             aria-labelledby="faq-heading"
             data-ga4-section="faq"
           >
-            <div className="container">
+            <div className="container" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
               <AnimateOnScroll>
-                <h2 id="faq-heading" style={{ marginBottom: "var(--space-xl)" }}>
+                <h2 id="faq-heading" style={{ marginBottom: "var(--space-xl)", textAlign: "center" }}>
                   Common Questions
                 </h2>
               </AnimateOnScroll>
-              <div style={{ maxWidth: "640px" }}>
+              <div style={{ maxWidth: "640px", width: "100%" }}>
                 {FAQ_ITEMS.map((item, i) => (
                   <AnimateOnScroll key={i} stagger={(i + 1) as 1 | 2 | 3}>
                     <div

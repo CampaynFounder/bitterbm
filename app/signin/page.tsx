@@ -17,8 +17,16 @@ export default function SignInPage() {
     setError(null)
     setLoading(true)
     try {
-      const { error: err } = await supabase.auth.signInWithPassword({ email, password })
+      const { data: { user }, error: err } = await supabase.auth.signInWithPassword({ email, password })
       if (err) throw err
+      if (user) {
+        const { data: sub } = await supabase.from("subscriptions").select("plan").eq("user_id", user.id).maybeSingle()
+        const plan = (sub as { plan?: string } | null)?.plan
+        if (plan === "monthly" || plan === "flat") {
+          router.push("/assessment")
+          return
+        }
+      }
       router.push("/dashboard")
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Sign in failed")
