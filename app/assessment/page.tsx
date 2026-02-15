@@ -30,15 +30,17 @@ export default function AssessmentPage() {
         .select("plan")
         .eq("user_id", session.user.id)
         .maybeSingle()
-        .then(({ data }) => {
-          const plan = (data as { plan?: string } | null)?.plan
-          if (plan === "monthly" || plan === "flat") {
-            router.replace("/dashboard/analysis")
-            return
-          }
-          setCheckingAuth(false)
-        })
-        .catch(() => setCheckingAuth(false))
+        .then(
+          ({ data }) => {
+            const plan = (data as { plan?: string } | null)?.plan
+            if (plan === "monthly" || plan === "flat") {
+              router.replace("/dashboard/analysis")
+              return
+            }
+            setCheckingAuth(false)
+          },
+          () => setCheckingAuth(false)
+        )
     })
   }, [router])
 
