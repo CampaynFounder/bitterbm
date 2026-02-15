@@ -3,10 +3,31 @@
 import * as React from "react"
 import { motion } from "motion/react"
 
+/** Easing: linear | ease-in | ease-out | ease-in-out */
+type Easing = "linear" | "ease-in" | "ease-out" | "ease-in-out"
+
+function easeProgress(t: number, easing: Easing): number {
+  const clamped = Math.min(1, Math.max(0, t))
+  switch (easing) {
+    case "ease-in":
+      return clamped * clamped
+    case "ease-out":
+      return 1 - (1 - clamped) * (1 - clamped)
+    case "ease-in-out":
+      return clamped < 0.5
+        ? 2 * clamped * clamped
+        : 1 - Math.pow(-2 * clamped + 2, 2) / 2
+    default:
+      return clamped
+  }
+}
+
 export interface ProgressiveRevealProps {
   children: React.ReactNode
   duration?: number
   startingDelay?: number
+  /** Easing for reveal progress; default ease-in-out */
+  easing?: Easing
   /** Labels for each phase */
   labels?: {
     starting?: string
@@ -17,8 +38,9 @@ export interface ProgressiveRevealProps {
 
 export function ProgressiveReveal({
   children,
-  duration = 6000,
+  duration = 9000,
   startingDelay = 800,
+  easing = "ease-in-out",
   labels = {},
 }: ProgressiveRevealProps) {
   const [progress, setProgress] = React.useState(0)
@@ -40,7 +62,9 @@ export function ProgressiveReveal({
 
       const interval = setInterval(() => {
         const elapsedTime = Date.now() - startTime
-        const progressPercentage = Math.min(100, (elapsedTime / duration) * 100)
+        const linearT = Math.min(1, elapsedTime / duration)
+        const easedT = easeProgress(linearT, easing)
+        const progressPercentage = easedT * 100
 
         setProgress(progressPercentage)
 
@@ -54,7 +78,7 @@ export function ProgressiveReveal({
     }, startingDelay)
 
     return () => clearTimeout(startingTimeout)
-  }, [duration, startingDelay])
+  }, [duration, startingDelay, easing])
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-md)" }}>

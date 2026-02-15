@@ -134,7 +134,7 @@ export default function AssessmentPage() {
 
         {step === "results" && result && (
           <div style={{ paddingTop: "var(--space-lg)" }}>
-            <ProgressiveReveal duration={5500} startingDelay={600}>
+            <ProgressiveReveal duration={10000} startingDelay={800}>
               <ResultsCard result={result} onSaveAndContinue={handleSaveAndContinue} />
             </ProgressiveReveal>
           </div>
