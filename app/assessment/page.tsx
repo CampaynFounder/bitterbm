@@ -38,6 +38,7 @@ export default function AssessmentPage() {
     setResult({
       alienationScore: data.alienationScore ?? 0,
       custodyChangeLikelihood: data.custodyChangeLikelihood ?? 0,
+      likelihoodAllEvidenceReviewed: data.likelihoodAllEvidenceReviewed,
       alienationTactics: data.alienationTactics ?? [],
       thingsToProve: data.thingsToProve ?? [],
       summary: data.summary ?? "",
@@ -53,8 +54,14 @@ export default function AssessmentPage() {
     setStep("results")
   }, [])
 
-  const handleSaveAndContinue = () => {
+  const handleHelpMeProveIt = () => {
     setShowAuthModal(true)
+  }
+
+  const handleBackFromResults = () => {
+    setStep("upload")
+    setResult(null)
+    setFiles([])
   }
 
   const handleAuthSuccess = useCallback(async () => {
@@ -135,7 +142,11 @@ export default function AssessmentPage() {
         {step === "results" && result && (
           <div style={{ paddingTop: "var(--space-lg)" }}>
             <ProgressiveReveal duration={10000} startingDelay={800}>
-              <ResultsCard result={result} onSaveAndContinue={handleSaveAndContinue} />
+              <ResultsCard
+                result={result}
+                onHelpMeProveIt={handleHelpMeProveIt}
+                onBack={handleBackFromResults}
+              />
             </ProgressiveReveal>
           </div>
         )}

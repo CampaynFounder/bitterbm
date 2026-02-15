@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 export type AnalysisResult = {
   alienationScore: number
   custodyChangeLikelihood: number
+  likelihoodAllEvidenceReviewed?: number
   alienationTactics: string[]
   thingsToProve: { label: string; category?: string }[]
   summary: string
@@ -12,7 +13,8 @@ export type AnalysisResult = {
 
 type Props = {
   result: AnalysisResult
-  onSaveAndContinue: () => void
+  onHelpMeProveIt: () => void
+  onBack?: () => void
 }
 
 function ScoreGauge({ value, label }: { value: number; label: string }) {
@@ -67,7 +69,7 @@ function ScoreGauge({ value, label }: { value: number; label: string }) {
   )
 }
 
-export function ResultsCard({ result, onSaveAndContinue }: Props) {
+export function ResultsCard({ result, onHelpMeProveIt, onBack }: Props) {
   return (
     <div
       style={{
@@ -84,6 +86,12 @@ export function ResultsCard({ result, onSaveAndContinue }: Props) {
       </h3>
       <ScoreGauge value={result.alienationScore} label="Evidence relevance score" />
       <ScoreGauge value={result.custodyChangeLikelihood} label="Custody change likelihood" />
+      {typeof result.likelihoodAllEvidenceReviewed === "number" && (
+        <ScoreGauge
+          value={result.likelihoodAllEvidenceReviewed}
+          label="Likelihood all text message evidence will be reviewed"
+        />
+      )}
       {result.alienationTactics.length > 0 && (
         <div style={{ marginBottom: "var(--space-lg)" }}>
           <p style={{ fontSize: "0.875rem", color: "var(--text-muted)", marginBottom: "var(--space-sm)" }}>
@@ -115,12 +123,37 @@ export function ResultsCard({ result, onSaveAndContinue }: Props) {
       )}
       <button
         type="button"
-        onClick={onSaveAndContinue}
+        onClick={onHelpMeProveIt}
         className="btn-primary"
         style={{ width: "100%" }}
       >
-        Save Results &amp; Continue Building Case
+        Help Me Prove It
       </button>
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          style={{
+            marginTop: "var(--space-md)",
+            background: "none",
+            border: "none",
+            padding: 0,
+            fontSize: "0.9375rem",
+            color: "var(--accent-muted)",
+            textDecoration: "none",
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.textDecoration = "underline"
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.textDecoration = "none"
+          }}
+        >
+          My Kids Don&apos;t Need Me
+        </button>
+      )}
     </div>
   )
 }
