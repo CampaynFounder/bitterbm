@@ -23,7 +23,7 @@ export default function SignInPage() {
         const { data: sub } = await supabase.from("subscriptions").select("plan").eq("user_id", user.id).maybeSingle()
         const plan = (sub as { plan?: string } | null)?.plan
         if (plan === "monthly" || plan === "flat") {
-          router.push("/assessment")
+          router.push("/dashboard/analysis")
           return
         }
       }

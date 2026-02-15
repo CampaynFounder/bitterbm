@@ -33,7 +33,7 @@ function PaymentContent() {
       .then(({ data }) => {
         const plan = (data as { plan?: string } | null)?.plan
         if (plan === "monthly" || plan === "flat") {
-          router.replace("/assessment")
+          router.replace("/dashboard/analysis")
           return
         }
       })
@@ -60,7 +60,7 @@ function PaymentContent() {
     <main className="section" style={{ minHeight: "80vh", paddingTop: "var(--space-xl)", paddingBottom: "var(--space-2xl)" }}>
       <div className="container" style={{ maxWidth: 520, display: "flex", flexDirection: "column", alignItems: "center" }}>
         <Link
-          href="/assessment"
+          href="/dashboard"
           style={{
             alignSelf: "flex-start",
             marginBottom: "var(--space-lg)",
@@ -69,7 +69,7 @@ function PaymentContent() {
             textDecoration: "none",
           }}
         >
-          ← Back to assessment
+          ← Back to dashboard
         </Link>
         <h1 style={{ fontSize: "1.5rem", marginBottom: "var(--space-md)", color: "var(--text-primary)", textAlign: "center" }}>
           Add Payment Method

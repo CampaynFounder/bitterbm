@@ -1,12 +1,23 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { MenuToggleIcon } from "./MenuToggleIcon"
+import { supabase } from "@/lib/supabase"
 
-const MENU_ITEMS = [
+const GUEST_ITEMS = [
   { href: "/assessment", label: "Assessment" },
   { href: "/signin", label: "Sign in" },
+  { href: "/about", label: "About" },
+  { href: "/blog", label: "Blog" },
+] as const
+
+const AUTH_ITEMS = [
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/dashboard/analysis", label: "Analyze" },
+  { href: "/dashboard/profile", label: "Profile" },
+  { href: "/dashboard/payment", label: "Payment" },
   { href: "/about", label: "About" },
   { href: "/blog", label: "Blog" },
 ] as const
@@ -17,6 +28,28 @@ type Props = {
 
 export function HamburgerMenu({ visible = true }: Props) {
   const [open, setOpen] = useState(false)
+  const [session, setSession] = useState<boolean | null>(null)
+  const router = useRouter()
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(!!session)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        setSession(!!session)
+      })
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  const menuItems = session ? AUTH_ITEMS : GUEST_ITEMS
+
+  async function handleSignOut() {
+    setOpen(false)
+    await supabase.auth.signOut()
+    router.replace("/")
+  }
 
   if (!visible) return null
 
@@ -85,7 +118,7 @@ export function HamburgerMenu({ visible = true }: Props) {
           gap: "var(--space-xs)",
         }}
       >
-        {MENU_ITEMS.map((item) => (
+        {menuItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
@@ -109,6 +142,34 @@ export function HamburgerMenu({ visible = true }: Props) {
             {item.label}
           </Link>
         ))}
+        {session && (
+          <button
+            type="button"
+            onClick={handleSignOut}
+            style={{
+              display: "block",
+              width: "100%",
+              textAlign: "left",
+              padding: "var(--space-sm) var(--space-md)",
+              fontSize: "0.9375rem",
+              color: "var(--text-primary)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontFamily: "inherit",
+              borderRadius: "6px",
+              transition: "background 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "var(--bg-elevated)"
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent"
+            }}
+          >
+            Sign out
+          </button>
+        )}
       </div>
 
       {open && (

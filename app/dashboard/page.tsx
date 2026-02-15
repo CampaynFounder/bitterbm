@@ -122,7 +122,7 @@ export default function DashboardPage() {
               type="button"
               className="btn-primary"
               style={{ maxWidth: 280 }}
-              onClick={() => (isPaid ? router.push("/assessment") : setShowPricingModal(true))}
+              onClick={() => (isPaid ? router.push("/dashboard/analysis") : setShowPricingModal(true))}
             >
               Analyze More Evidence
             </button>
@@ -269,7 +269,7 @@ export default function DashboardPage() {
                   type="button"
                   className="btn-primary"
                   style={{ maxWidth: 280, width: "100%" }}
-                  onClick={() => (isPaid ? router.push("/assessment") : setShowPricingModal(true))}
+                  onClick={() => (isPaid ? router.push("/dashboard/analysis") : setShowPricingModal(true))}
                 >
                   Analyze More Evidence
                 </button>
