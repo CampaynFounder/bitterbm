@@ -152,3 +152,10 @@ export async function onRequestPost(context: {
     return json({ error: msg }, 500)
   }
 }
+
+function json(data: unknown, status = 200): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  })
+}
