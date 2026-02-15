@@ -3,14 +3,16 @@
 import * as React from "react"
 import { motion } from "motion/react"
 
-/** Easing: linear | ease-in | ease-out | ease-in-out */
-type Easing = "linear" | "ease-in" | "ease-out" | "ease-in-out"
+/** Easing: linear | ease-in | ease-in-slow | ease-out | ease-in-out */
+type Easing = "linear" | "ease-in" | "ease-in-slow" | "ease-out" | "ease-in-out"
 
 function easeProgress(t: number, easing: Easing): number {
   const clamped = Math.min(1, Math.max(0, t))
   switch (easing) {
     case "ease-in":
       return clamped * clamped
+    case "ease-in-slow":
+      return clamped * clamped * clamped // cubic - very slow start
     case "ease-out":
       return 1 - (1 - clamped) * (1 - clamped)
     case "ease-in-out":
@@ -26,7 +28,7 @@ export interface ProgressiveRevealProps {
   children: React.ReactNode
   duration?: number
   startingDelay?: number
-  /** Easing for reveal progress; default ease-in-out */
+  /** Easing for reveal progress; default ease-in-slow (very slow start) */
   easing?: Easing
   /** Labels for each phase */
   labels?: {
@@ -40,7 +42,7 @@ export function ProgressiveReveal({
   children,
   duration = 9000,
   startingDelay = 800,
-  easing = "ease-in-out",
+  easing = "ease-in-slow",
   labels = {},
 }: ProgressiveRevealProps) {
   const [progress, setProgress] = React.useState(0)
