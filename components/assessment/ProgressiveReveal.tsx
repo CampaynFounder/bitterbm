@@ -71,7 +71,7 @@ export function ProgressiveReveal({
         const elapsedTime = Date.now() - startTime
         const linearT = Math.min(1, elapsedTime / duration)
         const easedT = easeProgress(linearT, easing)
-        const progressPercentage = easedT * 100
+        const progressPercentage = Math.round(easedT * 1000) / 10
 
         setProgress(progressPercentage)
 
@@ -139,8 +139,14 @@ export function ProgressiveReveal({
             backdropFilter: "blur(16px)",
             WebkitBackdropFilter: "blur(16px)",
             background: "rgba(8, 9, 12, 0.7)",
-            clipPath: `polygon(0 ${progress}%, 100% ${progress}%, 100% 100%, 0 100%)`,
-            WebkitClipPath: `polygon(0 ${progress}%, 100% ${progress}%, 100% 100%, 0 100%)`,
+            maskImage: `linear-gradient(to bottom, transparent 0%, transparent ${progress}%, black ${progress}%, black 100%)`,
+            WebkitMaskImage: `linear-gradient(to bottom, transparent 0%, transparent ${progress}%, black ${progress}%, black 100%)`,
+            maskSize: "100% 100%",
+            WebkitMaskSize: "100% 100%",
+            maskPosition: "0 0",
+            WebkitMaskPosition: "0 0",
+            maskRepeat: "no-repeat",
+            WebkitMaskRepeat: "no-repeat",
             opacity: loadingState === "completed" ? 0 : 1,
             transition: "opacity 0.3s ease-out",
           }}
