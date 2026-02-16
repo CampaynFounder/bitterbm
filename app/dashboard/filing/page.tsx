@@ -48,16 +48,18 @@ export default function FilingAnalysisPage() {
       <main className="section" style={{ minHeight: "80vh", paddingTop: "var(--space-2xl)", paddingBottom: "var(--space-2xl)" }}>
         <div className="container" style={{ maxWidth: 600, margin: "0 auto", animation: "fadeInUp 0.4s var(--ease-out-expo) both" }}>
           <Link href="/dashboard" style={{ display: "inline-block", marginBottom: "var(--space-lg)", color: "var(--accent-muted)", fontSize: "0.9375rem" }}>← Back to Dashboard</Link>
-          <h1 style={{ fontSize: "1.5rem", marginBottom: "var(--space-sm)", color: "var(--text-primary)" }}>Filing Analysis</h1>
-          <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)", marginBottom: "var(--space-xl)", lineHeight: 1.6 }}>Upload filings by opposing counsel. We analyze how the county and judge may view them.</p>
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "var(--space-xl)" }}>
-            <div style={{ animation: "fadeInUp 0.3s var(--ease-out-expo) 0.1s both" }}>
+          <h1 style={{ fontSize: "1.5rem", marginBottom: "var(--space-sm)", color: "var(--text-primary)", textAlign: "center" }}>Filing Analysis</h1>
+          <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)", marginBottom: "var(--space-xl)", lineHeight: 1.6, textAlign: "center" }}>Upload filings by opposing counsel. We analyze how the county and judge may view them.</p>
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "var(--space-xl)", alignItems: "center" }}>
+            <div style={{ width: "100%", animation: "fadeInUp 0.3s var(--ease-out-expo) 0.1s both" }}>
               <label style={{ display: "block", fontSize: "0.875rem", marginBottom: "var(--space-sm)", color: "var(--text-secondary)" }}>Opposing counsel filings</label>
               <UploadZone maxFiles={10} onFilesSelected={setFiles} />
             </div>
-            <button type="submit" disabled={submitting || files.length === 0} className="btn-primary" style={{ width: "100%", maxWidth: 320 }}>{submitting ? "Analyzing…" : "Analyze Filings"}</button>
+            <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
+              <button type="submit" disabled={submitting || files.length === 0} className="btn-primary" style={{ width: "100%", maxWidth: 320 }}>{submitting ? "Analyzing…" : "Analyze Filings"}</button>
+            </div>
           </form>
-          {result && <div style={{ marginTop: "var(--space-xl)", padding: "var(--space-xl)", background: "var(--bg-card)", borderRadius: "12px", border: "1px solid var(--border)", animation: "fadeInUp 0.3s var(--ease-out-expo) 0.1s both" }}><p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)", lineHeight: 1.6 }}>{result}</p></div>}
+          {result && <div style={{ marginTop: "var(--space-xl)", padding: "var(--space-xl)", background: "var(--bg-card)", borderRadius: "12px", border: "1px solid var(--border)", animation: "fadeInUp 0.3s var(--ease-out-expo) 0.1s both", textAlign: "center" }}><p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)", lineHeight: 1.6 }}>{result}</p></div>}
         </div>
       </main>
     </UpgradeGate>

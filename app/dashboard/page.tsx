@@ -126,25 +126,6 @@ export default function DashboardPage() {
             >
               Analyze More Evidence
             </button>
-            <button
-              type="button"
-              onClick={async () => {
-                await supabase.auth.signOut()
-                router.replace("/")
-              }}
-              style={{
-                background: "none",
-                border: "1px solid var(--border-accent)",
-                color: "var(--text-secondary)",
-                fontSize: "0.9375rem",
-                padding: "var(--space-sm) var(--space-md)",
-                borderRadius: "8px",
-                cursor: "pointer",
-                fontFamily: "inherit",
-              }}
-            >
-              Log out
-            </button>
           </div>
         </header>
 
@@ -159,7 +140,7 @@ export default function DashboardPage() {
                   border: "1px solid var(--border)",
                 }}
               >
-                <h2 style={{ fontSize: "1.125rem", marginBottom: "var(--space-md)", color: "var(--text-primary)" }}>Situation Details</h2>
+                <h2 style={{ fontSize: "1.125rem", marginBottom: "var(--space-md)", color: "var(--text-primary)", textAlign: "center" }}>Situation Details</h2>
                 <dl style={{ display: "grid", gap: "var(--space-sm)", fontSize: "0.9375rem" }}>
                   {profile.state && <div><dt style={{ color: "var(--text-muted)" }}>State</dt><dd>{profile.state}</dd></div>}
                   {profile.county && <div><dt style={{ color: "var(--text-muted)" }}>County</dt><dd>{profile.county}</dd></div>}
@@ -188,7 +169,7 @@ export default function DashboardPage() {
                   border: "1px solid var(--border)",
                 }}
               >
-                <h2 style={{ fontSize: "1.125rem", marginBottom: "var(--space-md)", color: "var(--text-primary)" }}>Latest Analysis</h2>
+                <h2 style={{ fontSize: "1.125rem", marginBottom: "var(--space-md)", color: "var(--text-primary)", textAlign: "center" }}>Latest Analysis</h2>
                 <div style={{ display: "flex", gap: "var(--space-xl)", marginBottom: "var(--space-md)" }}>
                   <div>
                     <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>Evidence relevance</p>
@@ -241,7 +222,7 @@ export default function DashboardPage() {
                 border: "1px solid var(--border)",
               }}
             >
-              <h2 style={{ fontSize: "1.125rem", marginBottom: "var(--space-md)", color: "var(--text-primary)" }}>Evidence</h2>
+              <h2 style={{ fontSize: "1.125rem", marginBottom: "var(--space-md)", color: "var(--text-primary)", textAlign: "center" }}>Evidence</h2>
               {evidence.length === 0 ? (
                 <p style={{ color: "var(--text-muted)", fontSize: "0.9375rem" }}>No evidence uploaded yet.</p>
               ) : (
@@ -286,7 +267,7 @@ export default function DashboardPage() {
               height: "fit-content",
             }}
           >
-            <h2 style={{ fontSize: "1.125rem", marginBottom: "var(--space-md)", color: "var(--text-primary)" }}>Next Steps</h2>
+            <h2 style={{ fontSize: "1.125rem", marginBottom: "var(--space-md)", color: "var(--text-primary)", textAlign: "center" }}>Next Steps</h2>
             <ul style={{ paddingLeft: "var(--space-lg)", fontSize: "0.9375rem", lineHeight: 1.8 }}>
               <li>Add more evidence to strengthen your case</li>
               <li>Complete your profile (state, county) for case matching</li>

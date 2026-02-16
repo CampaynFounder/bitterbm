@@ -58,22 +58,24 @@ export default function JudgeAnalysisPage() {
       <main className="section" style={{ minHeight: "80vh", paddingTop: "var(--space-2xl)", paddingBottom: "var(--space-2xl)" }}>
         <div className="container" style={{ maxWidth: 560, margin: "0 auto", animation: "fadeInUp 0.4s var(--ease-out-expo) both" }}>
           <Link href="/dashboard" style={{ display: "inline-block", marginBottom: "var(--space-lg)", color: "var(--accent-muted)", fontSize: "0.9375rem" }}>← Back to Dashboard</Link>
-          <h1 style={{ fontSize: "1.5rem", marginBottom: "var(--space-sm)", color: "var(--text-primary)" }}>Judge Analysis</h1>
-          <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)", marginBottom: "var(--space-xl)", lineHeight: 1.6 }}>Understand how your judge has ruled on alienation and custody cases.</p>
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "var(--space-lg)" }}>
-            <div>
+          <h1 style={{ fontSize: "1.5rem", marginBottom: "var(--space-sm)", color: "var(--text-primary)", textAlign: "center" }}>Judge Analysis</h1>
+          <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)", marginBottom: "var(--space-xl)", lineHeight: 1.6, textAlign: "center" }}>Understand how your judge has ruled on alienation and custody cases.</p>
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "var(--space-lg)", alignItems: "center" }}>
+            <div style={{ width: "100%" }}>
               <label style={{ display: "block", fontSize: "0.875rem", marginBottom: "var(--space-xs)", color: "var(--text-secondary)" }}>Judge name *</label>
               <input type="text" value={judgeName} onChange={(e) => setJudgeName(e.target.value)} placeholder="e.g. Hon. Sarah Johnson" required style={inputStyle} />
             </div>
-            <div>
+            <div style={{ width: "100%" }}>
               <label style={{ display: "block", fontSize: "0.875rem", marginBottom: "var(--space-xs)", color: "var(--text-secondary)" }}>State *</label>
               <select value={state} onChange={(e) => setState(e.target.value)} required style={{ ...inputStyle, cursor: "pointer" }}>
                 {US_STATES.map((s) => <option key={s.value || "empty"} value={s.value}>{s.label}</option>)}
               </select>
             </div>
-            <button type="submit" disabled={submitting} className="btn-primary" style={{ width: "100%", maxWidth: 320 }}>{submitting ? "Analyzing…" : "Analyze Judge"}</button>
+            <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
+              <button type="submit" disabled={submitting} className="btn-primary" style={{ width: "100%", maxWidth: 320 }}>{submitting ? "Analyzing…" : "Analyze Judge"}</button>
+            </div>
           </form>
-          {result && <div style={{ marginTop: "var(--space-xl)", padding: "var(--space-xl)", background: "var(--bg-card)", borderRadius: "12px", border: "1px solid var(--border)", animation: "fadeInUp 0.3s var(--ease-out-expo) 0.1s both" }}><p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)", lineHeight: 1.6 }}>{result}</p></div>}
+          {result && <div style={{ marginTop: "var(--space-xl)", padding: "var(--space-xl)", background: "var(--bg-card)", borderRadius: "12px", border: "1px solid var(--border)", animation: "fadeInUp 0.3s var(--ease-out-expo) 0.1s both", textAlign: "center" }}><p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)", lineHeight: 1.6 }}>{result}</p></div>}
         </div>
       </main>
     </UpgradeGate>

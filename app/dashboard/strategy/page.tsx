@@ -89,7 +89,7 @@ export default function StrategyPage() {
           <Link href="/dashboard" style={{ alignSelf: "flex-start", color: "var(--accent-muted)", fontSize: "0.9375rem" }}>
             ← Back to Dashboard
           </Link>
-          <header>
+          <header style={{ textAlign: "center" }}>
             <h1 style={{ fontSize: "1.5rem", marginBottom: "var(--space-sm)", color: "var(--text-primary)" }}>Overall Strategy</h1>
             <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)", lineHeight: 1.6 }}>
               Centralized view of your case details, evidence, analyses, and a cohesive plan to prove alienation.
@@ -106,7 +106,7 @@ export default function StrategyPage() {
                 animation: "fadeInUp 0.3s var(--ease-out-expo) 0.05s both",
               }}
             >
-              <h2 style={{ fontSize: "1.125rem", marginBottom: "var(--space-md)", color: "var(--text-primary)" }}>Case Details</h2>
+              <h2 style={{ fontSize: "1.125rem", marginBottom: "var(--space-md)", color: "var(--text-primary)", textAlign: "center" }}>Case Details</h2>
               {profile ? (
                 <dl style={{ display: "grid", gap: "var(--space-sm)", fontSize: "0.9375rem" }}>
                   {profile.state && <div><dt style={{ color: "var(--text-muted)" }}>State</dt><dd>{profile.state}</dd></div>}
@@ -132,7 +132,7 @@ export default function StrategyPage() {
                   animation: "fadeInUp 0.3s var(--ease-out-expo) 0.1s both",
                 }}
               >
-                <h2 style={{ fontSize: "1.125rem", marginBottom: "var(--space-md)", color: "var(--text-primary)" }}>Latest Case Analysis</h2>
+                <h2 style={{ fontSize: "1.125rem", marginBottom: "var(--space-md)", color: "var(--text-primary)", textAlign: "center" }}>Latest Case Analysis</h2>
                 <div style={{ display: "flex", gap: "var(--space-xl)", marginBottom: "var(--space-md)", flexWrap: "wrap" }}>
                   <div>
                     <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>Evidence relevance</p>
@@ -159,7 +159,7 @@ export default function StrategyPage() {
                 animation: "fadeInUp 0.3s var(--ease-out-expo) 0.15s both",
               }}
             >
-              <h2 style={{ fontSize: "1.125rem", marginBottom: "var(--space-md)", color: "var(--text-primary)" }}>Evidence on File</h2>
+              <h2 style={{ fontSize: "1.125rem", marginBottom: "var(--space-md)", color: "var(--text-primary)", textAlign: "center" }}>Evidence on File</h2>
               {evidence.length === 0 ? (
                 <p style={{ color: "var(--text-muted)", fontSize: "0.9375rem" }}>No evidence uploaded yet.</p>
               ) : (
@@ -183,7 +183,7 @@ export default function StrategyPage() {
                 animation: "fadeInUp 0.3s var(--ease-out-expo) 0.2s both",
               }}
             >
-              <h2 style={{ fontSize: "1.125rem", marginBottom: "var(--space-md)", color: "var(--text-primary)" }}>Prove-It Plan</h2>
+              <h2 style={{ fontSize: "1.125rem", marginBottom: "var(--space-md)", color: "var(--text-primary)", textAlign: "center" }}>Prove-It Plan</h2>
               <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: "var(--space-md)" }}>
                 Your cohesive strategy will combine case analysis, GAL insights, judge tendencies, county precedent, and attorney evaluation into a clear plan.
               </p>

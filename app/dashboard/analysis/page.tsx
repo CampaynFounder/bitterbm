@@ -151,7 +151,7 @@ export default function DashboardAnalysisPage() {
               Upload screenshots, emails, or documents. We&apos;ll analyze patterns and refine your strategy to prove alienation.
             </p>
             <UploadZone maxFiles={MAX_ENROLLED_FILES} onFilesSelected={setFiles} />
-            <div style={{ marginTop: "var(--space-xl)", width: "100%", display: "flex", justifyContent: "center" }}>
+            <div style={{ marginTop: "var(--space-xl)", width: "100%", display: "flex", justifyContent: "center", alignItems: "center" }}>
               <button
                 type="button"
                 className="btn-primary"
@@ -183,13 +183,15 @@ export default function DashboardAnalysisPage() {
             <p style={{ marginTop: "var(--space-md)", fontSize: "0.8125rem", color: "var(--text-muted)", textAlign: "center" }}>
               {saving ? "Saving to your case…" : "Saved to your dashboard."}
             </p>
-            <Link
-              href="/dashboard"
-              className="btn-primary"
-              style={{ marginTop: "var(--space-md)", width: "100%", maxWidth: 320, textAlign: "center" }}
-            >
-              View Dashboard
-            </Link>
+            <div style={{ marginTop: "var(--space-md)", width: "100%", display: "flex", justifyContent: "center" }}>
+              <Link
+                href="/dashboard"
+                className="btn-primary"
+                style={{ width: "100%", maxWidth: 320, textAlign: "center" }}
+              >
+                View Dashboard
+              </Link>
+            </div>
           </div>
         )}
       </div>
