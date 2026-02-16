@@ -34,7 +34,7 @@ export default function AssessmentPage() {
           ({ data }) => {
             const plan = (data as { plan?: string } | null)?.plan
             if (plan === "monthly" || plan === "flat") {
-              router.replace("/dashboard/analysis")
+              router.replace("/dashboard")
               return
             }
             setCheckingAuth(false)
