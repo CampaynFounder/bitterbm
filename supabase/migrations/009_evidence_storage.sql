@@ -1,6 +1,5 @@
 -- Supabase Storage: evidence uploads
--- Create bucket manually in Dashboard: Storage > New bucket > evidence-uploads (private, 5MB limit, png/jpeg/jpg/pdf)
--- Or: supabase storage create evidence-uploads --private --file-size-limit 5242880
+-- Bucket is created in 011_create_evidence_bucket.sql (or create manually in Dashboard: Storage > New bucket)
 
 -- RLS: authenticated users can upload/read/delete own files
 -- Path format: {user_id}/{case_id}/{file_id}.{ext}

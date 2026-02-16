@@ -33,8 +33,46 @@ type DashboardState = {
   counties: string[]
 }
 
+type TabId = "case-law" | "judge" | "expert" | "attorney" | "filing" | "tools"
+
+const TABS: { id: TabId; label: string }[] = [
+  { id: "case-law", label: "Case Law RAG" },
+  { id: "judge", label: "Judge RAG" },
+  { id: "expert", label: "Expert RAG" },
+  { id: "attorney", label: "Attorney RAG" },
+  { id: "filing", label: "Filing RAG" },
+  { id: "tools", label: "Tools" },
+]
+
+function StepCard({
+  stepNum,
+  title,
+  children,
+  status,
+}: {
+  stepNum: number
+  title: string
+  children: React.ReactNode
+  status?: "pending" | "ready" | "done"
+}) {
+  const statusColor =
+    status === "done" ? "border-emerald-600/50" : status === "ready" ? "border-amber-500/50" : "border-gray-700"
+  return (
+    <div className={`rounded-lg border bg-[#0d0d0d] p-4 ${statusColor}`}>
+      <div className="flex items-center gap-2 mb-3">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-800 text-xs font-semibold text-gray-300">
+          {stepNum}
+        </span>
+        <h3 className="font-medium text-white">{title}</h3>
+      </div>
+      {children}
+    </div>
+  )
+}
+
 export default function AdminDashboardPage() {
   const router = useRouter()
+  const [activeTab, setActiveTab] = useState<TabId>("case-law")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [triggering, setTriggering] = useState(false)
@@ -47,13 +85,11 @@ export default function AdminDashboardPage() {
   const [fetchMax, setFetchMax] = useState(100)
   const [user, setUser] = useState<{ email?: string } | null>(null)
 
-  // User subscription management
   const [subUserEmail, setSubUserEmail] = useState("")
   const [subAction, setSubAction] = useState<"grant_flat" | "grant_monthly" | "revoke">("grant_flat")
   const [subLoading, setSubLoading] = useState(false)
   const [subResult, setSubResult] = useState<string | null>(null)
 
-  // RAG testing
   const [ragQuestion, setRagQuestion] = useState("How do Georgia courts address parental alienation in custody cases?")
   const [ragState, setRagState] = useState("GA")
   const [ragTesting, setRagTesting] = useState(false)
@@ -72,7 +108,6 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     if (!user) return
-
     async function load() {
       setLoading(true)
       setError(null)
@@ -81,71 +116,37 @@ export default function AdminDashboardPage() {
           supabase.from("raw_cases").select("cluster_id", { count: "exact", head: true }),
           supabase.from("raw_cases").select("cluster_id", { count: "exact", head: true }).not("plain_text", "is", null),
           supabase.from("case_chunks").select("id", { count: "exact", head: true }),
-          supabase
-            .from("pipeline_runs")
-            .select("*")
-            .eq("step", "fetch")
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-          supabase
-            .from("pipeline_runs")
-            .select("*")
-            .eq("step", "chunk")
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-          supabase
-            .from("raw_cases")
-            .select("cluster_id, case_name, court, county, judge, date_filed")
-            .order("date_filed", { ascending: false, nullsFirst: false })
-            .limit(5),
+          supabase.from("pipeline_runs").select("*").eq("step", "fetch").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          supabase.from("pipeline_runs").select("*").eq("step", "chunk").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          supabase.from("raw_cases").select("cluster_id, case_name, court, county, judge, date_filed").order("date_filed", { ascending: false, nullsFirst: false }).limit(5),
         ])
-
-        const rawCount = rawRes.count ?? 0
-        const casesWithPlainText = plainTextRes.count ?? 0
-        const chunksCount = chunksRes.count ?? 0
-        const sampleCases = (sampleRes.data ?? []) as RawCase[]
-
         const countyRes = await supabase.from("raw_cases").select("county")
         const counties = Array.from(new Set((countyRes.data ?? []).map((r: { county: string | null }) => r.county).filter(Boolean) as string[])).sort()
-
         setState({
-          rawCasesCount: rawCount,
-          casesWithPlainText,
-          caseChunksCount: chunksCount,
+          rawCasesCount: rawRes.count ?? 0,
+          casesWithPlainText: plainTextRes.count ?? 0,
+          caseChunksCount: chunksRes.count ?? 0,
           lastFetch: (fetchRunRes.data as PipelineRun | null) ?? null,
           lastChunk: (chunkRunRes.data as PipelineRun | null) ?? null,
-          sampleCases,
+          sampleCases: (sampleRes.data ?? []) as RawCase[],
           counties,
         })
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to load status")
+        setError(e instanceof Error ? e.message : "Failed to load")
       } finally {
         setLoading(false)
       }
     }
-
     load()
   }, [user])
 
-  async function handleTriggerFetch(params: {
-    maxResults?: number
-    fetchFullText?: boolean
-    query?: string
-    state?: string
-  }) {
-    const {
-      maxResults,
-      fetchFullText = false,
-      query = "alienat*",
-      state = "GA",
-    } = params
+  async function handleTriggerFetch(params: { maxResults?: number; fetchFullText?: boolean; query?: string; state?: string }) {
+    const { maxResults, fetchFullText = false, query = "alienat*", state = "GA" } = params
     const max = maxResults ?? fetchMax
     const url = process.env.NEXT_PUBLIC_MODAL_TRIGGER_URL
     const secret = process.env.NEXT_PUBLIC_PIPELINE_TRIGGER_SECRET
     if (!url || !secret) {
-      setError("Set NEXT_PUBLIC_MODAL_TRIGGER_URL and NEXT_PUBLIC_PIPELINE_TRIGGER_SECRET in Cloudflare env")
+      setError("Set NEXT_PUBLIC_MODAL_TRIGGER_URL and NEXT_PUBLIC_PIPELINE_TRIGGER_SECRET")
       return
     }
     setTriggering(true)
@@ -154,10 +155,7 @@ export default function AdminDashboardPage() {
     try {
       const res = await fetch(url, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${secret}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${secret}` },
         body: JSON.stringify({
           max_results: Math.min(5000, Math.max(1, max)),
           fetch_full_text: fetchFullText,
@@ -166,11 +164,8 @@ export default function AdminDashboardPage() {
         }),
       })
       const data = await res.json()
-      if (!res.ok) {
-        throw new Error(data.detail || `HTTP ${res.status}`)
-      }
+      if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`)
       setTriggerResult(data)
-      // Refresh status by reloading
       const [rawRes, plainTextRes, fetchRunRes, chunkRunRes, chunksRes, sampleRes, countyRes] = await Promise.all([
         supabase.from("raw_cases").select("cluster_id", { count: "exact", head: true }),
         supabase.from("raw_cases").select("cluster_id", { count: "exact", head: true }).not("plain_text", "is", null),
@@ -215,32 +210,21 @@ export default function AdminDashboardPage() {
     try {
       const res = await fetch(url, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${secret}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${secret}` },
         body: JSON.stringify({ state: stateFilter || null }),
       })
       const data = await res.json()
-      if (!res.ok) {
-        throw new Error(data.detail || `HTTP ${res.status}`)
-      }
+      if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`)
       setChunkResult(data)
       const [chunksRes, chunkRunRes] = await Promise.all([
         supabase.from("case_chunks").select("id", { count: "exact", head: true }),
         supabase.from("pipeline_runs").select("*").eq("step", "chunk").order("created_at", { ascending: false }).limit(1).maybeSingle(),
       ])
       setState((prev) =>
-        prev
-          ? {
-              ...prev,
-              caseChunksCount: chunksRes.count ?? 0,
-              lastChunk: (chunkRunRes.data as PipelineRun | null) ?? prev.lastChunk,
-            }
-          : prev
+        prev ? { ...prev, caseChunksCount: chunksRes.count ?? 0, lastChunk: (chunkRunRes.data as PipelineRun | null) ?? prev.lastChunk } : prev
       )
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Chunk embed trigger failed")
+      setError(e instanceof Error ? e.message : "Chunk embed failed")
     } finally {
       setChunking(false)
     }
@@ -255,10 +239,7 @@ export default function AdminDashboardPage() {
       const { data: { session } } = await supabase.auth.getSession()
       const res = await fetch("/api/admin/set-subscription", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-        },
+        headers: { "Content-Type": "application/json", ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) },
         body: JSON.stringify({ userEmail: subUserEmail.trim(), action: subAction }),
       })
       const data = await res.json()
@@ -266,7 +247,7 @@ export default function AdminDashboardPage() {
       setSubResult(`Success: ${data.email} → ${data.plan}`)
       setSubUserEmail("")
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Set subscription failed")
+      setError(e instanceof Error ? e.message : "Failed")
     } finally {
       setSubLoading(false)
     }
@@ -280,17 +261,10 @@ export default function AdminDashboardPage() {
       const res = await fetch("/api/admin/rag-test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question: ragQuestion,
-          state: ragState || null,
-          top_k: 10,
-          provider: "openai",
-        }),
+        body: JSON.stringify({ question: ragQuestion, state: ragState || null, top_k: 10, provider: "openai" }),
       })
       const data = await res.json()
-      if (!res.ok) {
-        throw new Error(data.error || `HTTP ${res.status}`)
-      }
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
       setRagResult(data)
     } catch (e) {
       setError(e instanceof Error ? e.message : "RAG test failed")
@@ -312,383 +286,342 @@ export default function AdminDashboardPage() {
     )
   }
 
-  return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white p-6">
-      <div className="max-w-4xl mx-auto">
-        <header className="flex justify-between items-center mb-8">
-          <h1 className="text-xl font-semibold">Admin · Pipeline Status</h1>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-500">{user.email}</span>
-            <button
-              onClick={handleSignOut}
-              className="text-sm text-amber-500 hover:text-amber-400"
-            >
-              Sign out
-            </button>
-          </div>
-        </header>
+  const inputClass = "w-full px-3 py-2 rounded bg-[#0a0a0a] border border-gray-700 text-sm text-white placeholder-gray-500"
+  const labelClass = "block text-xs text-gray-500 mb-1"
+  const btnPrimary = "px-3 py-1.5 rounded bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-sm font-medium"
+  const btnSecondary = "px-3 py-1.5 rounded bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm"
 
+  return (
+    <div className="min-h-screen bg-[#0a0a0a] text-white">
+      <header className="sticky top-0 z-10 border-b border-gray-800 bg-[#0a0a0a]/95 backdrop-blur">
+        <div className="max-w-5xl mx-auto px-4 py-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <h1 className="text-lg font-semibold">Admin</h1>
+              <nav className="flex flex-wrap gap-1">
+                {TABS.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setActiveTab(t.id)}
+                    className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                      activeTab === t.id ? "bg-amber-600 text-white" : "text-gray-400 hover:text-white hover:bg-gray-800"
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </nav>
+            </div>
+            <div className="flex items-center gap-3 text-sm">
+              <span className="text-gray-500 truncate max-w-[180px]">{user.email}</span>
+              <button onClick={handleSignOut} className="text-amber-500 hover:text-amber-400">
+                Sign out
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-5xl mx-auto px-4 py-6">
         {error && (
-          <div className="mb-6 p-4 rounded bg-red-900/30 text-red-300 border border-red-700">
+          <div className="mb-4 p-3 rounded bg-red-900/30 text-red-300 border border-red-700 text-sm">
             {error}
           </div>
         )}
 
-        <div className="space-y-6">
-          {/* 1. CourtListener */}
-          <section className="rounded-lg border border-gray-800 bg-[#111] p-4">
-            <h2 className="font-medium text-amber-400 mb-3">1. CourtListener API</h2>
-            <p className="text-sm text-gray-400 mb-3">
-              Fetch cases by state and search term(s). State maps to appellate courts (GA → ga/gactapp, NC → ncct/ncctapp, etc.).            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-              <div>
-                <label htmlFor="fetch-state" className="block text-xs text-gray-500 mb-1">State</label>
-                <select
-                  id="fetch-state"
-                  value={fetchState}
-                  onChange={(e) => setFetchState(e.target.value)}
-                  className="w-full px-2 py-1.5 rounded bg-[#0a0a0a] border border-gray-700 text-sm text-white"
-                >
-                  <option value="GA">Georgia (GA)</option>
-                  <option value="NC">North Carolina (NC)</option>
-                  <option value="FL">Florida (FL)</option>
-                  <option value="TX">Texas (TX)</option>
-                </select>
-              </div>
-              <div>
-                <label htmlFor="fetch-query" className="block text-xs text-gray-500 mb-1">Search term(s)</label>
-                <input
-                  id="fetch-query"
-                  type="text"
-                  value={fetchQuery}
-                  onChange={(e) => setFetchQuery(e.target.value)}
-                  placeholder="e.g. alienat* (alienation, alienated), or alienation custody"
-                  className="w-full px-2 py-1.5 rounded bg-[#0a0a0a] border border-gray-700 text-sm text-white placeholder-gray-500"
-                />
-              </div>
-              <div>
-                <label htmlFor="fetch-max" className="block text-xs text-gray-500 mb-1">Max results (1–5000)</label>
-                <input
-                  id="fetch-max"
-                  type="number"
-                  min={1}
-                  max={5000}
-                  value={fetchMax}
-                  onChange={(e) => setFetchMax(Math.min(5000, Math.max(1, parseInt(e.target.value, 10) || 1)))}
-                  className="w-full px-2 py-1.5 rounded bg-[#0a0a0a] border border-gray-700 text-sm text-white"
-                />
-              </div>
-            </div>
-            {state?.lastFetch ? (
-              <div className="space-y-1 text-sm">
-                <p>
-                  <span className="text-gray-500">Last run:</span>{" "}
-                  {new Date(state.lastFetch.created_at).toLocaleString()}
-                </p>
-                {state.lastFetch.counts && (
-                  <p>
-                    <span className="text-gray-500">Fetched:</span>{" "}
-                    {state.lastFetch.counts.fetched ?? "—"} | Supabase stored:{" "}
-                    {state.lastFetch.counts.supabase_stored ?? "—"}
-                  </p>
-                )}
-                {state.lastFetch.filters && (
-                  <p>
-                    <span className="text-gray-500">Filters:</span>{" "}
-                    {JSON.stringify(state.lastFetch.filters)}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <p className="text-gray-500 text-sm">No fetch runs yet.</p>
-            )}
-            <p className="text-xs text-gray-500 mb-2">
-              Use &quot;Fetch + text (RAG)&quot; to store. Cases with usable text (≥200 chars) or a PDF are stored; &quot;Fetch&quot; without text stores nothing.
+        {/* Case Law RAG */}
+        {activeTab === "case-law" && (
+          <div className="space-y-6">
+            <p className="text-sm text-gray-400">
+              CourtListener → raw_cases → chunk + embed → case_chunks. Run steps in order.
             </p>
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <button
-                onClick={() => handleTriggerFetch({ query: fetchQuery, state: fetchState })}
-                disabled={triggering}
-                className="px-3 py-1.5 rounded bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-sm font-medium"
-              >
-                {triggering ? "Running…" : `Fetch ${fetchMax}`}
-              </button>
-              <button
-                onClick={() => handleTriggerFetch({ fetchFullText: true, query: fetchQuery, state: fetchState })}
-                disabled={triggering}
-                className="px-3 py-1.5 rounded bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm"
-                title="Fetches full opinion text for RAG (slower)"
-              >
-                {triggering ? "…" : `Fetch ${fetchMax} + text (RAG)`}
-              </button>
-              {triggerResult && (
-                <span className="text-sm text-green-400">
-                  Done: {triggerResult.fetched} fetched, {triggerResult.supabase_stored} stored
-                  {typeof triggerResult.pdfs_stored === "number" && triggerResult.pdfs_stored > 0 && (
-                    <span>, {triggerResult.pdfs_stored} PDFs</span>
+            <div className="grid gap-4">
+              <StepCard stepNum={1} title="Fetch from CourtListener" status={state?.lastFetch ? "done" : "pending"}>
+                <p className="text-sm text-gray-400 mb-3">
+                  Fetch cases by state and search term. Use &quot;Fetch + text (RAG)&quot; to store full opinion text for chunking.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                  <div>
+                    <label className={labelClass}>State</label>
+                    <select id="fetch-state" value={fetchState} onChange={(e) => setFetchState(e.target.value)} className={inputClass}>
+                      <option value="GA">Georgia (GA)</option>
+                      <option value="NC">North Carolina (NC)</option>
+                      <option value="FL">Florida (FL)</option>
+                      <option value="TX">Texas (TX)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Search term</label>
+                    <input
+                      id="fetch-query"
+                      type="text"
+                      value={fetchQuery}
+                      onChange={(e) => setFetchQuery(e.target.value)}
+                      placeholder="alienat*"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Max results (1–5000)</label>
+                    <input
+                      id="fetch-max"
+                      type="number"
+                      min={1}
+                      max={5000}
+                      value={fetchMax}
+                      onChange={(e) => setFetchMax(Math.min(5000, Math.max(1, parseInt(e.target.value, 10) || 1)))}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <button onClick={() => handleTriggerFetch({ query: fetchQuery, state: fetchState })} disabled={triggering} className={btnPrimary}>
+                    {triggering ? "Running…" : `Fetch ${fetchMax}`}
+                  </button>
+                  <button
+                    onClick={() => handleTriggerFetch({ fetchFullText: true, query: fetchQuery, state: fetchState })}
+                    disabled={triggering}
+                    className={btnSecondary}
+                  >
+                    {triggering ? "…" : `Fetch ${fetchMax} + text (RAG)`}
+                  </button>
+                  {triggerResult && (
+                    <span className="text-sm text-green-400">
+                      Done: {triggerResult.fetched} fetched, {triggerResult.supabase_stored} stored
+                    </span>
                   )}
-                  {typeof triggerResult.supabase_skipped === "number" && triggerResult.supabase_skipped > 0 && (
-                    <span className="text-amber-400">, {triggerResult.supabase_skipped} skipped</span>
-                  )}
-                </span>
-              )}
-            </div>
-          </section>
+                </div>
+                {state?.lastFetch && (
+                  <p className="mt-2 text-xs text-gray-500">
+                    Last run: {new Date(state.lastFetch.created_at).toLocaleString()}
+                    {state.lastFetch.counts && ` · ${state.lastFetch.counts.fetched} fetched, ${state.lastFetch.counts.supabase_stored} stored`}
+                  </p>
+                )}
+              </StepCard>
 
-          {/* 2. Storage */}
-          <section className="rounded-lg border border-gray-800 bg-[#111] p-4">
-            <h2 className="font-medium text-amber-400 mb-3">2. Storage (raw_cases)</h2>
-            <p className="text-sm text-gray-400 mb-3">
-              JSON/text from CourtListener stored in Supabase raw_cases table.
-            </p>
-            <div className="space-y-2 text-sm font-mono text-gray-400 mb-3">
-              <p>
-                <span className="text-gray-500">Example:</span>{" "}
-                <code className="text-amber-200/80">q=(alienation) AND (court_id:ga OR court_id:gactapp)</code>
-              </p>
-              <p>
-                <span className="text-gray-500">Current filters:</span>{" "}
-                state={fetchState}, query=&quot;{fetchQuery}&quot;
-              </p>
-            </div>
-            <div className="space-y-2 text-sm mb-3">
-              <p>
-                <span className="text-gray-500">Total cases (metadata):</span>{" "}
-                {state?.rawCasesCount ?? 0}
-              </p>
-              <p>
-                <span className="text-gray-500">Cases with full text (RAG-ready):</span>{" "}
-                <span className={state?.casesWithPlainText ? "text-emerald-400" : "text-amber-400"}>
-                  {state?.casesWithPlainText ?? 0}
-                </span>
-                {state?.rawCasesCount ? ` / ${state.rawCasesCount}` : ""}
-              </p>
-              {state?.rawCasesCount && (state?.casesWithPlainText ?? 0) === 0 && (
-                <p className="text-amber-400/90 text-xs">
-                  Run &quot;Fetch 20 + text (RAG)&quot; to store full opinion text for RAG training.
+              <StepCard stepNum={2} title="Storage (raw_cases)" status={state?.casesWithPlainText ? "ready" : "pending"}>
+                <p className="text-sm text-gray-400 mb-2">Cases stored in Supabase.</p>
+                <p className="text-sm">
+                  <span className="text-gray-500">Total:</span> {state?.rawCasesCount ?? 0} ·{" "}
+                  <span className="text-gray-500">RAG-ready (plain text):</span>{" "}
+                  <span className={state?.casesWithPlainText ? "text-emerald-400" : "text-amber-400"}>{state?.casesWithPlainText ?? 0}</span>
                 </p>
-              )}
-              {state && state.counties.length > 0 && (
-                <p>
-                  <span className="text-gray-500">State / counties:</span>{" "}
-                  GA — {state.counties.length === 1 && state.counties[0] === "Georgia" ? "statewide courts (ga, gactapp)" : state.counties.join(", ")}
-                </p>
-              )}
-              {state && state.sampleCases.length > 0 && (
-                <div>
-                  <p className="text-gray-500 mb-2">Sample cases:</p>
-                  <ul className="space-y-1 text-gray-300">
-                    {state.sampleCases.map((c) => (
+                {state?.sampleCases.length ? (
+                  <ul className="mt-2 text-xs text-gray-400 space-y-0.5">
+                    {state.sampleCases.slice(0, 3).map((c) => (
                       <li key={c.cluster_id}>
-                        {c.case_name ?? "—"} ({c.court ?? "—"}, {c.date_filed ?? "—"})
+                        {c.case_name ?? "—"} ({c.court}, {c.date_filed})
                       </li>
                     ))}
                   </ul>
-                </div>
-              )}
-            </div>
-          </section>
+                ) : null}
+              </StepCard>
 
-          {/* 3. RAG */}
-          <section className="rounded-lg border border-gray-800 bg-[#111] p-4">
-            <h2 className="font-medium text-amber-400 mb-3">3. RAG (case_chunks)</h2>
-            <p className="text-sm text-gray-400 mb-3">
-              Chunked, embedded, indexed for vector search. Ready for user queries.
-            </p>
-            <div className="space-y-2 text-sm mb-3">
-              <p>
-                <span className="text-gray-500">Chunks indexed:</span>{" "}
-                {state?.caseChunksCount ?? 0}
-              </p>
-              {state?.lastChunk && (
-                <p>
-                  <span className="text-gray-500">Last chunk run:</span>{" "}
-                  {new Date(state.lastChunk.created_at).toLocaleString()}
-                  {state.lastChunk.counts && (
-                    <span className="ml-2 text-gray-400">
-                      ({state.lastChunk.counts.cases_processed} cases, {state.lastChunk.counts.chunks_created} chunks)
+              <StepCard stepNum={3} title="Chunk + Embed" status={state?.caseChunksCount ? "done" : "pending"}>
+                <p className="text-sm text-gray-400 mb-3">
+                  Chunk training_ready_cases and embed into case_chunks. Requires cases with plain text from Step 1.
+                </p>
+                <p className="text-sm mb-3">
+                  <span className="text-gray-500">Chunks indexed:</span> {state?.caseChunksCount ?? 0}
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={() => handleTriggerChunkEmbed(fetchState)}
+                    disabled={chunking || !state?.casesWithPlainText}
+                    className={btnSecondary}
+                  >
+                    {chunking ? "Running…" : `Chunk + embed (${fetchState})`}
+                  </button>
+                  <button onClick={() => handleTriggerChunkEmbed(null)} disabled={chunking || !state?.casesWithPlainText} className="px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white text-sm">
+                    Chunk + embed (all)
+                  </button>
+                  {chunkResult && (
+                    <span className="text-sm text-green-400">
+                      Done: {chunkResult.cases_processed} cases, {chunkResult.chunks_created} chunks
                     </span>
                   )}
-                </p>
-              )}
-            </div>
-            {state?.caseChunksCount === 0 && (
-              <p className="text-gray-500 text-sm mb-2">
-                Run chunk + embed after raw_cases are populated.
-              </p>
-            )}
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                onClick={() => handleTriggerChunkEmbed(fetchState)}
-                disabled={chunking || (state?.casesWithPlainText ?? 0) === 0}
-                className="px-3 py-1.5 rounded bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm"
-                title={state?.casesWithPlainText ? "Chunk and embed training_ready_cases" : "Need cases with plain text first"}
-              >
-                {chunking ? "Running…" : `Chunk + embed (${fetchState})`}
-              </button>
-              <button
-                onClick={() => handleTriggerChunkEmbed(null)}
-                disabled={chunking || (state?.casesWithPlainText ?? 0) === 0}
-                className="px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm"
-                title="Chunk and embed all states"
-              >
-                {chunking ? "…" : "Chunk + embed (all states)"}
-              </button>
-              {chunkResult && (
-                <span className="text-sm text-green-400">
-                  Done: {chunkResult.cases_processed} cases, {chunkResult.chunks_created} chunks
-                  {Array.isArray(chunkResult.errors) && chunkResult.errors.length > 0 && (
-                    <span className="text-amber-400">, {chunkResult.errors.length} errors</span>
-                  )}
-                </span>
-              )}
-            </div>
-          </section>
+                </div>
+              </StepCard>
 
-          {/* 4. RAG Testing */}
-          <section className="rounded-lg border border-gray-800 bg-[#111] p-4">
-            <h2 className="font-medium text-amber-400 mb-3">4. RAG Testing</h2>
-            <p className="text-sm text-gray-400 mb-3">
-              Test retrieval + LLM answer to validate system prompt and response quality.
-            </p>
-            {state?.caseChunksCount === 0 && (
-              <p className="text-amber-400 text-sm mb-3">
-                Run chunk + embed before testing RAG.
-              </p>
-            )}
-            <div className="space-y-3">
-              <div>
-                <label htmlFor="rag-question" className="block text-xs text-gray-500 mb-1">Question</label>
+              <StepCard stepNum={4} title="Test RAG" status={state?.caseChunksCount ? "ready" : "pending"}>
+                <p className="text-sm text-gray-400 mb-3">Query case_chunks and validate response quality.</p>
                 <textarea
-                  id="rag-question"
                   value={ragQuestion}
                   onChange={(e) => setRagQuestion(e.target.value)}
                   rows={2}
                   placeholder="e.g. How do Georgia courts address parental alienation?"
-                  className="w-full px-2 py-1.5 rounded bg-[#0a0a0a] border border-gray-700 text-sm text-white placeholder-gray-500"
+                  className={`${inputClass} mb-3`}
                 />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <select value={ragState} onChange={(e) => setRagState(e.target.value)} className={`${inputClass} w-auto max-w-[140px]`}>
+                    <option value="GA">GA</option>
+                    <option value="">All</option>
+                  </select>
+                  <button onClick={handleTestRAG} disabled={ragTesting || !state?.caseChunksCount} className={btnPrimary}>
+                    {ragTesting ? "Running…" : "Test RAG"}
+                  </button>
+                </div>
+                {ragResult && (
+                  <div className="mt-4 space-y-3">
+                    <div className="p-3 rounded bg-[#0a0a0a] border border-gray-700">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-green-400">Answer</span>
+                        <button onClick={() => setShowRetrievedChunks(!showRetrievedChunks)} className="text-xs text-amber-500 hover:text-amber-400">
+                          {showRetrievedChunks ? "Hide" : "Show"} chunks ({ragResult.retrieved_chunks?.length || 0})
+                        </button>
+                      </div>
+                      <p className="text-sm text-gray-300 whitespace-pre-wrap">{ragResult.answer}</p>
+                    </div>
+                    {showRetrievedChunks && ragResult.retrieved_chunks?.length ? (
+                      <div className="space-y-2">
+                        {ragResult.retrieved_chunks.slice(0, 5).map((c: any, i: number) => (
+                          <div key={i} className="p-2 rounded bg-[#0a0a0a] border border-gray-800 text-xs">
+                            <span className="text-gray-400">{c.case_name} ({c.date_filed})</span> · sim {c.similarity?.toFixed(2)}
+                            <p className="text-gray-500 mt-0.5 line-clamp-2">{c.chunk_preview}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+              </StepCard>
+            </div>
+          </div>
+        )}
+
+        {/* Judge RAG */}
+        {activeTab === "judge" && (
+          <div className="space-y-6">
+            <p className="text-sm text-gray-400">
+              Extract judges from raw_cases → populate judges table → build judge_analysis_embeddings.
+            </p>
+            <div className="grid gap-4">
+              <StepCard stepNum={1} title="Extract judges from raw_cases">
+                <p className="text-sm text-gray-400">Parse judge names from CourtListener cases. Pipeline coming soon.</p>
+                <p className="text-xs text-gray-500 mt-2">Tables: judges, case_participants</p>
+              </StepCard>
+              <StepCard stepNum={2} title="Enrich judge profiles">
+                <p className="text-sm text-gray-400">Fetch appointment dates, court info, background. Coming soon.</p>
+              </StepCard>
+              <StepCard stepNum={3} title="Chunk + Embed (judge_analysis_embeddings)">
+                <p className="text-sm text-gray-400">Build RAG for judicial tendencies. Coming soon.</p>
+              </StepCard>
+              <StepCard stepNum={4} title="Test Judge RAG">
+                <p className="text-sm text-gray-400">Query by judge name + state. Coming soon.</p>
+              </StepCard>
+            </div>
+          </div>
+        )}
+
+        {/* Expert RAG */}
+        {activeTab === "expert" && (
+          <div className="space-y-6">
+            <p className="text-sm text-gray-400">
+              GALs, psychologists, custody evaluators. Aggregate testimony, reports, credentials.
+            </p>
+            <div className="grid gap-4">
+              <StepCard stepNum={1} title="Ingest expert data">
+                <p className="text-sm text-gray-400">State licensing boards, court transcripts, JurisPro. Coming soon.</p>
+              </StepCard>
+              <StepCard stepNum={2} title="Build expert profiles (experts table)">
+                <p className="text-sm text-gray-400">Store credentials, type, state, county. Coming soon.</p>
+              </StepCard>
+              <StepCard stepNum={3} title="Chunk + Embed (expert_profile_embeddings)">
+                <p className="text-sm text-gray-400">RAG for expert persuasion patterns. Coming soon.</p>
+              </StepCard>
+              <StepCard stepNum={4} title="Test Expert RAG">
+                <p className="text-sm text-gray-400">Query by expert name + role. Coming soon.</p>
+              </StepCard>
+            </div>
+          </div>
+        )}
+
+        {/* Attorney RAG */}
+        {activeTab === "attorney" && (
+          <div className="space-y-6">
+            <p className="text-sm text-gray-400">
+              Opposing counsel + user&apos;s attorney. Motion patterns, success rates, strategy.
+            </p>
+            <div className="grid gap-4">
+              <StepCard stepNum={1} title="Ingest attorney data">
+                <p className="text-sm text-gray-400">PACER, state bar, case records. Coming soon.</p>
+              </StepCard>
+              <StepCard stepNum={2} title="Build attorney profiles (attorneys table)">
+                <p className="text-sm text-gray-400">Bar #, practice areas, firm. Coming soon.</p>
+              </StepCard>
+              <StepCard stepNum={3} title="Chunk + Embed (attorney_intelligence_embeddings)">
+                <p className="text-sm text-gray-400">RAG for briefs, motions, strategies. Coming soon.</p>
+              </StepCard>
+              <StepCard stepNum={4} title="Test Attorney RAG">
+                <p className="text-sm text-gray-400">Query by attorney name. Coming soon.</p>
+              </StepCard>
+            </div>
+          </div>
+        )}
+
+        {/* Filing RAG */}
+        {activeTab === "filing" && (
+          <div className="space-y-6">
+            <p className="text-sm text-gray-400">
+              User-uploaded opposing counsel filings. Real-time analysis, rebuttal suggestions.
+            </p>
+            <div className="grid gap-4">
+              <StepCard stepNum={1} title="Upload filing">
+                <p className="text-sm text-gray-400">User uploads PDF. Stored in evidence + filing_embeddings. Coming soon.</p>
+              </StepCard>
+              <StepCard stepNum={2} title="Parse + chunk">
+                <p className="text-sm text-gray-400">Extract text, chunk by section. Coming soon.</p>
+              </StepCard>
+              <StepCard stepNum={3} title="Embed (filing_embeddings)">
+                <p className="text-sm text-gray-400">Vector search for rebuttal context. Coming soon.</p>
+              </StepCard>
+              <StepCard stepNum={4} title="Analyze filing">
+                <p className="text-sm text-gray-400">Cross-ref with case law, generate rebuttal memo. Coming soon.</p>
+              </StepCard>
+            </div>
+          </div>
+        )}
+
+        {/* Tools */}
+        {activeTab === "tools" && (
+          <div className="space-y-6">
+            <div className="rounded-lg border border-gray-800 bg-[#0d0d0d] p-4">
+              <h2 className="font-medium text-amber-400 mb-3">User subscription</h2>
+              <p className="text-sm text-gray-400 mb-4">
+                Grant or revoke plan for a user by email.
+              </p>
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="min-w-[200px]">
+                  <label className={labelClass}>User email</label>
+                  <input
+                    type="email"
+                    value={subUserEmail}
+                    onChange={(e) => setSubUserEmail(e.target.value)}
+                    placeholder="user@example.com"
+                    className={inputClass}
+                  />
+                </div>
                 <div>
-                  <label htmlFor="rag-state" className="block text-xs text-gray-500 mb-1">State filter</label>
-                  <select
-                    id="rag-state"
-                    value={ragState}
-                    onChange={(e) => setRagState(e.target.value)}
-                    className="w-full px-2 py-1.5 rounded bg-[#0a0a0a] border border-gray-700 text-sm text-white"
-                  >
-                    <option value="GA">Georgia (GA)</option>
-                    <option value="">All states</option>
+                  <label className={labelClass}>Action</label>
+                  <select value={subAction} onChange={(e) => setSubAction(e.target.value as typeof subAction)} className={inputClass}>
+                    <option value="grant_flat">Grant flat</option>
+                    <option value="grant_monthly">Grant monthly</option>
+                    <option value="revoke">Revoke</option>
                   </select>
                 </div>
+                <button onClick={handleSetSubscription} disabled={subLoading} className={btnPrimary}>
+                  {subLoading ? "Applying…" : "Apply"}
+                </button>
               </div>
-              <button
-                onClick={handleTestRAG}
-                disabled={ragTesting || (state?.caseChunksCount ?? 0) === 0}
-                className="px-3 py-1.5 rounded bg-blue-700 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm"
-              >
-                {ragTesting ? "Running…" : "Test RAG"}
-              </button>
-              {ragResult && (
-                <div className="space-y-3 mt-4">
-                  <div className="p-3 rounded bg-[#0a0a0a] border border-gray-700">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-sm font-medium text-green-400">Answer</h3>
-                      <button
-                        onClick={() => setShowRetrievedChunks(!showRetrievedChunks)}
-                        className="text-xs text-amber-500 hover:text-amber-400"
-                      >
-                        {showRetrievedChunks ? "Hide" : "Show"} retrieved chunks ({ragResult.retrieved_chunks?.length || 0})
-                      </button>
-                    </div>
-                    <p className="text-sm text-gray-300 whitespace-pre-wrap">{ragResult.answer}</p>
-                  </div>
-                  {showRetrievedChunks && ragResult.retrieved_chunks && (
-                    <div className="space-y-2">
-                      <h3 className="text-sm font-medium text-amber-400">Retrieved Chunks</h3>
-                      {ragResult.retrieved_chunks.map((c: any, i: number) => (
-                        <div key={i} className="p-2 rounded bg-[#0a0a0a] border border-gray-800 text-xs">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="font-medium text-gray-300">{c.case_name} ({c.date_filed})</span>
-                            <span className="text-gray-500">sim: {c.similarity?.toFixed(2)}</span>
-                          </div>
-                          <p className="text-gray-400">{c.chunk_preview}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <div className="p-3 rounded bg-[#0a0a0a] border border-gray-700">
-                    <h3 className="text-sm font-medium text-amber-400 mb-2">Sources ({ragResult.sources?.length || 0} cases)</h3>
-                    <ul className="space-y-1 text-xs text-gray-400">
-                      {ragResult.sources?.map((s: any, i: number) => (
-                        <li key={i}>{s.case_name} ({s.date_filed})</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              )}
+              {subResult && <p className="mt-2 text-sm text-green-400">{subResult}</p>}
             </div>
-          </section>
+          </div>
+        )}
+      </main>
 
-          {/* 5. User subscription management */}
-          <section className="rounded-lg border border-gray-800 bg-[#111] p-4">
-            <h2 className="font-medium text-amber-400 mb-3">5. User subscription</h2>
-            <p className="text-sm text-gray-400 mb-3">
-              Grant or revoke plan for a user by email. Requires your admin email in ADMIN_EMAILS, or use X-Admin-Secret for scripts.
-            </p>
-            <div className="flex flex-wrap items-end gap-3 mb-3">
-              <div className="min-w-[200px]">
-                <label htmlFor="sub-email" className="block text-xs text-gray-500 mb-1">User email</label>
-                <input
-                  id="sub-email"
-                  type="email"
-                  value={subUserEmail}
-                  onChange={(e) => setSubUserEmail(e.target.value)}
-                  placeholder="user@example.com"
-                  className="w-full px-2 py-1.5 rounded bg-[#0a0a0a] border border-gray-700 text-sm text-white placeholder-gray-500"
-                />
-              </div>
-              <div>
-                <label htmlFor="sub-action" className="block text-xs text-gray-500 mb-1">Action</label>
-                <select
-                  id="sub-action"
-                  value={subAction}
-                  onChange={(e) => setSubAction(e.target.value as "grant_flat" | "grant_monthly" | "revoke")}
-                  className="px-2 py-1.5 rounded bg-[#0a0a0a] border border-gray-700 text-sm text-white"
-                >
-                  <option value="grant_flat">Grant flat (one-time)</option>
-                  <option value="grant_monthly">Grant monthly</option>
-                  <option value="revoke">Revoke (free)</option>
-                </select>
-              </div>
-              <button
-                onClick={handleSetSubscription}
-                disabled={subLoading}
-                className="px-3 py-1.5 rounded bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-sm"
-              >
-                {subLoading ? "Applying…" : "Apply"}
-              </button>
-            </div>
-            {subResult && <p className="text-sm text-green-400">{subResult}</p>}
-          </section>
-
-          {/* 6. User-context retrieval */}
-          <section className="rounded-lg border border-gray-800 bg-[#111] p-4">
-            <h2 className="font-medium text-amber-400 mb-3">6. User-context retrieval</h2>
-            <p className="text-sm text-gray-400 mb-0">
-              Filter by user state, county, judge, alienation behaviors to surface
-              cases where alienation was effectively proven. Will use RAG search +
-              metadata filters once case_chunks are populated.
-            </p>
-          </section>
-        </div>
-
-        <footer className="mt-8 text-sm text-gray-500">
-          <Link href="/" className="text-amber-500 hover:text-amber-400">
-            ← Back to home
-          </Link>
-        </footer>
-      </div>
+      <footer className="max-w-5xl mx-auto px-4 py-6 text-sm text-gray-500 border-t border-gray-800 mt-8">
+        <Link href="/" className="text-amber-500 hover:text-amber-400">← Back to home</Link>
+      </footer>
     </div>
   )
 }
