@@ -447,6 +447,16 @@ header .container p {
   to { transform: translateX(-50%); }
 }
 
+/* USA map - supported states subtle pulse */
+@keyframes mapStatePulse {
+  0%, 100% { opacity: 0.9; }
+  50% { opacity: 1; }
+}
+
+.usa-map-state-supported {
+  animation: mapStatePulse 2.5s var(--ease-out-expo) infinite;
+}
+
 /* Animation utility classes */
 .animate-fade-in-up {
   animation: fadeInUp var(--duration-slow) var(--ease-out-expo) both;

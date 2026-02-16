@@ -1,9 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 import { US_STATES } from "@/lib/constants"
+import { USAMap } from "./USAMap"
 
 const inputStyle = {
   width: "100%",
@@ -19,6 +19,7 @@ export function StateCoverage() {
   const [supportedStates, setSupportedStates] = useState<string[]>([])
   const [requestCounts, setRequestCounts] = useState<Record<string, number>>({})
   const [selectedState, setSelectedState] = useState("")
+  const [email, setEmail] = useState("")
   const [loading, setLoading] = useState(true)
   const [requesting, setRequesting] = useState(false)
   const [requested, setRequested] = useState(false)
@@ -53,16 +54,21 @@ export function StateCoverage() {
 
   const isSupported = selectedState ? supportedStates.includes(selectedState) : false
   const requestCount = selectedState ? (requestCounts[selectedState] ?? 0) : 0
-  const alreadyRequested = selectedState ? myRequests.has(selectedState) || requested : false
+  const alreadyRequested = selectedState
+    ? (session?.user ? myRequests.has(selectedState) : false) || requested
+    : false
 
-  async function handleRequest() {
-    if (!selectedState || !session?.user) return
+  async function handleRequest(e?: React.FormEvent) {
+    e?.preventDefault()
+    const useEmail = (session?.user?.email ?? email).trim()
+    if (!selectedState || !useEmail) return
     setRequesting(true)
     setRequested(false)
-    const { error } = await supabase.from("state_requests").upsert(
-      { user_id: session.user.id, state_code: selectedState, email: session.user.email ?? null },
-      { onConflict: "user_id,state_code" }
-    )
+    const payload =
+      session?.user
+        ? { user_id: session.user.id, state_code: selectedState, email: useEmail }
+        : { user_id: null, state_code: selectedState, email: useEmail }
+    const { error } = await supabase.from("state_requests").insert(payload)
     setRequesting(false)
     if (!error) {
       setRequested(true)
@@ -74,6 +80,8 @@ export function StateCoverage() {
         })
         setRequestCounts(map)
       })
+    } else if (error.code === "23505") {
+      setRequested(true)
     }
   }
 
@@ -91,13 +99,18 @@ export function StateCoverage() {
       aria-labelledby="state-coverage-heading"
       style={{ paddingTop: "var(--space-xl)", paddingBottom: "var(--space-xl)" }}
     >
-      <div className="container" style={{ maxWidth: 520, margin: "0 auto", textAlign: "center" }}>
+      <div className="container" style={{ maxWidth: 560, margin: "0 auto", textAlign: "center" }}>
         <h2 id="state-coverage-heading" style={{ fontSize: "1.25rem", marginBottom: "var(--space-sm)", color: "var(--text-primary)" }}>
           Is your state covered?
         </h2>
         <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)", marginBottom: "var(--space-lg)", lineHeight: 1.5 }}>
-          We analyze case law by state. Check if yours is supported or request it.
+          We analyze case law by state. Check if yours is supported or add your email to be notified when we expand.
         </p>
+
+        <div style={{ marginBottom: "var(--space-xl)" }}>
+          <USAMap supportedStates={supportedStates} />
+        </div>
+
         <div style={{ marginBottom: "var(--space-md)" }}>
           <select
             id="state-coverage-select"
@@ -117,6 +130,7 @@ export function StateCoverage() {
             ))}
           </select>
         </div>
+
         {selectedState && (
           <div
             style={{
@@ -136,34 +150,38 @@ export function StateCoverage() {
                 <p style={{ fontSize: "1rem", color: "var(--accent-gold)", margin: "0 0 var(--space-md)", fontWeight: 600 }}>
                   Not yet supported
                 </p>
+                <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)", marginBottom: "var(--space-lg)", lineHeight: 1.5 }}>
+                  We are working on expanding to the states with the most interest here.
+                </p>
                 {requestCount > 0 && (
                   <p style={{ fontSize: "0.875rem", color: "var(--text-muted)", marginBottom: "var(--space-md)" }}>
                     {requestCount} {requestCount === 1 ? "person has" : "people have"} requested this state
                   </p>
                 )}
-                {session?.user ? (
-                  alreadyRequested ? (
-                    <p style={{ fontSize: "0.9375rem", color: "var(--accent-cyan)", margin: 0 }}>
-                      ✓ Request recorded. We prioritize by demand.
-                    </p>
-                  ) : (
+                {alreadyRequested ? (
+                  <p style={{ fontSize: "0.9375rem", color: "var(--accent-cyan)", margin: 0 }}>
+                    ✓ You&apos;re on the list. We&apos;ll notify you when we expand.
+                  </p>
+                ) : (
+                  <form onSubmit={handleRequest} style={{ display: "flex", flexDirection: "column", gap: "var(--space-md)", alignItems: "center" }}>
+                    <input
+                      type="email"
+                      value={session?.user ? session.user.email ?? email : email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="Your email"
+                      required
+                      readOnly={!!session?.user?.email}
+                      style={{ ...inputStyle, maxWidth: 320 }}
+                    />
                     <button
-                      type="button"
-                      onClick={handleRequest}
+                      type="submit"
                       disabled={requesting}
                       className="btn-primary"
                       style={{ fontSize: "0.9375rem", padding: "var(--space-sm) var(--space-lg)" }}
                     >
-                      {requesting ? "Requesting…" : "Request my state"}
+                      {requesting ? "Adding…" : "Notify me when we add my state"}
                     </button>
-                  )
-                ) : (
-                  <Link
-                    href="/signin?redirect=/"
-                    style={{ fontSize: "0.9375rem", color: "var(--accent-muted)", textDecoration: "underline" }}
-                  >
-                    Sign in to request
-                  </Link>
+                  </form>
                 )}
               </>
             )}
