@@ -53,6 +53,29 @@ const HOW_IT_WORKS = [
   },
 ]
 
+const HOW_IT_WORKS_CAROUSEL_ITEMS = [
+  {
+    title: "Upload It All",
+    subtitle: "Case Details, Text Messages, School Records, Visitation Calendars",
+    photo: { url: "/carousel/howitworks-1.png", alt: "Upload your documentation", position: "center" },
+  },
+  {
+    title: "Not Generic AI",
+    subtitle: "The BitterBM system",
+    photo: { url: "/carousel/howitworks-2.png", alt: "BitterBM AI analysis", position: "center" },
+  },
+  {
+    title: "Your Attorney Decide / Strategize",
+    subtitle: "Charging You For Valuable Legal Work—Not Reading Text Messages",
+    photo: { url: "/carousel/howitworks-3.png", alt: "Attorney strategy", position: "center" },
+  },
+  {
+    title: "The Trial",
+    subtitle: "Clear Evidence the AI Knows Matters to THIS Judge",
+    photo: { url: "/carousel/howitworks-4.png", alt: "Court-ready evidence", position: "center" },
+  },
+]
+
 const CAROUSEL_ITEMS = [
   {
     title: "Prove the pattern",
@@ -292,9 +315,20 @@ export default function LandingPage() {
           >
             <div className="container">
               <AnimateOnScroll>
-                <h2 id="how-it-works-heading" style={{ marginBottom: "var(--space-2xl)" }}>
+                <h2 id="how-it-works-heading" style={{ marginBottom: "var(--space-xl)" }}>
                   How It Works
                 </h2>
+              </AnimateOnScroll>
+              <AnimateOnScroll stagger={1}>
+                <div
+                  style={{
+                    marginBottom: "var(--space-2xl)",
+                    minHeight: "clamp(280px, 50vw, 420px)",
+                  }}
+                  data-ga4-section="how_it_works_carousel"
+                >
+                  <CircularGallery items={HOW_IT_WORKS_CAROUSEL_ITEMS} radius={320} autoRotateSpeed={0.015} />
+                </div>
               </AnimateOnScroll>
               <div
                 className="steps-grid"
