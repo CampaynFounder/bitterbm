@@ -56,14 +56,23 @@ function StepCard({
   status?: "pending" | "ready" | "done"
 }) {
   const statusColor =
-    status === "done" ? "border-emerald-600/50" : status === "ready" ? "border-amber-500/50" : "border-gray-700"
+    status === "done" ? "var(--accent-cyan)" : status === "ready" ? "var(--accent-gold)" : "var(--border)"
   return (
-    <div className={`rounded-lg border bg-[#0d0d0d] p-4 ${statusColor}`}>
+    <div
+      className="rounded-xl border p-5"
+      style={{
+        background: "var(--bg-card)",
+        borderColor: statusColor,
+      }}
+    >
       <div className="flex items-center gap-2 mb-3">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-800 text-xs font-semibold text-gray-300">
+        <span
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
+          style={{ background: "var(--bg-elevated)", color: "var(--accent-muted)" }}
+        >
           {stepNum}
         </span>
-        <h3 className="font-medium text-white">{title}</h3>
+        <h3 className="font-semibold" style={{ color: "var(--text-primary)" }}>{title}</h3>
       </div>
       {children}
     </div>
@@ -280,70 +289,92 @@ export default function AdminDashboardPage() {
 
   if (!user || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] text-white">
-        <p className="text-gray-400">Loading…</p>
-      </div>
+      <main className="section" style={{ minHeight: "80vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <p style={{ color: "var(--text-muted)" }}>Loading…</p>
+      </main>
     )
   }
 
-  const inputClass = "w-full px-3 py-2 rounded bg-[#0a0a0a] border border-gray-700 text-sm text-white placeholder-gray-500"
-  const labelClass = "block text-xs text-gray-500 mb-1"
-  const btnPrimary = "px-3 py-1.5 rounded bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-sm font-medium"
-  const btnSecondary = "px-3 py-1.5 rounded bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm"
+  const inputStyle = { width: "100%", padding: "var(--space-sm) var(--space-md)", background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: "8px", color: "var(--text-primary)", fontSize: "0.9375rem" } as const
+  const labelStyle = { display: "block", fontSize: "0.8125rem", marginBottom: "var(--space-xs)", color: "var(--text-secondary)" } as const
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white">
-      <header className="sticky top-0 z-10 border-b border-gray-800 bg-[#0a0a0a]/95 backdrop-blur">
-        <div className="max-w-5xl mx-auto px-4 py-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <h1 className="text-lg font-semibold">Admin</h1>
+    <div style={{ minHeight: "100dvh", background: "var(--bg-primary)", color: "var(--text-primary)" }}>
+      <header
+        className="sticky top-0 z-10"
+        style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-elevated)", backdropFilter: "blur(12px)" }}
+      >
+        <div className="container" style={{ maxWidth: 1200 }}>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4" style={{ paddingBlock: "var(--space-md)" }}>
+            <div className="flex items-center gap-4 flex-wrap">
+              <h1 style={{ fontSize: "1.25rem", fontWeight: 600 }}>Admin</h1>
               <nav className="flex flex-wrap gap-1">
                 {TABS.map((t) => (
                   <button
                     key={t.id}
                     onClick={() => setActiveTab(t.id)}
-                    className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                      activeTab === t.id ? "bg-amber-600 text-white" : "text-gray-400 hover:text-white hover:bg-gray-800"
-                    }`}
+                    style={{
+                      padding: "var(--space-xs) var(--space-md)",
+                      borderRadius: "8px",
+                      fontSize: "0.875rem",
+                      fontWeight: 500,
+                      transition: "background 0.15s, color 0.15s",
+                      ...(activeTab === t.id
+                        ? { background: "var(--accent-primary)", color: "#fff" }
+                        : { background: "transparent", color: "var(--text-secondary)" }),
+                    }}
+                    onMouseEnter={(e) => {
+                      if (activeTab !== t.id) {
+                        e.currentTarget.style.background = "var(--bg-card)"
+                        e.currentTarget.style.color = "var(--text-primary)"
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (activeTab !== t.id) {
+                        e.currentTarget.style.background = "transparent"
+                        e.currentTarget.style.color = "var(--text-secondary)"
+                      }
+                    }}
                   >
                     {t.label}
                   </button>
                 ))}
               </nav>
             </div>
-            <div className="flex items-center gap-3 text-sm">
-              <span className="text-gray-500 truncate max-w-[180px]">{user.email}</span>
-              <button onClick={handleSignOut} className="text-amber-500 hover:text-amber-400">
-                Sign out
-              </button>
+            <div className="flex items-center gap-3" style={{ fontSize: "0.875rem" }}>
+              <span style={{ color: "var(--text-muted)", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis" }}>{user.email}</span>
+              <button onClick={handleSignOut} style={{ color: "var(--accent-muted)", background: "none", border: "none", cursor: "pointer" }}>Sign out</button>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-6">
+      <main className="section" style={{ paddingTop: "var(--space-xl)", paddingBottom: "var(--space-2xl)" }}>
+        <div className="container" style={{ maxWidth: 900 }}>
         {error && (
-          <div className="mb-4 p-3 rounded bg-red-900/30 text-red-300 border border-red-700 text-sm">
+          <div
+            className="mb-4 p-4 rounded-xl"
+            style={{ background: "rgba(239, 68, 68, 0.1)", color: "#fca5a5", border: "1px solid rgba(239, 68, 68, 0.3)" }}
+          >
             {error}
           </div>
         )}
 
         {/* Case Law RAG */}
         {activeTab === "case-law" && (
-          <div className="space-y-6">
-            <p className="text-sm text-gray-400">
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-xl)" }}>
+            <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)" }}>
               CourtListener → raw_cases → chunk + embed → case_chunks. Run steps in order.
             </p>
-            <div className="grid gap-4">
+            <div style={{ display: "grid", gap: "var(--space-lg)" }}>
               <StepCard stepNum={1} title="Fetch from CourtListener" status={state?.lastFetch ? "done" : "pending"}>
-                <p className="text-sm text-gray-400 mb-3">
+                <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)", marginBottom: "var(--space-md)" }}>
                   Fetch cases by state and search term. Use &quot;Fetch + text (RAG)&quot; to store full opinion text for chunking.
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" style={{ marginBottom: "var(--space-md)" }}>
                   <div>
-                    <label className={labelClass}>State</label>
-                    <select id="fetch-state" value={fetchState} onChange={(e) => setFetchState(e.target.value)} className={inputClass}>
+                    <label style={labelStyle}>State</label>
+                    <select id="fetch-state" value={fetchState} onChange={(e) => setFetchState(e.target.value)} style={{ ...inputStyle, cursor: "pointer" }}>
                       <option value="GA">Georgia (GA)</option>
                       <option value="NC">North Carolina (NC)</option>
                       <option value="FL">Florida (FL)</option>
@@ -351,48 +382,25 @@ export default function AdminDashboardPage() {
                     </select>
                   </div>
                   <div>
-                    <label className={labelClass}>Search term</label>
-                    <input
-                      id="fetch-query"
-                      type="text"
-                      value={fetchQuery}
-                      onChange={(e) => setFetchQuery(e.target.value)}
-                      placeholder="alienat*"
-                      className={inputClass}
-                    />
+                    <label style={labelStyle}>Search term</label>
+                    <input id="fetch-query" type="text" value={fetchQuery} onChange={(e) => setFetchQuery(e.target.value)} placeholder="alienat*" style={inputStyle} />
                   </div>
                   <div>
-                    <label className={labelClass}>Max results (1–5000)</label>
-                    <input
-                      id="fetch-max"
-                      type="number"
-                      min={1}
-                      max={5000}
-                      value={fetchMax}
-                      onChange={(e) => setFetchMax(Math.min(5000, Math.max(1, parseInt(e.target.value, 10) || 1)))}
-                      className={inputClass}
-                    />
+                    <label style={labelStyle}>Max results (1–5000)</label>
+                    <input id="fetch-max" type="number" min={1} max={5000} value={fetchMax} onChange={(e) => setFetchMax(Math.min(5000, Math.max(1, parseInt(e.target.value, 10) || 1)))} style={inputStyle} />
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-3">
-                  <button onClick={() => handleTriggerFetch({ query: fetchQuery, state: fetchState })} disabled={triggering} className={btnPrimary}>
+                  <button onClick={() => handleTriggerFetch({ query: fetchQuery, state: fetchState })} disabled={triggering} className="btn-primary" style={{ fontSize: "0.875rem", padding: "var(--space-sm) var(--space-md)" }}>
                     {triggering ? "Running…" : `Fetch ${fetchMax}`}
                   </button>
-                  <button
-                    onClick={() => handleTriggerFetch({ fetchFullText: true, query: fetchQuery, state: fetchState })}
-                    disabled={triggering}
-                    className={btnSecondary}
-                  >
+                  <button onClick={() => handleTriggerFetch({ fetchFullText: true, query: fetchQuery, state: fetchState })} disabled={triggering} style={{ padding: "var(--space-sm) var(--space-md)", borderRadius: "8px", background: "var(--accent-cyan)", color: "#08090c", border: "none", cursor: "pointer", fontWeight: 600, opacity: triggering ? 0.6 : 1 }}>
                     {triggering ? "…" : `Fetch ${fetchMax} + text (RAG)`}
                   </button>
-                  {triggerResult && (
-                    <span className="text-sm text-green-400">
-                      Done: {triggerResult.fetched} fetched, {triggerResult.supabase_stored} stored
-                    </span>
-                  )}
+                  {triggerResult && <span style={{ fontSize: "0.9375rem", color: "var(--accent-cyan)" }}>Done: {triggerResult.fetched} fetched, {triggerResult.supabase_stored} stored</span>}
                 </div>
                 {state?.lastFetch && (
-                  <p className="mt-2 text-xs text-gray-500">
+                  <p style={{ marginTop: "var(--space-md)", fontSize: "0.8125rem", color: "var(--text-muted)" }}>
                     Last run: {new Date(state.lastFetch.created_at).toLocaleString()}
                     {state.lastFetch.counts && ` · ${state.lastFetch.counts.fetched} fetched, ${state.lastFetch.counts.supabase_stored} stored`}
                   </p>
@@ -400,84 +408,65 @@ export default function AdminDashboardPage() {
               </StepCard>
 
               <StepCard stepNum={2} title="Storage (raw_cases)" status={state?.casesWithPlainText ? "ready" : "pending"}>
-                <p className="text-sm text-gray-400 mb-2">Cases stored in Supabase.</p>
-                <p className="text-sm">
-                  <span className="text-gray-500">Total:</span> {state?.rawCasesCount ?? 0} ·{" "}
-                  <span className="text-gray-500">RAG-ready (plain text):</span>{" "}
-                  <span className={state?.casesWithPlainText ? "text-emerald-400" : "text-amber-400"}>{state?.casesWithPlainText ?? 0}</span>
+                <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)", marginBottom: "var(--space-sm)" }}>Cases stored in Supabase.</p>
+                <p style={{ fontSize: "0.9375rem" }}>
+                  <span style={{ color: "var(--text-muted)" }}>Total:</span> {state?.rawCasesCount ?? 0} · <span style={{ color: "var(--text-muted)" }}>RAG-ready (plain text):</span>{" "}
+                  <span style={{ color: state?.casesWithPlainText ? "var(--accent-cyan)" : "var(--accent-gold)" }}>{state?.casesWithPlainText ?? 0}</span>
                 </p>
                 {state?.sampleCases.length ? (
-                  <ul className="mt-2 text-xs text-gray-400 space-y-0.5">
+                  <ul style={{ marginTop: "var(--space-sm)", fontSize: "0.8125rem", color: "var(--text-muted)", listStyle: "none", padding: 0 }}>
                     {state.sampleCases.slice(0, 3).map((c) => (
-                      <li key={c.cluster_id}>
-                        {c.case_name ?? "—"} ({c.court}, {c.date_filed})
-                      </li>
+                      <li key={c.cluster_id} style={{ marginBottom: "var(--space-xs)" }}>{c.case_name ?? "—"} ({c.court}, {c.date_filed})</li>
                     ))}
                   </ul>
                 ) : null}
               </StepCard>
 
               <StepCard stepNum={3} title="Chunk + Embed" status={state?.caseChunksCount ? "done" : "pending"}>
-                <p className="text-sm text-gray-400 mb-3">
+                <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)", marginBottom: "var(--space-md)" }}>
                   Chunk training_ready_cases and embed into case_chunks. Requires cases with plain text from Step 1.
                 </p>
-                <p className="text-sm mb-3">
-                  <span className="text-gray-500">Chunks indexed:</span> {state?.caseChunksCount ?? 0}
-                </p>
+                <p style={{ fontSize: "0.9375rem", marginBottom: "var(--space-md)" }}><span style={{ color: "var(--text-muted)" }}>Chunks indexed:</span> {state?.caseChunksCount ?? 0}</p>
                 <div className="flex flex-wrap gap-3">
-                  <button
-                    onClick={() => handleTriggerChunkEmbed(fetchState)}
-                    disabled={chunking || !state?.casesWithPlainText}
-                    className={btnSecondary}
-                  >
+                  <button onClick={() => handleTriggerChunkEmbed(fetchState)} disabled={chunking || !state?.casesWithPlainText} style={{ padding: "var(--space-sm) var(--space-md)", borderRadius: "8px", background: "var(--accent-cyan)", color: "#08090c", border: "none", cursor: "pointer", fontWeight: 600, opacity: chunking || !state?.casesWithPlainText ? 0.6 : 1 }}>
                     {chunking ? "Running…" : `Chunk + embed (${fetchState})`}
                   </button>
-                  <button onClick={() => handleTriggerChunkEmbed(null)} disabled={chunking || !state?.casesWithPlainText} className="px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white text-sm">
+                  <button onClick={() => handleTriggerChunkEmbed(null)} disabled={chunking || !state?.casesWithPlainText} style={{ padding: "var(--space-sm) var(--space-md)", borderRadius: "8px", background: "var(--bg-elevated)", color: "var(--text-primary)", border: "1px solid var(--border)", cursor: "pointer", opacity: chunking || !state?.casesWithPlainText ? 0.6 : 1 }}>
                     Chunk + embed (all)
                   </button>
-                  {chunkResult && (
-                    <span className="text-sm text-green-400">
-                      Done: {chunkResult.cases_processed} cases, {chunkResult.chunks_created} chunks
-                    </span>
-                  )}
+                  {chunkResult && <span style={{ fontSize: "0.9375rem", color: "var(--accent-cyan)" }}>Done: {chunkResult.cases_processed} cases, {chunkResult.chunks_created} chunks</span>}
                 </div>
               </StepCard>
 
               <StepCard stepNum={4} title="Test RAG" status={state?.caseChunksCount ? "ready" : "pending"}>
-                <p className="text-sm text-gray-400 mb-3">Query case_chunks and validate response quality.</p>
-                <textarea
-                  value={ragQuestion}
-                  onChange={(e) => setRagQuestion(e.target.value)}
-                  rows={2}
-                  placeholder="e.g. How do Georgia courts address parental alienation?"
-                  className={`${inputClass} mb-3`}
-                />
+                <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)", marginBottom: "var(--space-md)" }}>Query case_chunks and validate response quality.</p>
+                <textarea value={ragQuestion} onChange={(e) => setRagQuestion(e.target.value)} rows={2} placeholder="e.g. How do Georgia courts address parental alienation?" style={{ ...inputStyle, marginBottom: "var(--space-md)", resize: "vertical" }} />
                 <div className="flex flex-wrap items-center gap-3">
-                  <select value={ragState} onChange={(e) => setRagState(e.target.value)} className={`${inputClass} w-auto max-w-[140px]`}>
+                  <select value={ragState} onChange={(e) => setRagState(e.target.value)} style={{ ...inputStyle, width: "auto", maxWidth: 140 }}>
                     <option value="GA">GA</option>
                     <option value="">All</option>
                   </select>
-                  <button onClick={handleTestRAG} disabled={ragTesting || !state?.caseChunksCount} className={btnPrimary}>
+                  <button onClick={handleTestRAG} disabled={ragTesting || !state?.caseChunksCount} className="btn-primary" style={{ fontSize: "0.875rem", padding: "var(--space-sm) var(--space-md)" }}>
                     {ragTesting ? "Running…" : "Test RAG"}
                   </button>
                 </div>
                 {ragResult && (
-                  <div className="mt-4 space-y-3">
-                    <div className="p-3 rounded bg-[#0a0a0a] border border-gray-700">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-green-400">Answer</span>
-                        <button onClick={() => setShowRetrievedChunks(!showRetrievedChunks)} className="text-xs text-amber-500 hover:text-amber-400">
+                  <div style={{ marginTop: "var(--space-xl)", display: "flex", flexDirection: "column", gap: "var(--space-md)" }}>
+                    <div style={{ padding: "var(--space-md)", borderRadius: "12px", background: "var(--bg-elevated)", border: "1px solid var(--border)" }}>
+                      <div className="flex items-center justify-between" style={{ marginBottom: "var(--space-sm)" }}>
+                        <span style={{ fontSize: "0.9375rem", fontWeight: 600, color: "var(--accent-cyan)" }}>Answer</span>
+                        <button onClick={() => setShowRetrievedChunks(!showRetrievedChunks)} style={{ fontSize: "0.8125rem", color: "var(--accent-muted)", background: "none", border: "none", cursor: "pointer" }}>
                           {showRetrievedChunks ? "Hide" : "Show"} chunks ({ragResult.retrieved_chunks?.length || 0})
                         </button>
                       </div>
-                      <p className="text-sm text-gray-300 whitespace-pre-wrap">{ragResult.answer}</p>
+                      <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>{ragResult.answer}</p>
                     </div>
                     {showRetrievedChunks && ragResult.retrieved_chunks?.length ? (
-                      <div className="space-y-2">
+                      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-sm)" }}>
                         {ragResult.retrieved_chunks.slice(0, 5).map((c: any, i: number) => (
-                          <div key={i} className="p-2 rounded bg-[#0a0a0a] border border-gray-800 text-xs">
-                            <span className="text-gray-400">{c.case_name} ({c.date_filed})</span> · sim {c.similarity?.toFixed(2)}
-                            <p className="text-gray-500 mt-0.5 line-clamp-2">{c.chunk_preview}</p>
+                          <div key={i} style={{ padding: "var(--space-sm)", borderRadius: "8px", background: "var(--bg-elevated)", border: "1px solid var(--border)", fontSize: "0.8125rem" }}>
+                            <span style={{ color: "var(--text-secondary)" }}>{c.case_name} ({c.date_filed})</span> · sim {c.similarity?.toFixed(2)}
+                            <p style={{ color: "var(--text-muted)", marginTop: "var(--space-xs)", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{c.chunk_preview}</p>
                           </div>
                         ))}
                       </div>
@@ -491,23 +480,23 @@ export default function AdminDashboardPage() {
 
         {/* Judge RAG */}
         {activeTab === "judge" && (
-          <div className="space-y-6">
-            <p className="text-sm text-gray-400">
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-xl)" }}>
+            <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)" }}>
               Extract judges from raw_cases → populate judges table → build judge_analysis_embeddings.
             </p>
             <div className="grid gap-4">
               <StepCard stepNum={1} title="Extract judges from raw_cases">
-                <p className="text-sm text-gray-400">Parse judge names from CourtListener cases. Pipeline coming soon.</p>
-                <p className="text-xs text-gray-500 mt-2">Tables: judges, case_participants</p>
+                <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)" }}>Parse judge names from CourtListener cases. Pipeline coming soon.</p>
+                <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginTop: "var(--space-sm)" }}>Tables: judges, case_participants</p>
               </StepCard>
-              <StepCard stepNum={2} title="Enrich judge profiles">
-                <p className="text-sm text-gray-400">Fetch appointment dates, court info, background. Coming soon.</p>
+                            <StepCard stepNum={2} title="Enrich judge profiles">
+                <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)" }}>Fetch appointment dates, court info, background. Coming soon.</p>
               </StepCard>
               <StepCard stepNum={3} title="Chunk + Embed (judge_analysis_embeddings)">
-                <p className="text-sm text-gray-400">Build RAG for judicial tendencies. Coming soon.</p>
+                <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)" }}>Build RAG for judicial tendencies. Coming soon.</p>
               </StepCard>
               <StepCard stepNum={4} title="Test Judge RAG">
-                <p className="text-sm text-gray-400">Query by judge name + state. Coming soon.</p>
+                <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)" }}>Query by judge name + state. Coming soon.</p>
               </StepCard>
             </div>
           </div>
@@ -515,22 +504,20 @@ export default function AdminDashboardPage() {
 
         {/* Expert RAG */}
         {activeTab === "expert" && (
-          <div className="space-y-6">
-            <p className="text-sm text-gray-400">
-              GALs, psychologists, custody evaluators. Aggregate testimony, reports, credentials.
-            </p>
-            <div className="grid gap-4">
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-xl)" }}>
+            <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)" }}>GALs, psychologists, custody evaluators. Aggregate testimony, reports, credentials.</p>
+            <div style={{ display: "grid", gap: "var(--space-lg)" }}>
               <StepCard stepNum={1} title="Ingest expert data">
-                <p className="text-sm text-gray-400">State licensing boards, court transcripts, JurisPro. Coming soon.</p>
+                <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)" }}>State licensing boards, court transcripts, JurisPro. Coming soon.</p>
               </StepCard>
               <StepCard stepNum={2} title="Build expert profiles (experts table)">
-                <p className="text-sm text-gray-400">Store credentials, type, state, county. Coming soon.</p>
+                <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)" }}>Store credentials, type, state, county. Coming soon.</p>
               </StepCard>
               <StepCard stepNum={3} title="Chunk + Embed (expert_profile_embeddings)">
-                <p className="text-sm text-gray-400">RAG for expert persuasion patterns. Coming soon.</p>
+                <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)" }}>RAG for expert persuasion patterns. Coming soon.</p>
               </StepCard>
               <StepCard stepNum={4} title="Test Expert RAG">
-                <p className="text-sm text-gray-400">Query by expert name + role. Coming soon.</p>
+                <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)" }}>Query by expert name + role. Coming soon.</p>
               </StepCard>
             </div>
           </div>
@@ -538,22 +525,20 @@ export default function AdminDashboardPage() {
 
         {/* Attorney RAG */}
         {activeTab === "attorney" && (
-          <div className="space-y-6">
-            <p className="text-sm text-gray-400">
-              Opposing counsel + user&apos;s attorney. Motion patterns, success rates, strategy.
-            </p>
-            <div className="grid gap-4">
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-xl)" }}>
+            <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)" }}>Opposing counsel + user&apos;s attorney. Motion patterns, success rates, strategy.</p>
+            <div style={{ display: "grid", gap: "var(--space-lg)" }}>
               <StepCard stepNum={1} title="Ingest attorney data">
-                <p className="text-sm text-gray-400">PACER, state bar, case records. Coming soon.</p>
+                <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)" }}>PACER, state bar, case records. Coming soon.</p>
               </StepCard>
               <StepCard stepNum={2} title="Build attorney profiles (attorneys table)">
-                <p className="text-sm text-gray-400">Bar #, practice areas, firm. Coming soon.</p>
+                <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)" }}>Bar #, practice areas, firm. Coming soon.</p>
               </StepCard>
               <StepCard stepNum={3} title="Chunk + Embed (attorney_intelligence_embeddings)">
-                <p className="text-sm text-gray-400">RAG for briefs, motions, strategies. Coming soon.</p>
+                <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)" }}>RAG for briefs, motions, strategies. Coming soon.</p>
               </StepCard>
               <StepCard stepNum={4} title="Test Attorney RAG">
-                <p className="text-sm text-gray-400">Query by attorney name. Coming soon.</p>
+                <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)" }}>Query by attorney name. Coming soon.</p>
               </StepCard>
             </div>
           </div>
@@ -561,22 +546,20 @@ export default function AdminDashboardPage() {
 
         {/* Filing RAG */}
         {activeTab === "filing" && (
-          <div className="space-y-6">
-            <p className="text-sm text-gray-400">
-              User-uploaded opposing counsel filings. Real-time analysis, rebuttal suggestions.
-            </p>
-            <div className="grid gap-4">
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-xl)" }}>
+            <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)" }}>User-uploaded opposing counsel filings. Real-time analysis, rebuttal suggestions.</p>
+            <div style={{ display: "grid", gap: "var(--space-lg)" }}>
               <StepCard stepNum={1} title="Upload filing">
-                <p className="text-sm text-gray-400">User uploads PDF. Stored in evidence + filing_embeddings. Coming soon.</p>
+                <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)" }}>User uploads PDF. Stored in evidence + filing_embeddings. Coming soon.</p>
               </StepCard>
               <StepCard stepNum={2} title="Parse + chunk">
-                <p className="text-sm text-gray-400">Extract text, chunk by section. Coming soon.</p>
+                <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)" }}>Extract text, chunk by section. Coming soon.</p>
               </StepCard>
               <StepCard stepNum={3} title="Embed (filing_embeddings)">
-                <p className="text-sm text-gray-400">Vector search for rebuttal context. Coming soon.</p>
+                <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)" }}>Vector search for rebuttal context. Coming soon.</p>
               </StepCard>
               <StepCard stepNum={4} title="Analyze filing">
-                <p className="text-sm text-gray-400">Cross-ref with case law, generate rebuttal memo. Coming soon.</p>
+                <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)" }}>Cross-ref with case law, generate rebuttal memo. Coming soon.</p>
               </StepCard>
             </div>
           </div>
@@ -584,43 +567,66 @@ export default function AdminDashboardPage() {
 
         {/* Tools */}
         {activeTab === "tools" && (
-          <div className="space-y-6">
-            <div className="rounded-lg border border-gray-800 bg-[#0d0d0d] p-4">
-              <h2 className="font-medium text-amber-400 mb-3">User subscription</h2>
-              <p className="text-sm text-gray-400 mb-4">
-                Grant or revoke plan for a user by email.
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-xl)" }}>
+            {/* Data Sources & Approach */}
+            <div style={{ padding: "var(--space-xl)", borderRadius: "12px", background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+              <h2 style={{ fontSize: "1.125rem", fontWeight: 600, marginBottom: "var(--space-md)", color: "var(--accent-muted)" }}>Data Sources & Approach</h2>
+              <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)", marginBottom: "var(--space-lg)", lineHeight: 1.6 }}>
+                How we populate RAG data and what needs to be configured.
               </p>
-              <div className="flex flex-wrap items-end gap-3">
-                <div className="min-w-[200px]">
-                  <label className={labelClass}>User email</label>
-                  <input
-                    type="email"
-                    value={subUserEmail}
-                    onChange={(e) => setSubUserEmail(e.target.value)}
-                    placeholder="user@example.com"
-                    className={inputClass}
-                  />
+              <dl style={{ display: "grid", gap: "var(--space-md)", fontSize: "0.9375rem" }}>
+                <div>
+                  <dt style={{ fontWeight: 600, color: "var(--accent-cyan)", marginBottom: "var(--space-xs)" }}>CourtListener</dt>
+                  <dd style={{ color: "var(--text-secondary)" }}>Primary source for case law. Fetch via Modal pipeline (Step 1). Requires COURTLISTENER_API_TOKEN, NEXT_PUBLIC_MODAL_TRIGGER_URL, NEXT_PUBLIC_PIPELINE_TRIGGER_SECRET.</dd>
                 </div>
                 <div>
-                  <label className={labelClass}>Action</label>
-                  <select value={subAction} onChange={(e) => setSubAction(e.target.value as typeof subAction)} className={inputClass}>
+                  <dt style={{ fontWeight: 600, color: "var(--accent-cyan)", marginBottom: "var(--space-xs)" }}>Judges</dt>
+                  <dd style={{ color: "var(--text-secondary)" }}>Extracted from raw_cases (CourtListener metadata). Enrichment from state court portals—coming soon.</dd>
+                </div>
+                <div>
+                  <dt style={{ fontWeight: 600, color: "var(--accent-cyan)", marginBottom: "var(--space-xs)" }}>Experts (GALs, evaluators)</dt>
+                  <dd style={{ color: "var(--text-secondary)" }}>State licensing boards, court transcripts, JurisPro. Pipeline planned.</dd>
+                </div>
+                <div>
+                  <dt style={{ fontWeight: 600, color: "var(--accent-cyan)", marginBottom: "var(--space-xs)" }}>Attorneys</dt>
+                  <dd style={{ color: "var(--text-secondary)" }}>PACER (via CourtListener), state bar, case records. Pipeline planned.</dd>
+                </div>
+                <div>
+                  <dt style={{ fontWeight: 600, color: "var(--accent-cyan)", marginBottom: "var(--space-xs)" }}>Filings</dt>
+                  <dd style={{ color: "var(--text-secondary)" }}>User-uploaded PDFs → evidence storage + filing_embeddings. Schema ready.</dd>
+                </div>
+              </dl>
+            </div>
+
+            <div style={{ padding: "var(--space-xl)", borderRadius: "12px", background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+              <h2 style={{ fontSize: "1.125rem", fontWeight: 600, marginBottom: "var(--space-md)", color: "var(--accent-muted)" }}>User subscription</h2>
+              <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)", marginBottom: "var(--space-lg)" }}>Grant or revoke plan for a user by email.</p>
+              <div className="flex flex-wrap items-end gap-3">
+                <div style={{ minWidth: 200 }}>
+                  <label style={labelStyle}>User email</label>
+                  <input type="email" value={subUserEmail} onChange={(e) => setSubUserEmail(e.target.value)} placeholder="user@example.com" style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Action</label>
+                  <select value={subAction} onChange={(e) => setSubAction(e.target.value as typeof subAction)} style={{ ...inputStyle, cursor: "pointer" }}>
                     <option value="grant_flat">Grant flat</option>
                     <option value="grant_monthly">Grant monthly</option>
                     <option value="revoke">Revoke</option>
                   </select>
                 </div>
-                <button onClick={handleSetSubscription} disabled={subLoading} className={btnPrimary}>
+                <button onClick={handleSetSubscription} disabled={subLoading} className="btn-primary" style={{ fontSize: "0.875rem", padding: "var(--space-sm) var(--space-md)" }}>
                   {subLoading ? "Applying…" : "Apply"}
                 </button>
               </div>
-              {subResult && <p className="mt-2 text-sm text-green-400">{subResult}</p>}
+              {subResult && <p style={{ marginTop: "var(--space-md)", fontSize: "0.9375rem", color: "var(--accent-cyan)" }}>{subResult}</p>}
             </div>
           </div>
         )}
+        </div>
       </main>
 
-      <footer className="max-w-5xl mx-auto px-4 py-6 text-sm text-gray-500 border-t border-gray-800 mt-8">
-        <Link href="/" className="text-amber-500 hover:text-amber-400">← Back to home</Link>
+      <footer className="container" style={{ maxWidth: 1200, paddingBlock: "var(--space-xl)", marginTop: "var(--space-2xl)", borderTop: "1px solid var(--border)", fontSize: "0.9375rem" }}>
+        <Link href="/" style={{ color: "var(--accent-muted)" }}>← Back to home</Link>
       </footer>
     </div>
   )
