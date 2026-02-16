@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { ShaderAnimation } from "@/components/ShaderAnimation"
 import { AnimateOnScroll } from "@/components/AnimateOnScroll"
 import { CircularGallery } from "@/components/landing/CircularGallery"
+import { StateCoverage } from "@/components/landing/StateCoverage"
 import { trackEvent } from "@/components/GA4Provider"
 import { trackCtaWithImage } from "@/lib/analytics"
 import { backgroundImages, backgroundImageIds } from "@/lib/backgroundImages"
@@ -13,19 +14,19 @@ const MIN_LOADER_DISPLAY_MS = 2200
 
 const PROBLEM_CARDS = [
   {
-    icon: "📅",
-    title: "Visit After Visit, Cancelled",
-    body: "Last-minute 'emergencies.' Vague excuses. Your time stolen—and no proof it's happening.",
+    icon: "1️⃣",
+    title: "Over-Documenting Drains Your Resources — Not Strengthen Your Case",
+    body: "Over-Documentation = Over-Paying. Every document, log, video, text message, email, and screenshot you send trying to prove your point must be reviewed, organized, and evaluated by your attorney — and that review is 100% billable.",
   },
   {
-    icon: "💬",
-    title: "Your Messages Go Unanswered",
-    body: "Calls blocked. Texts ignored. You're painted as the problem—but who's documenting the silence?",
+    icon: "2️⃣",
+    title: "Relevance Wins. Volume Doesn't.",
+    body: "Stacks of documents can blur the issues and weaken your narrative. Courts respond to concise, well-organized facts connected to the guidelines in your state —",
   },
   {
-    icon: "⚖️",
-    title: "Courts Need Evidence, Not Stories",
-    body: "Judges don't care who's 'right.' They care who can prove it. You're losing because you can't show the pattern.",
+    icon: "3️⃣",
+    title: "Less is More Important",
+    body: "Courts hear valid alienation claims daily. Parents who are effective in proving it highlight key things. Don't aggravate your judge by mentioning issues or facts in ways the judge, guardian or experts routinely ignore.",
   },
 ]
 
@@ -196,13 +197,13 @@ export default function LandingPage() {
               className="badge"
               style={{ animationDelay: "0ms" }}
             >
-              ✓ No credit card
+              ✓ Secure Payment Validation
             </span>
             <span
               className="badge"
               style={{ animationDelay: "100ms" }}
             >
-              ✓ 30-day analysis free
+              ✓ Free Screenshot Analysis and Strategy Recommendation
             </span>
             <span
               className="badge"
@@ -212,9 +213,11 @@ export default function LandingPage() {
             </span>
           </section>
 
+          <StateCoverage />
+
           {/* Problem Agitation - scroll-triggered, staggered */}
           <section
-            className="section section-with-bg"
+            className="section section-with-bg cta-center"
             aria-labelledby="problem-heading"
             data-ga4-section="problem_agitation"
             data-bg-image-id={`problem:${backgroundImageIds.problem}`}
@@ -222,9 +225,12 @@ export default function LandingPage() {
           >
             <div className="container">
               <AnimateOnScroll>
-                <h2 id="problem-heading" style={{ marginBottom: "var(--space-2xl)" }}>
-                  You Know What&apos;s Happening. The Court Doesn&apos;t.
+                <h2 id="problem-heading" style={{ marginBottom: "var(--space-md)", textAlign: "center" }}>
+                  Stop Spending Money Proving Toxic Actions.
                 </h2>
+                <p style={{ marginBottom: "var(--space-2xl)", textAlign: "center", fontSize: "1.0625rem", color: "var(--text-secondary)" }}>
+                  Start Building the Case the Court Actually Needs to Hear.
+                </p>
               </AnimateOnScroll>
               <div
                 className="problem-grid"
@@ -248,9 +254,10 @@ export default function LandingPage() {
                       <span
                         className="icon-pulse"
                         style={{
-                          display: "inline-block",
+                          display: "block",
                           fontSize: "1.5rem",
                           marginBottom: "var(--space-md)",
+                          textAlign: "center",
                         }}
                       >
                         {card.icon}
@@ -259,13 +266,14 @@ export default function LandingPage() {
                         style={{
                           fontSize: "1.125rem",
                           fontWeight: 600,
-                          marginBottom: "var(--space-sm)",
+                          marginBottom: "var(--space-md)",
                           color: "var(--text-primary)",
+                          textAlign: "center",
                         }}
                       >
                         {card.title}
                       </h3>
-                      <p style={{ marginBottom: 0, fontSize: "0.9375rem" }}>
+                      <p style={{ marginBottom: 0, fontSize: "0.9375rem", textAlign: "justify" }}>
                         {card.body}
                       </p>
                     </div>

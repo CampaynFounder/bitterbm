@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
+import { US_STATES } from "@/lib/constants"
 
 type PipelineRun = {
   id: string
@@ -37,7 +38,7 @@ type DashboardState = {
   lastJudgeChunk: PipelineRun | null
 }
 
-type TabId = "case-law" | "judge" | "expert" | "attorney" | "filing" | "tools"
+type TabId = "case-law" | "judge" | "expert" | "attorney" | "filing" | "state-coverage" | "tools"
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "case-law", label: "Case Law RAG" },
@@ -45,6 +46,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "expert", label: "Expert RAG" },
   { id: "attorney", label: "Attorney RAG" },
   { id: "filing", label: "Filing RAG" },
+  { id: "state-coverage", label: "State Coverage" },
   { id: "tools", label: "Tools" },
 ]
 
@@ -113,6 +115,12 @@ export default function AdminDashboardPage() {
   const [ragResult, setRagResult] = useState<any>(null)
   const [showRetrievedChunks, setShowRetrievedChunks] = useState(false)
 
+  const [stateCoverageSupported, setStateCoverageSupported] = useState<string[]>([])
+  const [stateCoverageRequests, setStateCoverageRequests] = useState<{ state_code: string; email: string | null; created_at: string }[]>([])
+  const [stateCoverageCounts, setStateCoverageCounts] = useState<Record<string, number>>({})
+  const [stateCoverageLoading, setStateCoverageLoading] = useState(false)
+  const [stateCoverageSaving, setStateCoverageSaving] = useState(false)
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
@@ -122,6 +130,31 @@ export default function AdminDashboardPage() {
       setUser(session.user ?? null)
     })
   }, [router])
+
+  useEffect(() => {
+    if (!user || activeTab !== "state-coverage") return
+    async function load() {
+      const { data: { session } } = await supabase.auth.getSession()
+      const t = session?.access_token
+      if (!t) return
+      setStateCoverageLoading(true)
+      try {
+        const res = await fetch("/api/admin/state-coverage", { headers: { Authorization: `Bearer ${t}` } })
+        if (!res.ok) throw new Error("Failed to load")
+        const data = await res.json()
+        setStateCoverageSupported(data.supportedStates ?? [])
+        setStateCoverageRequests(data.requests ?? [])
+        setStateCoverageCounts(data.counts ?? {})
+      } catch {
+        setStateCoverageSupported([])
+        setStateCoverageRequests([])
+        setStateCoverageCounts({})
+      } finally {
+        setStateCoverageLoading(false)
+      }
+    }
+    load()
+  }, [user, activeTab])
 
   useEffect(() => {
     if (!user) return
@@ -332,6 +365,25 @@ export default function AdminDashboardPage() {
       setError(e instanceof Error ? e.message : "Failed")
     } finally {
       setSubLoading(false)
+    }
+  }
+
+  async function handleSaveSupportedStates() {
+    setStateCoverageSaving(true)
+    setError(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch("/api/admin/state-coverage", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) },
+        body: JSON.stringify({ supportedStates: stateCoverageSupported }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save")
+    } finally {
+      setStateCoverageSaving(false)
     }
   }
 
@@ -653,6 +705,87 @@ export default function AdminDashboardPage() {
               <StepCard stepNum={4} title="Analyze filing">
                 <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)" }}>Cross-ref with case law, generate rebuttal memo. Coming soon.</p>
               </StepCard>
+            </div>
+          </div>
+        )}
+
+        {/* State Coverage */}
+        {activeTab === "state-coverage" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-xl)" }}>
+            <div style={{ padding: "var(--space-xl)", borderRadius: "12px", background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+              <h2 style={{ fontSize: "1.125rem", fontWeight: 600, marginBottom: "var(--space-md)", color: "var(--accent-muted)" }}>Supported states</h2>
+              <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)", marginBottom: "var(--space-lg)" }}>
+                Toggle which states are shown as supported on the landing page. Add states when AI/case data is ready.
+              </p>
+              {stateCoverageLoading ? (
+                <p style={{ color: "var(--text-muted)" }}>Loading…</p>
+              ) : (
+                <>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-sm)", marginBottom: "var(--space-lg)" }}>
+                    {US_STATES.filter((s) => s.value).map((s) => {
+                      const checked = stateCoverageSupported.includes(s.value)
+                      return (
+                        <label key={s.value} style={{ display: "flex", alignItems: "center", gap: "var(--space-xs)", cursor: "pointer", fontSize: "0.9375rem" }}>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => {
+                              setStateCoverageSupported((prev) =>
+                                checked ? prev.filter((x) => x !== s.value) : [...prev, s.value].sort()
+                              )
+                            }}
+                          />
+                          {s.label} ({s.value})
+                        </label>
+                      )
+                    })}
+                  </div>
+                  <button onClick={handleSaveSupportedStates} disabled={stateCoverageSaving} className="btn-primary" style={{ fontSize: "0.875rem", padding: "var(--space-sm) var(--space-md)" }}>
+                    {stateCoverageSaving ? "Saving…" : "Save supported states"}
+                  </button>
+                </>
+              )}
+            </div>
+
+            <div style={{ padding: "var(--space-xl)", borderRadius: "12px", background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+              <h2 style={{ fontSize: "1.125rem", fontWeight: 600, marginBottom: "var(--space-md)", color: "var(--accent-muted)" }}>State requests (emails for notification)</h2>
+              <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)", marginBottom: "var(--space-lg)" }}>
+                Users who requested their state. Export emails by state to notify when the model goes live.
+              </p>
+              {stateCoverageLoading ? (
+                <p style={{ color: "var(--text-muted)" }}>Loading…</p>
+              ) : stateCoverageRequests.length === 0 ? (
+                <p style={{ color: "var(--text-muted)" }}>No requests yet.</p>
+              ) : (
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9375rem" }}>
+                    <thead>
+                      <tr style={{ borderBottom: "1px solid var(--border)", textAlign: "left" }}>
+                        <th style={{ padding: "var(--space-sm) var(--space-md)" }}>State</th>
+                        <th style={{ padding: "var(--space-sm) var(--space-md)" }}>Email</th>
+                        <th style={{ padding: "var(--space-sm) var(--space-md)" }}>Requested</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stateCoverageRequests.map((r, i) => (
+                        <tr key={i} style={{ borderBottom: "1px solid var(--border)" }}>
+                          <td style={{ padding: "var(--space-sm) var(--space-md)" }}>{r.state_code}</td>
+                          <td style={{ padding: "var(--space-sm) var(--space-md)", color: "var(--text-secondary)" }}>{r.email ?? "—"}</td>
+                          <td style={{ padding: "var(--space-sm) var(--space-md)", color: "var(--text-muted)", fontSize: "0.8125rem" }}>{new Date(r.created_at).toLocaleDateString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {Object.keys(stateCoverageCounts).length > 0 && (
+                <p style={{ marginTop: "var(--space-md)", fontSize: "0.875rem", color: "var(--text-muted)" }}>
+                  Request counts by state: {Object.entries(stateCoverageCounts)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([code, n]) => `${code}: ${n}`)
+                    .join(", ")}
+                </p>
+              )}
             </div>
           </div>
         )}
