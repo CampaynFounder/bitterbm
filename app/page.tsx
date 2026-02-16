@@ -55,24 +55,24 @@ const HOW_IT_WORKS = [
 
 const HOW_IT_WORKS_CAROUSEL_ITEMS = [
   {
-    title: "Upload It All",
+    title: "You Upload It All",
     subtitle: "Case Details, Text Messages, School Records, Visitation Calendars",
     photo: { url: "/carousel/howitworks-1.png", alt: "Upload your documentation", position: "center" },
-  },
-  {
-    title: "Not Generic AI",
-    subtitle: "The BitterBM system",
-    photo: { url: "/carousel/howitworks-2.png", alt: "BitterBM AI analysis", position: "center" },
-  },
-  {
-    title: "Your Attorney Decide / Strategize",
-    subtitle: "Charging You For Valuable Legal Work—Not Reading Text Messages",
-    photo: { url: "/carousel/howitworks-3.png", alt: "Attorney strategy", position: "center" },
   },
   {
     title: "The Trial",
     subtitle: "Clear Evidence the AI Knows Matters to THIS Judge",
     photo: { url: "/carousel/howitworks-4.png", alt: "Court-ready evidence", position: "center" },
+  },
+  {
+    title: "Decide & Strategize",
+    subtitle: "No More Charging You For Reading Through Pointless text messages",
+    photo: { url: "/carousel/howitworks-3.png", alt: "Attorney strategy", position: "center" },
+  },
+  {
+    title: "BitterBM AI",
+    subtitle: "Analyze The Case, Judge, Attorneys, GAL, and More",
+    photo: { url: "/carousel/howitworks-2.png", alt: "BitterBM AI analysis", position: "center" },
   },
 ]
 
@@ -315,7 +315,7 @@ export default function LandingPage() {
           >
             <div className="container">
               <AnimateOnScroll>
-                <h2 id="how-it-works-heading" style={{ marginBottom: "var(--space-xl)" }}>
+                <h2 id="how-it-works-heading" style={{ marginBottom: "var(--space-xl)", textAlign: "center" }}>
                   How It Works
                 </h2>
               </AnimateOnScroll>
