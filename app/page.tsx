@@ -7,7 +7,6 @@ import { trackEvent } from "@/components/GA4Provider"
 import { trackCtaWithImage } from "@/lib/analytics"
 import { backgroundImages, backgroundImageIds } from "@/lib/backgroundImages"
 import { useImageViewTracking } from "@/hooks/useImageViewTracking"
-import { HamburgerMenu } from "@/components/landing/HamburgerMenu"
 
 const MIN_LOADER_DISPLAY_MS = 2200
 
@@ -111,7 +110,6 @@ export default function LandingPage() {
         <span className="loader-brand">BitterBM.com</span>
       </div>
 
-      <HamburgerMenu visible={contentVisible} />
       <main
         className="landing-content"
         data-visible={contentVisible}
