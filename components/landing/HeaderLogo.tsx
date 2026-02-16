@@ -42,26 +42,16 @@ export function HeaderLogo() {
         zIndex: 9999,
         display: "flex",
         alignItems: "center",
-        justifyContent: "center",
-        width: 120,
-        minHeight: 40,
         textDecoration: "none",
-        padding: "var(--space-sm) var(--space-md)",
-        borderRadius: 8,
-        background: "rgba(15, 18, 24, 0.98)",
-        border: "1px solid rgba(255, 255, 255, 0.25)",
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
-        boxShadow: "0 4px 24px rgba(0, 0, 0, 0.5)",
       }}
     >
       <Image
         src="/logo.svg"
         alt="BitterBM"
-        width={120}
-        height={40}
+        width={48}
+        height={48}
         priority
-        style={{ objectFit: "contain", maxHeight: 40, filter: "brightness(0) invert(1)" }}
+        style={{ objectFit: "contain", width: 48, height: 48, display: "block" }}
         onError={(e) => {
           const target = e.currentTarget
           target.style.display = "none"
