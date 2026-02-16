@@ -108,7 +108,7 @@ export function StateCoverage() {
         </p>
 
         <div style={{ marginBottom: "var(--space-xl)" }}>
-          <USAMap supportedStates={supportedStates} />
+          <USAMap supportedStates={supportedStates} requestCounts={requestCounts} />
         </div>
 
         <div style={{ marginBottom: "var(--space-md)" }}>
