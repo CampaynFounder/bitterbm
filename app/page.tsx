@@ -95,6 +95,7 @@ export default function LandingPage() {
   const [loaded, setLoaded] = useState(false)
   const [contentVisible, setContentVisible] = useState(false)
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null)
+  const [selectedPackage, setSelectedPackage] = useState<0 | 1 | 2>(1)
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -458,30 +459,37 @@ export default function LandingPage() {
               >
                 <AnimateOnScroll stagger={1}>
                   <div
+                    role="button"
+                    tabIndex={0}
                     className="pricing-card"
+                    onClick={() => setSelectedPackage(0)}
+                    onKeyDown={(e) => e.key === "Enter" && setSelectedPackage(0)}
                     style={{
                       padding: "var(--space-xl)",
                       background: "var(--bg-card)",
                       borderRadius: "12px",
-                      border: "1px solid var(--border)",
+                      border: selectedPackage === 0 ? "1px solid var(--accent-primary)" : "1px solid var(--border)",
+                      boxShadow: selectedPackage === 0 ? "0 0 0 1px var(--accent-glow)" : undefined,
+                      cursor: "pointer",
                     }}
                   >
                     <h3 style={{ fontSize: "1.25rem", marginBottom: "var(--space-sm)", color: "var(--text-primary)" }}>
                       Free Assessment
                     </h3>
                     <p style={{ marginBottom: "var(--space-md)", fontSize: "0.9375rem" }}>
-                      Upload 30 days · Basic pattern analysis · Preview severity score
+                      Upload 1 Text Exchange - AI Severity Analysis - AI Severity Scoring
                     </p>
                     <a
                       href="/assessment"
                       className="btn-primary"
-                      onClick={() =>
+                      onClick={(e) => {
+                        e.stopPropagation()
                         handleCtaClick(
                           "pricing",
                           "start_free",
                           backgroundImageIds.pricing
                         )
-                      }
+                      }}
                     >
                       Start Free
                     </a>
@@ -489,13 +497,18 @@ export default function LandingPage() {
                 </AnimateOnScroll>
                 <AnimateOnScroll stagger={2}>
                   <div
+                    role="button"
+                    tabIndex={0}
                     className="pricing-card"
+                    onClick={() => setSelectedPackage(1)}
+                    onKeyDown={(e) => e.key === "Enter" && setSelectedPackage(1)}
                     style={{
                       padding: "var(--space-xl)",
                       background: "var(--bg-card)",
                       borderRadius: "12px",
-                      border: "1px solid var(--accent-primary)",
-                      boxShadow: "0 0 0 1px var(--accent-glow)",
+                      border: selectedPackage === 1 ? "1px solid var(--accent-primary)" : "1px solid var(--border)",
+                      boxShadow: selectedPackage === 1 ? "0 0 0 1px var(--accent-glow)" : undefined,
+                      cursor: "pointer",
                     }}
                   >
                     <span
@@ -519,13 +532,14 @@ export default function LandingPage() {
                     <a
                       href="/signup?payment=1"
                       className="btn-primary"
-                      onClick={() =>
+                      onClick={(e) => {
+                        e.stopPropagation()
                         handleCtaClick(
                           "pricing",
                           "begin_monthly",
                           backgroundImageIds.pricing
                         )
-                      }
+                      }}
                     >
                       Begin Documenting
                     </a>
@@ -533,12 +547,18 @@ export default function LandingPage() {
                 </AnimateOnScroll>
                 <AnimateOnScroll stagger={3}>
                   <div
+                    role="button"
+                    tabIndex={0}
                     className="pricing-card"
+                    onClick={() => setSelectedPackage(2)}
+                    onKeyDown={(e) => e.key === "Enter" && setSelectedPackage(2)}
                     style={{
                       padding: "var(--space-xl)",
                       background: "var(--bg-card)",
                       borderRadius: "12px",
-                      border: "1px solid var(--border)",
+                      border: selectedPackage === 2 ? "1px solid var(--accent-primary)" : "1px solid var(--border)",
+                      boxShadow: selectedPackage === 2 ? "0 0 0 1px var(--accent-glow)" : undefined,
+                      cursor: "pointer",
                     }}
                   >
                     <span
@@ -562,13 +582,14 @@ export default function LandingPage() {
                     <a
                       href="/signup?payment=1"
                       className="btn-primary"
-                      onClick={() =>
+                      onClick={(e) => {
+                        e.stopPropagation()
                         handleCtaClick(
                           "pricing",
                           "protect_rights",
                           backgroundImageIds.pricing
                         )
-                      }
+                      }}
                     >
                       Protect Your Rights
                     </a>
@@ -655,29 +676,6 @@ export default function LandingPage() {
                     }
                   >
                     Upload First Evidence
-                  </a>
-                  <a
-                    href="/assessment"
-                    style={{
-                      display: "inline-flex",
-                      justifyContent: "center",
-                      padding: "var(--space-md)",
-                      color: "var(--accent-muted)",
-                      fontSize: "0.9375rem",
-                      textDecoration: "none",
-                      border: "1px solid var(--border-accent)",
-                      borderRadius: "8px",
-                      transition: "border-color 0.2s, color 0.2s",
-                    }}
-                    onClick={() =>
-                      handleCtaClick(
-                        "final_cta",
-                        "talk_to_team",
-                        backgroundImageIds.finalCta
-                      )
-                    }
-                  >
-                    Talk to Our Team
                   </a>
                 </div>
                 <p
