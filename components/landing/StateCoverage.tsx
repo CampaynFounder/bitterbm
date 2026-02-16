@@ -66,7 +66,7 @@ export function StateCoverage() {
     setRequesting(false)
     if (!error) {
       setRequested(true)
-      setMyRequests((prev) => new Set([...prev, selectedState]))
+      setMyRequests((prev) => new Set(Array.from(prev).concat(selectedState)))
       supabase.rpc("get_state_request_counts").then(({ data }) => {
         const map: Record<string, number> = {}
         ;(data ?? []).forEach((r: { state_code: string; request_count: number }) => {
