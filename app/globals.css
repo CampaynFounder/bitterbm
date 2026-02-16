@@ -85,7 +85,7 @@ body {
 /* Header logo - ensure always visible above all content */
 .header-logo {
   position: fixed !important;
-  top: var(--space-md) !important;
+  top: var(--space-sm) !important;
   left: var(--space-md) !important;
   z-index: 9999 !important;
 }

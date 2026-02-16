@@ -5,13 +5,14 @@ import Link from "next/link"
 import Image from "next/image"
 import { supabase } from "@/lib/supabase"
 
+const LOGO_SIZE = 56
+
 /**
  * Logo in top-left of header. Click destination:
  * - Logged out: /
  * - Logged in: /dashboard
  *
  * Replace public/logo.svg with your logo. Supported: .svg, .png, .webp
- * Recommended: 120–160px wide, 36–48px tall
  */
 export function HeaderLogo() {
   const [session, setSession] = useState<boolean | null>(null)
@@ -48,10 +49,10 @@ export function HeaderLogo() {
       <Image
         src="/logo.svg"
         alt="BitterBM"
-        width={48}
-        height={48}
+        width={LOGO_SIZE}
+        height={LOGO_SIZE}
         priority
-        style={{ objectFit: "contain", width: 48, height: 48, display: "block" }}
+        style={{ objectFit: "contain", width: LOGO_SIZE, height: LOGO_SIZE, display: "block" }}
         onError={(e) => {
           const target = e.currentTarget
           target.style.display = "none"
@@ -63,7 +64,7 @@ export function HeaderLogo() {
         className="header-logo-fallback"
         style={{
           display: "none",
-          fontSize: "1rem",
+          fontSize: "1.125rem",
           fontWeight: 700,
           letterSpacing: "0.08em",
           color: "var(--text-primary)",
