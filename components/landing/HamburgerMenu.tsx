@@ -7,6 +7,8 @@ import { MenuToggleIcon } from "./MenuToggleIcon"
 import { supabase } from "@/lib/supabase"
 import { UpgradeToFlatModal } from "@/components/dashboard/UpgradeToFlatModal"
 
+const HAMBURGER_OPENED_KEY = "bitterbm_hamburger_opened"
+
 const GUEST_ITEMS = [
   { href: "/assessment", label: "Assessment" },
   { href: "/signin", label: "Sign in" },
@@ -33,8 +35,15 @@ export function HamburgerMenu({ visible = true }: Props) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
   const [session, setSession] = useState<boolean | null>(null)
+  const [showHighlight, setShowHighlight] = useState(false)
   const [plan, setPlan] = useState<string | null>(null)
   const [upgradeFeature, setUpgradeFeature] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setShowHighlight(!sessionStorage.getItem(HAMBURGER_OPENED_KEY))
+    }
+  }, [])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => {
@@ -128,7 +137,15 @@ export function HamburgerMenu({ visible = true }: Props) {
       >
         <button
           type="button"
-          onClick={() => setOpen((o) => !o)}
+          onClick={() => {
+            setOpen((o) => {
+              if (!o && typeof window !== "undefined") {
+                sessionStorage.setItem(HAMBURGER_OPENED_KEY, "1")
+                setShowHighlight(false)
+              }
+              return !o
+            })
+          }}
           aria-expanded={open}
           aria-controls="hamburger-menu-panel"
           aria-label={open ? "Close menu" : "Open menu"}
@@ -143,11 +160,13 @@ export function HamburgerMenu({ visible = true }: Props) {
             height: 44,
             padding: 10,
             background: "rgba(8, 9, 12, 0.8)",
-            border: "1px solid var(--border-accent)",
+            border: session && showHighlight ? "2px solid var(--accent-primary)" : "1px solid var(--border-accent)",
             borderRadius: "8px",
             cursor: "pointer",
             backdropFilter: "blur(12px)",
             WebkitBackdropFilter: "blur(12px)",
+            boxShadow: session && showHighlight ? "0 0 12px var(--accent-glow), 0 0 24px rgba(59, 130, 246, 0.15)" : undefined,
+            transition: "border 0.3s ease, box-shadow 0.3s ease",
           }}
         >
           <MenuToggleIcon

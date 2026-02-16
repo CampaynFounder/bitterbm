@@ -32,24 +32,28 @@ const PROBLEM_CARDS = [
 
 const HOW_IT_WORKS_CAROUSEL_ITEMS = [
   {
+    step: 1,
     title: "You Upload It All",
     subtitle: "Case Details, Text Messages, School Records, Visitation Calendars",
     photo: { url: "/carousel/howitworks-1.png", alt: "Upload your documentation", position: "center" },
   },
   {
-    title: "The Trial",
-    subtitle: "Clear Evidence the AI Knows Matters to THIS Judge",
-    photo: { url: "/carousel/howitworks-4.png", alt: "Court-ready evidence", position: "center" },
+    step: 2,
+    title: "BitterBM AI",
+    subtitle: "Analyze The Case, Judge, Attorneys, GAL, and More",
+    photo: { url: "/carousel/howitworks-2.png", alt: "BitterBM AI analysis", position: "center" },
   },
   {
+    step: 3,
     title: "Decide & Strategize",
     subtitle: "No More Charging You For Reading Through Pointless text messages",
     photo: { url: "/carousel/howitworks-3.png", alt: "Attorney strategy", position: "center" },
   },
   {
-    title: "BitterBM AI",
-    subtitle: "Analyze The Case, Judge, Attorneys, GAL, and More",
-    photo: { url: "/carousel/howitworks-2.png", alt: "BitterBM AI analysis", position: "center" },
+    step: 4,
+    title: "The Trial",
+    subtitle: "Clear Evidence the AI Knows Matters to THIS Judge",
+    photo: { url: "/carousel/howitworks-4.png", alt: "Court-ready evidence", position: "center" },
   },
 ]
 

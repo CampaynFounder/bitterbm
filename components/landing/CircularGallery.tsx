@@ -9,6 +9,7 @@ function cn(...classes: (string | undefined | null | false)[]) {
 export interface GalleryItem {
   title: string
   subtitle?: string
+  step?: number
   photo: {
     url: string
     alt: string
@@ -179,6 +180,11 @@ const CircularGallery = React.forwardRef<HTMLDivElement, CircularGalleryProps>(
                       color: "#fff",
                     }}
                   >
+                    {item.step != null && (
+                      <span style={{ fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.08em", opacity: 0.9, textTransform: "uppercase", display: "block", marginBottom: "var(--space-xs)" }}>
+                        Step {item.step}
+                      </span>
+                    )}
                     <h3 style={{ fontSize: "1.125rem", fontWeight: 700, margin: 0, textShadow: "0 1px 3px rgba(0,0,0,0.9), 0 2px 8px rgba(0,0,0,0.6)" }}>
                       {item.title}
                     </h3>
