@@ -30,29 +30,6 @@ const PROBLEM_CARDS = [
   },
 ]
 
-const HOW_IT_WORKS = [
-  {
-    icon: "📸",
-    title: "Upload",
-    body: "Screenshot texts, forward emails, sync your calendar. We handle the rest.",
-  },
-  {
-    icon: "🤖",
-    title: "AI Analyzes",
-    body: "Our system detects patterns, scores severity, flags alienation tactics.",
-  },
-  {
-    icon: "📄",
-    title: "Get Proof",
-    body: "Court-ready reports. Case law matches. Response strategies that judges respect.",
-  },
-  {
-    icon: "👨‍👧",
-    title: "Win Back Time",
-    body: "Present evidence your attorney can use. Increase custody. Restore your relationship.",
-  },
-]
-
 const HOW_IT_WORKS_CAROUSEL_ITEMS = [
   {
     title: "You Upload It All",
@@ -322,7 +299,6 @@ export default function LandingPage() {
               <AnimateOnScroll stagger={1}>
                 <div
                   style={{
-                    marginBottom: "var(--space-2xl)",
                     minHeight: "clamp(280px, 50vw, 420px)",
                   }}
                   data-ga4-section="how_it_works_carousel"
@@ -330,53 +306,6 @@ export default function LandingPage() {
                   <CircularGallery items={HOW_IT_WORKS_CAROUSEL_ITEMS} radius={320} autoRotateSpeed={0.015} />
                 </div>
               </AnimateOnScroll>
-              <div
-                className="steps-grid"
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr",
-                  gap: "var(--space-xl)",
-                }}
-              >
-                {HOW_IT_WORKS.map((step, i) => (
-                  <AnimateOnScroll key={step.title} stagger={(i + 1) as 1 | 2 | 3 | 4}>
-                    <div
-                      className="step-connector step-revealed"
-                      style={{
-                        display: "flex",
-                        gap: "var(--space-lg)",
-                        alignItems: "flex-start",
-                      }}
-                    >
-                      <span
-                        className="icon-pulse"
-                        style={{
-                          flexShrink: 0,
-                          fontSize: "1.75rem",
-                          opacity: 0.9,
-                        }}
-                      >
-                        {step.icon}
-                      </span>
-                      <div>
-                        <h3
-                          style={{
-                            fontSize: "1.125rem",
-                            fontWeight: 600,
-                            marginBottom: "var(--space-xs)",
-                            color: "var(--text-primary)",
-                          }}
-                        >
-                          {step.title}
-                        </h3>
-                        <p style={{ margin: 0, fontSize: "0.9375rem" }}>
-                          {step.body}
-                        </p>
-                      </div>
-                    </div>
-                  </AnimateOnScroll>
-                ))}
-              </div>
             </div>
           </section>
 
