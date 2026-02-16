@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { ShaderAnimation } from "@/components/ShaderAnimation"
 import { AnimateOnScroll } from "@/components/AnimateOnScroll"
+import { CircularGallery } from "@/components/landing/CircularGallery"
 import { trackEvent } from "@/components/GA4Provider"
 import { trackCtaWithImage } from "@/lib/analytics"
 import { backgroundImages, backgroundImageIds } from "@/lib/backgroundImages"
@@ -48,6 +49,30 @@ const HOW_IT_WORKS = [
     icon: "👨‍👧",
     title: "Win Back Time",
     body: "Present evidence your attorney can use. Increase custody. Restore your relationship.",
+  },
+]
+
+/* Placeholder carousel items – replace with your screenshots/text messages */
+const CAROUSEL_ITEMS = [
+  {
+    title: "Prove the pattern",
+    subtitle: "AI analyzes alienation tactics across 10k+ cases",
+    photo: { url: "https://picsum.photos/seed/bitter1/400/500", alt: "Case analysis", position: "center" },
+  },
+  {
+    title: "Court-ready reports",
+    subtitle: "Document every denied visit and broken promise",
+    photo: { url: "https://picsum.photos/seed/bitter2/400/500", alt: "Documentation", position: "center" },
+  },
+  {
+    title: "Your kids deserve better",
+    subtitle: "Build evidence that judges respect",
+    photo: { url: "https://picsum.photos/seed/bitter3/400/500", alt: "Family court", position: "center" },
+  },
+  {
+    title: "Don't get taken advantage of",
+    subtitle: "AI trained on family court outcomes",
+    photo: { url: "https://picsum.photos/seed/bitter4/400/500", alt: "Legal strategy", position: "center" },
   },
 ]
 
@@ -125,11 +150,11 @@ export default function LandingPage() {
           >
             <div className="container">
               <h1>
-                Stop Parental Alienation—<br />Your Kids Deserve Better
+                <span>Stop Parental Alienation</span>
+                <span style={{ display: "block", marginTop: "var(--space-md)" }}>Your Kid(s) Deserve Better</span>
               </h1>
-              <p>
-                Leverage the latest AI models trained on Family Court data to
-                prove and defend your family against parental alienation.
+              <p className="hero-subtext">
+                AI Trained on 10k+ Family Court Cases to Help You Prove Alienation, Lies and Abuse so You Don&apos;t Get Taken Advantage of By The Family Courts
               </p>
               <a
                 href="/assessment"
@@ -147,6 +172,18 @@ export default function LandingPage() {
               </a>
             </div>
           </header>
+
+          {/* Circular Gallery Carousel */}
+          <section
+            className="section"
+            aria-label="Case studies and proof"
+            data-ga4-section="carousel"
+            style={{ paddingTop: "var(--space-2xl)", paddingBottom: "var(--space-2xl)", overflow: "hidden" }}
+          >
+            <div style={{ minHeight: "clamp(300px, 55vw, 450px)" }}>
+              <CircularGallery items={CAROUSEL_ITEMS} radius={320} autoRotateSpeed={0.015} />
+            </div>
+          </section>
 
           {/* Social Proof Bar - micro-animated badges */}
           <section
