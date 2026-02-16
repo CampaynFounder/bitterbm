@@ -52,27 +52,26 @@ const HOW_IT_WORKS = [
   },
 ]
 
-/* Placeholder carousel items – replace with your screenshots/text messages */
 const CAROUSEL_ITEMS = [
   {
     title: "Prove the pattern",
     subtitle: "AI analyzes alienation tactics across 10k+ cases",
-    photo: { url: "https://picsum.photos/seed/bitter1/400/500", alt: "Case analysis", position: "center" },
+    photo: { url: "/carousel/1.jpg", alt: "Case analysis", position: "center" },
   },
   {
     title: "Court-ready reports",
     subtitle: "Document every denied visit and broken promise",
-    photo: { url: "https://picsum.photos/seed/bitter2/400/500", alt: "Documentation", position: "center" },
+    photo: { url: "/carousel/2.jpg", alt: "Documentation", position: "center" },
   },
   {
     title: "Your kids deserve better",
     subtitle: "Build evidence that judges respect",
-    photo: { url: "https://picsum.photos/seed/bitter3/400/500", alt: "Family court", position: "center" },
+    photo: { url: "/carousel/3.jpg", alt: "Family court", position: "center" },
   },
   {
     title: "Don't get taken advantage of",
     subtitle: "AI trained on family court outcomes",
-    photo: { url: "https://picsum.photos/seed/bitter4/400/500", alt: "Legal strategy", position: "center" },
+    photo: { url: "/carousel/4.jpg", alt: "Legal strategy", position: "center" },
   },
 ]
 
