@@ -46,6 +46,12 @@ export function HamburgerMenu({ visible = true }: Props) {
   }, [])
 
   useEffect(() => {
+    if (session && typeof window !== "undefined") {
+      setShowHighlight(!sessionStorage.getItem(HAMBURGER_OPENED_KEY))
+    }
+  }, [session])
+
+  useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       if (!s) {
         setSession(false)
@@ -102,6 +108,9 @@ export function HamburgerMenu({ visible = true }: Props) {
 
   async function handleSignOut() {
     setOpen(false)
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem(HAMBURGER_OPENED_KEY)
+    }
     await supabase.auth.signOut()
     router.replace("/")
   }
