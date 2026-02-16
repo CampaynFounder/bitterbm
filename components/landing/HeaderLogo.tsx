@@ -39,17 +39,20 @@ export function HeaderLogo() {
         position: "fixed",
         top: "var(--space-md)",
         left: "var(--space-md)",
-        zIndex: 100,
+        zIndex: 9999,
         display: "flex",
         alignItems: "center",
+        justifyContent: "center",
         width: 120,
-        height: 40,
+        minHeight: 40,
         textDecoration: "none",
-        padding: "var(--space-xs) var(--space-sm)",
+        padding: "var(--space-sm) var(--space-md)",
         borderRadius: 8,
-        background: "rgba(8, 9, 12, 0.6)",
-        backdropFilter: "blur(8px)",
-        WebkitBackdropFilter: "blur(8px)",
+        background: "rgba(15, 18, 24, 0.98)",
+        border: "1px solid rgba(255, 255, 255, 0.25)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        boxShadow: "0 4px 24px rgba(0, 0, 0, 0.5)",
       }}
     >
       <Image
@@ -58,7 +61,7 @@ export function HeaderLogo() {
         width={120}
         height={40}
         priority
-        style={{ objectFit: "contain", maxHeight: 40 }}
+        style={{ objectFit: "contain", maxHeight: 40, filter: "brightness(0) invert(1)" }}
         onError={(e) => {
           const target = e.currentTarget
           target.style.display = "none"

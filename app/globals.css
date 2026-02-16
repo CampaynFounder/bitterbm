@@ -82,6 +82,14 @@ body {
   overflow-x: hidden;
 }
 
+/* Header logo - ensure always visible above all content */
+.header-logo {
+  position: fixed !important;
+  top: var(--space-md) !important;
+  left: var(--space-md) !important;
+  z-index: 9999 !important;
+}
+
 /* Mobile-first container */
 .container {
   width: 100%;

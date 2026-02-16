@@ -150,10 +150,12 @@ export default function LandingPage() {
             <div className="container">
               <h1>
                 <span>Stop Parental Alienation</span>
-                <span style={{ display: "block", marginTop: "var(--space-md)" }}>Your Kid(s) Deserve Better</span>
+                <span style={{ display: "block", marginTop: "var(--space-md)" }}>Children Deserve Better</span>
               </h1>
               <p className="hero-subtext">
-                AI Trained on 10k+ Family Court Cases to Help You Prove Alienation, Lies and Abuse so You Don&apos;t Get Taken Advantage of By The Family Courts
+                AI Trained on 10k+ Family Court Cases to Help Parents Prove Alienation, Lies, and Abuse.
+                <br />
+                Don&apos;t Get Taken Advantage of By The Family Courts.
               </p>
               <a
                 href="/assessment"

@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { GA4Provider } from "@/components/GA4Provider"
 import { HamburgerMenu } from "@/components/landing/HamburgerMenu"
+import { HeaderLogo } from "@/components/landing/HeaderLogo"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -40,8 +41,11 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <GA4Provider />
+        <HeaderLogo />
         <HamburgerMenu visible />
-        {children}
+        <div className="main-with-header" style={{ paddingTop: "var(--header-height, 64px)" }}>
+          {children}
+        </div>
       </body>
     </html>
   )

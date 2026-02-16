@@ -175,15 +175,15 @@ const CircularGallery = React.forwardRef<HTMLDivElement, CircularGalleryProps>(
                       left: 0,
                       right: 0,
                       padding: "var(--space-lg)",
-                      background: "linear-gradient(to top, rgba(0,0,0,0.85), transparent)",
-                      color: "var(--text-primary)",
+                      background: "linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.6) 50%, transparent 100%)",
+                      color: "#fff",
                     }}
                   >
-                    <h3 style={{ fontSize: "1.125rem", fontWeight: 700, margin: 0 }}>
+                    <h3 style={{ fontSize: "1.125rem", fontWeight: 700, margin: 0, textShadow: "0 1px 3px rgba(0,0,0,0.9), 0 2px 8px rgba(0,0,0,0.6)" }}>
                       {item.title}
                     </h3>
                     {item.subtitle && (
-                      <p style={{ fontSize: "0.875rem", margin: "var(--space-xs) 0 0", opacity: 0.9 }}>
+                      <p style={{ fontSize: "0.875rem", margin: "var(--space-xs) 0 0", opacity: 0.95, textShadow: "0 1px 2px rgba(0,0,0,0.9), 0 1px 4px rgba(0,0,0,0.5)" }}>
                         {item.subtitle}
                       </p>
                     )}
