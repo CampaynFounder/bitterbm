@@ -31,6 +31,10 @@ type DashboardState = {
   lastChunk: PipelineRun | null
   sampleCases: RawCase[]
   counties: string[]
+  judgesCount: number
+  judgeChunksCount: number
+  lastJudgeExtract: PipelineRun | null
+  lastJudgeChunk: PipelineRun | null
 }
 
 type TabId = "case-law" | "judge" | "expert" | "attorney" | "filing" | "tools"
@@ -88,6 +92,10 @@ export default function AdminDashboardPage() {
   const [triggerResult, setTriggerResult] = useState<Record<string, number> | null>(null)
   const [chunking, setChunking] = useState(false)
   const [chunkResult, setChunkResult] = useState<Record<string, number> | null>(null)
+  const [judgeExtracting, setJudgeExtracting] = useState(false)
+  const [judgeChunking, setJudgeChunking] = useState(false)
+  const [judgeExtractResult, setJudgeExtractResult] = useState<Record<string, unknown> | null>(null)
+  const [judgeChunkResult, setJudgeChunkResult] = useState<Record<string, unknown> | null>(null)
   const [state, setState] = useState<DashboardState | null>(null)
   const [fetchQuery, setFetchQuery] = useState("alienat*")
   const [fetchState, setFetchState] = useState("GA")
@@ -121,6 +129,24 @@ export default function AdminDashboardPage() {
       setLoading(true)
       setError(null)
       try {
+        let judgesCount = 0
+        let judgeChunksCount = 0
+        let lastJudgeExtract: PipelineRun | null = null
+        let lastJudgeChunk: PipelineRun | null = null
+        try {
+          const [jRes, jcRes, jeRes, jchRes] = await Promise.all([
+            supabase.from("judges").select("id", { count: "exact", head: true }),
+            supabase.from("judge_analysis_embeddings").select("id", { count: "exact", head: true }),
+            supabase.from("pipeline_runs").select("*").eq("step", "extract_judges").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+            supabase.from("pipeline_runs").select("*").eq("step", "judge_chunk_embed").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          ])
+          judgesCount = jRes.count ?? 0
+          judgeChunksCount = jcRes.count ?? 0
+          lastJudgeExtract = (jeRes.data as PipelineRun | null) ?? null
+          lastJudgeChunk = (jchRes.data as PipelineRun | null) ?? null
+        } catch {
+          // Schema may not have entity tables yet
+        }
         const [rawRes, plainTextRes, chunksRes, fetchRunRes, chunkRunRes, sampleRes] = await Promise.all([
           supabase.from("raw_cases").select("cluster_id", { count: "exact", head: true }),
           supabase.from("raw_cases").select("cluster_id", { count: "exact", head: true }).not("plain_text", "is", null),
@@ -139,6 +165,10 @@ export default function AdminDashboardPage() {
           lastChunk: (chunkRunRes.data as PipelineRun | null) ?? null,
           sampleCases: (sampleRes.data ?? []) as RawCase[],
           counties,
+          judgesCount,
+          judgeChunksCount,
+          lastJudgeExtract,
+          lastJudgeChunk,
         })
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load")
@@ -206,24 +236,30 @@ export default function AdminDashboardPage() {
     }
   }
 
-  async function handleTriggerChunkEmbed(stateFilter: string | null) {
+  async function triggerEntityPipeline(action: "chunk_embed" | "extract_judges" | "judge_chunk_embed", stateFilter: string | null) {
     const url = process.env.NEXT_PUBLIC_MODAL_CHUNK_EMBED_URL
     const secret = process.env.NEXT_PUBLIC_PIPELINE_TRIGGER_SECRET
     if (!url || !secret) {
       setError("Set NEXT_PUBLIC_MODAL_CHUNK_EMBED_URL and NEXT_PUBLIC_PIPELINE_TRIGGER_SECRET")
-      return
+      return null
     }
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${secret}` },
+      body: JSON.stringify({ action, state: stateFilter || null }),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`)
+    return data
+  }
+
+  async function handleTriggerChunkEmbed(stateFilter: string | null) {
     setChunking(true)
     setChunkResult(null)
     setError(null)
     try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${secret}` },
-        body: JSON.stringify({ state: stateFilter || null }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`)
+      const data = await triggerEntityPipeline("chunk_embed", stateFilter)
+      if (!data) return
       setChunkResult(data)
       const [chunksRes, chunkRunRes] = await Promise.all([
         supabase.from("case_chunks").select("id", { count: "exact", head: true }),
@@ -236,6 +272,43 @@ export default function AdminDashboardPage() {
       setError(e instanceof Error ? e.message : "Chunk embed failed")
     } finally {
       setChunking(false)
+    }
+  }
+
+  async function handleEntityPipeline(action: "extract_judges" | "judge_chunk_embed", stateFilter: string | null) {
+    const isExtract = action === "extract_judges"
+    if (isExtract) setJudgeExtracting(true)
+    else setJudgeChunking(true)
+    if (isExtract) setJudgeExtractResult(null)
+    else setJudgeChunkResult(null)
+    setError(null)
+    try {
+      const data = await triggerEntityPipeline(action, stateFilter || fetchState || null)
+      if (!data) return
+      if (isExtract) setJudgeExtractResult(data)
+      else setJudgeChunkResult(data)
+      const [judgesRes, judgeChunksRes, judgeExtractRunRes, judgeChunkRunRes] = await Promise.all([
+        supabase.from("judges").select("id", { count: "exact", head: true }),
+        supabase.from("judge_analysis_embeddings").select("id", { count: "exact", head: true }),
+        supabase.from("pipeline_runs").select("*").eq("step", "extract_judges").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+        supabase.from("pipeline_runs").select("*").eq("step", "judge_chunk_embed").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      ])
+      setState((prev) =>
+        prev
+          ? {
+              ...prev,
+              judgesCount: judgesRes.count ?? 0,
+              judgeChunksCount: judgeChunksRes.count ?? 0,
+              lastJudgeExtract: (judgeExtractRunRes.data as PipelineRun | null) ?? prev.lastJudgeExtract,
+              lastJudgeChunk: (judgeChunkRunRes.data as PipelineRun | null) ?? prev.lastJudgeChunk,
+            }
+          : prev
+      )
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Pipeline failed")
+    } finally {
+      if (isExtract) setJudgeExtracting(false)
+      else setJudgeChunking(false)
     }
   }
 
@@ -484,16 +557,35 @@ export default function AdminDashboardPage() {
             <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)" }}>
               Extract judges from raw_cases → populate judges table → build judge_analysis_embeddings.
             </p>
-            <div className="grid gap-4">
-              <StepCard stepNum={1} title="Extract judges from raw_cases">
-                <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)" }}>Parse judge names from CourtListener cases. Pipeline coming soon.</p>
-                <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginTop: "var(--space-sm)" }}>Tables: judges, case_participants</p>
+            <div style={{ display: "grid", gap: "var(--space-lg)" }}>
+              <StepCard stepNum={1} title="Extract judges from raw_cases" status={state?.judgesCount ? "done" : "pending"}>
+                <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)", marginBottom: "var(--space-md)" }}>Parse judge names from CourtListener raw_cases into judges + case_participants.</p>
+                <p style={{ fontSize: "0.9375rem", marginBottom: "var(--space-md)" }}><span style={{ color: "var(--text-muted)" }}>Judges:</span> {state?.judgesCount ?? 0}</p>
+                <div className="flex flex-wrap gap-3">
+                  <button onClick={() => handleEntityPipeline("extract_judges", fetchState)} disabled={judgeExtracting || !state?.casesWithPlainText} className="btn-primary" style={{ fontSize: "0.875rem", padding: "var(--space-sm) var(--space-md)" }}>
+                    {judgeExtracting ? "Running…" : `Extract judges (${fetchState})`}
+                  </button>
+                  <button onClick={() => handleEntityPipeline("extract_judges", null)} disabled={judgeExtracting || !state?.casesWithPlainText} style={{ padding: "var(--space-sm) var(--space-md)", borderRadius: "8px", background: "var(--bg-elevated)", color: "var(--text-primary)", border: "1px solid var(--border)", cursor: "pointer", opacity: judgeExtracting || !state?.casesWithPlainText ? 0.6 : 1 }}>
+                    Extract judges (all)
+                  </button>
+                  {judgeExtractResult && <span style={{ fontSize: "0.9375rem", color: "var(--accent-cyan)" }}>Done: {String(judgeExtractResult.judges_created ?? 0)} judges, {String(judgeExtractResult.case_participants_created ?? 0)} links</span>}
+                </div>
               </StepCard>
-                            <StepCard stepNum={2} title="Enrich judge profiles">
+              <StepCard stepNum={2} title="Enrich judge profiles">
                 <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)" }}>Fetch appointment dates, court info, background. Coming soon.</p>
               </StepCard>
-              <StepCard stepNum={3} title="Chunk + Embed (judge_analysis_embeddings)">
-                <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)" }}>Build RAG for judicial tendencies. Coming soon.</p>
+              <StepCard stepNum={3} title="Chunk + Embed (judge_analysis_embeddings)" status={state?.judgeChunksCount ? "done" : "pending"}>
+                <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)", marginBottom: "var(--space-md)" }}>Build RAG for judicial tendencies from opinion text.</p>
+                <p style={{ fontSize: "0.9375rem", marginBottom: "var(--space-md)" }}><span style={{ color: "var(--text-muted)" }}>Chunks:</span> {state?.judgeChunksCount ?? 0}</p>
+                <div className="flex flex-wrap gap-3">
+                  <button onClick={() => handleEntityPipeline("judge_chunk_embed", fetchState)} disabled={judgeChunking || !state?.judgesCount} className="btn-primary" style={{ fontSize: "0.875rem", padding: "var(--space-sm) var(--space-md)" }}>
+                    {judgeChunking ? "Running…" : `Chunk + embed judges (${fetchState})`}
+                  </button>
+                  <button onClick={() => handleEntityPipeline("judge_chunk_embed", null)} disabled={judgeChunking || !state?.judgesCount} style={{ padding: "var(--space-sm) var(--space-md)", borderRadius: "8px", background: "var(--bg-elevated)", color: "var(--text-primary)", border: "1px solid var(--border)", cursor: "pointer", opacity: judgeChunking || !state?.judgesCount ? 0.6 : 1 }}>
+                    Chunk + embed (all)
+                  </button>
+                  {judgeChunkResult && <span style={{ fontSize: "0.9375rem", color: "var(--accent-cyan)" }}>Done: {String(judgeChunkResult.judges_processed ?? 0)} judges, {String(judgeChunkResult.chunks_created ?? 0)} chunks</span>}
+                </div>
               </StepCard>
               <StepCard stepNum={4} title="Test Judge RAG">
                 <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)" }}>Query by judge name + state. Coming soon.</p>

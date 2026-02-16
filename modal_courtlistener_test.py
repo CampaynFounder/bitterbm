@@ -213,7 +213,10 @@ def fetch_and_store(
                 and len((plain_text or "").strip()) >= MIN_PLAIN_TEXT_LEN
             )
             has_pdf = pdf_url is not None
-            # Store if we have usable text OR a PDF (PDF-only cases saved for later extraction)
+            # Store if we have usable text OR a PDF. PDF-only cases are saved for future
+            # extraction: when we have enough, we can run a PDF→text job (PyMuPDF or
+            # OpenAI Vision) and backfill plain_text. raw_cases preserves judge, county,
+            # state, court for entity linking.
             if text_ok or has_pdf:
                 try:
                     _upsert_raw_case(

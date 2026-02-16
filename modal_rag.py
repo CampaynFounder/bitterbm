@@ -40,12 +40,39 @@ def chunk_embed(state: str | None = None) -> dict:
     Chunk training_ready_cases and embed into case_chunks.
     state: filter by state (e.g. 'GA'); None = all states.
     """
-    # Ensure rag is on path
     import sys
     sys.path.insert(0, "/root")
     from rag.chunk_embed import run_chunk_embed
-
     return run_chunk_embed(state=state)
+
+
+@app.function(
+    image=image,
+    secrets=[modal.Secret.from_name("supabase-secret")],
+    timeout=300,
+)
+def extract_judges(state: str | None = None) -> dict:
+    """Extract judges from raw_cases into judges + case_participants."""
+    import sys
+    sys.path.insert(0, "/root")
+    from rag.entity_extract import run_extract_judges
+    return run_extract_judges(state=state)
+
+
+@app.function(
+    image=image,
+    secrets=[
+        modal.Secret.from_name("supabase-secret"),
+        modal.Secret.from_name("openai"),
+    ],
+    timeout=600,
+)
+def judge_chunk_embed(state: str | None = None) -> dict:
+    """Chunk and embed judge analysis into judge_analysis_embeddings."""
+    import sys
+    sys.path.insert(0, "/root")
+    from rag.judge_chunk_embed import run_judge_chunk_embed
+    return run_judge_chunk_embed(state=state)
 
 
 @app.function(
@@ -92,7 +119,14 @@ def trigger_chunk_embed():
         except Exception:
             pass
         state = (body.get("state") or "").strip().upper() or None
-        result = await asyncio.to_thread(lambda: chunk_embed.remote(state=state))
+        action = (body.get("action") or "chunk_embed").strip()
+
+        if action == "extract_judges":
+            result = await asyncio.to_thread(lambda: extract_judges.remote(state=state))
+        elif action == "judge_chunk_embed":
+            result = await asyncio.to_thread(lambda: judge_chunk_embed.remote(state=state))
+        else:
+            result = await asyncio.to_thread(lambda: chunk_embed.remote(state=state))
         return JSONResponse(result, headers=cors)
 
     return Starlette(routes=[Route("/", trigger_endpoint, methods=["POST", "OPTIONS"])])
@@ -105,11 +139,21 @@ def main(
 ):
     """
     RAG pipeline actions.
-    chunk_embed - Chunk and embed training_ready_cases into case_chunks.
+    chunk_embed       - Case law: training_ready_cases → case_chunks
+    extract_judges    - raw_cases → judges + case_participants
+    judge_chunk_embed - judges + opinion text → judge_analysis_embeddings
     """
     if action == "chunk_embed":
         result = chunk_embed.remote(state=state or None)
         print("Chunk & Embed Result:")
         print(json.dumps(result, indent=2))
+    elif action == "extract_judges":
+        result = extract_judges.remote(state=state or None)
+        print("Extract Judges Result:")
+        print(json.dumps(result, indent=2))
+    elif action == "judge_chunk_embed":
+        result = judge_chunk_embed.remote(state=state or None)
+        print("Judge Chunk & Embed Result:")
+        print(json.dumps(result, indent=2))
     else:
-        print(f"Unknown action: {action}. Use 'chunk_embed'.")
+        print(f"Unknown action: {action}. Use 'chunk_embed', 'extract_judges', or 'judge_chunk_embed'.")

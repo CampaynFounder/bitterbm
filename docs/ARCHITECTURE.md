@@ -48,7 +48,9 @@ Multi-layered parental alienation case strategy system.
 
 ```
 CourtListener API → raw_cases → training_ready_cases → case_chunks (embeddings)
-State Portals      → judges, attorneys, experts
+                            → extract_judges → judges + case_participants
+                                            → judge_analysis_embeddings
+State Portals      → judges, attorneys, experts (future)
 User uploads       → evidence, filing_embeddings
 ```
 
@@ -75,10 +77,11 @@ User uploads       → evidence, filing_embeddings
 - [x] Case analysis (Vision)
 
 ### Phase 2: Entity Schema & Pipelines
-- [ ] Populate judges from raw_cases
-- [ ] Expert profile aggregation
-- [ ] Attorney intelligence pipeline
-- [ ] Entity → embedding pipelines
+- [x] Populate judges from raw_cases (extract_judges)
+- [x] Judge → judge_analysis_embeddings (judge_chunk_embed)
+- [ ] Expert profile aggregation (skeleton ready)
+- [ ] Attorney intelligence pipeline (skeleton ready)
+- [ ] Entity → embedding pipelines for attorney/expert
 
 ### Phase 3: RAG APIs
 - [ ] Judge analysis API
@@ -98,3 +101,11 @@ User uploads       → evidence, filing_embeddings
 - **State court portals**: Case outcomes, GAL appointments
 - **State bar**: Attorney disciplinary records
 - **PACER** (via CourtListener): Filings, motion practice
+
+## PDF Storage & Future Extraction
+
+We store both plain_text (when available) and pdf_url for each raw_case. Cases with neither are skipped.
+
+**PDF-only cases** (plain_text=NULL, pdf_url set) are stored for later extraction. When we accumulate enough:
+- Run a PDF→text extraction job (PyMuPDF, or OpenAI Vision for scanned PDFs)
+- Backfill plain_text; entity metadata (judge, county, state, court) is already on raw_cases for linking
