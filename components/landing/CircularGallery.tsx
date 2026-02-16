@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useRef, HTMLAttributes } from "react"
+import React, { useState, useEffect, useRef, useCallback, HTMLAttributes } from "react"
 
 function cn(...classes: (string | undefined | null | false)[]) {
   return classes.filter(Boolean).join(" ")
@@ -25,44 +25,74 @@ interface CircularGalleryProps extends HTMLAttributes<HTMLDivElement> {
 const CircularGallery = React.forwardRef<HTMLDivElement, CircularGalleryProps>(
   ({ items, className, radius = 400, autoRotateSpeed = 0.02, ...props }, ref) => {
     const [rotation, setRotation] = useState(0)
-    const [isScrolling, setIsScrolling] = useState(false)
-    const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const [isMobile, setIsMobile] = useState(false)
+    const containerRef = useRef<HTMLDivElement>(null)
     const animationFrameRef = useRef<number | null>(null)
+    const touchStartX = useRef<number>(0)
+    const touchStartY = useRef<number>(0)
 
-    useEffect(() => {
-      const handleScroll = () => {
-        setIsScrolling(true)
-        if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current)
-        const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight
-        const scrollProgress = scrollableHeight > 0 ? window.scrollY / scrollableHeight : 0
-        setRotation(scrollProgress * 360)
-        scrollTimeoutRef.current = setTimeout(() => setIsScrolling(false), 150)
-      }
-      window.addEventListener("scroll", handleScroll, { passive: true })
-      return () => {
-        window.removeEventListener("scroll", handleScroll)
-        if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current)
-      }
+    const addRotation = useCallback((delta: number) => {
+      setRotation((prev) => prev + delta)
     }, [])
 
     useEffect(() => {
       const autoRotate = () => {
-        if (!isScrolling) setRotation((prev) => prev + autoRotateSpeed)
+        setRotation((prev) => prev + autoRotateSpeed)
         animationFrameRef.current = requestAnimationFrame(autoRotate)
       }
       animationFrameRef.current = requestAnimationFrame(autoRotate)
       return () => {
         if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current)
       }
-    }, [isScrolling, autoRotateSpeed])
+    }, [autoRotateSpeed])
+
+    useEffect(() => {
+      const mq = window.matchMedia("(max-width: 640px)")
+      setIsMobile(mq.matches)
+      const handler = () => setIsMobile(mq.matches)
+      mq.addEventListener("change", handler)
+      return () => mq.removeEventListener("change", handler)
+    }, [])
+
+    useEffect(() => {
+      const el = containerRef.current
+      if (!el) return
+      const onWheel = (e: WheelEvent) => {
+        e.preventDefault()
+        addRotation(e.deltaY * 0.5)
+      }
+      el.addEventListener("wheel", onWheel, { passive: false })
+      return () => el.removeEventListener("wheel", onWheel)
+    }, [addRotation])
 
     const anglePerItem = items.length > 0 ? 360 / items.length : 0
+    const effectiveRadius = isMobile ? Math.min(radius * 0.7, 240) : radius
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+      touchStartX.current = e.touches[0].clientX
+      touchStartY.current = e.touches[0].clientY
+    }
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+      const dx = e.touches[0].clientX - touchStartX.current
+      const dy = e.touches[0].clientY - touchStartY.current
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
+        e.preventDefault()
+        addRotation(dx * 0.5)
+        touchStartX.current = e.touches[0].clientX
+        touchStartY.current = e.touches[0].clientY
+      }
+    }
 
     return (
       <div
-        ref={ref}
+        ref={(node) => {
+          (containerRef as React.MutableRefObject<HTMLDivElement | null>).current = node
+          if (typeof ref === "function") ref(node)
+          else if (ref) ref.current = node
+        }}
         role="region"
-        aria-label="Circular gallery"
+        aria-label="Circular gallery - scroll or swipe to rotate"
         className={cn("circular-gallery", className)}
         style={{
           position: "relative",
@@ -72,7 +102,10 @@ const CircularGallery = React.forwardRef<HTMLDivElement, CircularGalleryProps>(
           alignItems: "center",
           justifyContent: "center",
           perspective: 2000,
+          touchAction: "pan-y",
         }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
         {...props}
       >
         <div
@@ -99,13 +132,13 @@ const CircularGallery = React.forwardRef<HTMLDivElement, CircularGalleryProps>(
                 className="circular-gallery-item"
                 style={{
                   position: "absolute",
-                  width: "min(280px, 85vw)",
-                  height: "min(360px, 45vh)",
+                  width: isMobile ? "min(200px, 75vw)" : "min(280px, 85vw)",
+                  height: isMobile ? "min(260px, 40vh)" : "min(360px, 45vh)",
                   left: "50%",
                   top: "50%",
-                  marginLeft: "min(-140px, -42.5vw)",
-                  marginTop: "min(-180px, -22.5vh)",
-                  transform: `rotateY(${itemAngle}deg) translateZ(${radius}px)`,
+                  marginLeft: isMobile ? "min(-100px, -37.5vw)" : "min(-140px, -42.5vw)",
+                  marginTop: isMobile ? "min(-130px, -20vh)" : "min(-180px, -22.5vh)",
+                  transform: `rotateY(${itemAngle}deg) translateZ(${effectiveRadius}px)`,
                   opacity,
                   transition: "opacity 0.3s linear",
                 }}

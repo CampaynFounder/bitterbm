@@ -36,8 +36,8 @@ export default function SignInPage() {
   }
 
   return (
-    <main className="section" style={{ minHeight: "80vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "var(--space-xl)" }}>
-      <div style={{ maxWidth: 400, width: "100%" }}>
+    <main className="section" style={{ minHeight: "80vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "var(--space-xl)" }}>
+      <div style={{ maxWidth: 400, width: "100%", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
         <Link
           href="/"
           style={{ display: "inline-block", marginBottom: "var(--space-lg)", color: "var(--accent-muted)", fontSize: "0.9375rem", textDecoration: "none" }}
@@ -45,7 +45,7 @@ export default function SignInPage() {
           ← Back
         </Link>
         <h1 style={{ fontSize: "1.5rem", marginBottom: "var(--space-md)", color: "var(--text-primary)" }}>Sign in</h1>
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "var(--space-md)" }}>
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "var(--space-md)", width: "100%" }}>
           <label style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>
             Email
             <input
@@ -93,7 +93,7 @@ export default function SignInPage() {
             </button>
           </div>
         </form>
-        <p style={{ marginTop: "var(--space-lg)", fontSize: "0.875rem", color: "var(--text-muted)" }}>
+        <p style={{ marginTop: "var(--space-lg)", fontSize: "0.875rem", color: "var(--text-muted)", textAlign: "center" }}>
           Don&apos;t have an account?{" "}
           <Link href="/signup" style={{ color: "var(--accent-muted)" }}>
             Sign up
