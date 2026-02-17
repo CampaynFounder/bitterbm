@@ -8,6 +8,8 @@ export type WaitUntil = "domcontentloaded" | "load" | "networkidle"
 export type ScraperStep =
   | NavigateStep
   | PauseForLoginStep
+  | SwitchFrameStep
+  | SwitchFrameMainStep
   | WaitStep
   | FillFieldStep
   | DateRangeStep
@@ -45,6 +47,25 @@ export interface PauseForLoginStep extends BaseStep {
     /** Optional message shown in logs */
     message?: string
   }
+}
+
+/** Switch into an iframe. Use name, selector, or url (partial match). */
+export interface SwitchFrameStep extends BaseStep {
+  type: "switch_frame"
+  config: {
+    /** Frame name attribute */
+    name?: string
+    /** CSS selector for the iframe element (e.g. iframe#content, iframe[name="main"]) */
+    selector?: string
+    /** Frame URL (partial match) */
+    url?: string
+  }
+}
+
+/** Switch back to the main page (top-level document). */
+export interface SwitchFrameMainStep extends BaseStep {
+  type: "switch_frame_main"
+  config?: Record<string, unknown>
 }
 
 export interface WaitStep extends BaseStep {
@@ -207,6 +228,7 @@ export interface ExecutionContext {
   row: Record<string, unknown>
   currentRow: unknown
   currentOption?: { value: string; text: string }
+  currentFrame?: unknown // Playwright Frame or FrameLocator
   rowsStored: number
   pageNum: number
   jobId: string

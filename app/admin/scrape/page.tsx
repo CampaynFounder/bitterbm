@@ -9,6 +9,8 @@ import type { ScraperFlow, ScraperStep } from "@/lib/scraper/types"
 const STEP_TYPES = [
   { value: "navigate", label: "Go to URL" },
   { value: "pause_for_login", label: "Pause for login" },
+  { value: "switch_frame", label: "Switch to iframe" },
+  { value: "switch_frame_main", label: "Switch to main page" },
   { value: "wait", label: "Wait for element" },
   { value: "fill_field", label: "Fill text field" },
   { value: "date_range", label: "Set date range" },
@@ -33,6 +35,10 @@ function createBlankStep(type: string): ScraperStep {
       return { ...base, type: "navigate", config: { url: "", waitUntil: "networkidle" } }
     case "pause_for_login":
       return { ...base, type: "pause_for_login", config: { waitSeconds: 120, message: "Log in, then continue" } }
+    case "switch_frame":
+      return { ...base, type: "switch_frame", config: { selector: "iframe[name=\"main\"]" } }
+    case "switch_frame_main":
+      return { ...base, type: "switch_frame_main", config: {} }
     case "wait":
       return { ...base, type: "wait", config: { selector: "", timeout: 10000 } }
     case "fill_field":
@@ -190,6 +196,45 @@ function StepCard({
               </p>
             </div>
           </>
+        )}
+        {step.type === "switch_frame" && (
+          <>
+            <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginBottom: "var(--space-sm)" }}>
+              Use one: CSS selector (preferred), frame name, or URL partial match.
+            </p>
+            <div>
+              <label style={labelStyle}>iframe CSS selector</label>
+              <input
+                value={String(cfg.selector ?? "")}
+                onChange={(e) => update("selector", e.target.value)}
+                placeholder='iframe[name="main"], iframe#content'
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>Or frame name</label>
+              <input
+                value={String(cfg.name ?? "")}
+                onChange={(e) => update("name", e.target.value)}
+                placeholder='main'
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>Or frame URL (partial match)</label>
+              <input
+                value={String(cfg.url ?? "")}
+                onChange={(e) => update("url", e.target.value)}
+                placeholder="Main.aspx"
+                style={inputStyle}
+              />
+            </div>
+          </>
+        )}
+        {step.type === "switch_frame_main" && (
+          <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>
+            Switches back to the top-level document. Use after extracting from a frame.
+          </p>
         )}
         {step.type === "wait" && (
           <>

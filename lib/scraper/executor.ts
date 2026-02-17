@@ -2,7 +2,7 @@
  * Playwright-based scraper flow executor
  * Runs JSON-defined steps against a browser page
  */
-import type { Page, Locator } from "playwright"
+import type { Page, Frame, FrameLocator, Locator } from "playwright"
 import { interpolate, interpolateObject } from "./interpolate"
 import type {
   ScraperFlow,
@@ -10,6 +10,8 @@ import type {
   ExecutionContext,
   NavigateStep,
   PauseForLoginStep,
+  SwitchFrameStep,
+  SwitchFrameMainStep,
   WaitStep,
   FillFieldStep,
   DateRangeStep,
@@ -87,6 +89,7 @@ export async function executeFlow(
     vars: { ...vars, job_id: jobId },
     row: {},
     currentRow: null,
+    currentFrame: undefined,
     rowsStored: 0,
     pageNum: 1,
     jobId,
@@ -152,9 +155,11 @@ async function executeStep(
   ) as Record<string, unknown>
 
   const scope = ctx.currentRow as Locator | null
+  const root = (ctx.currentFrame ?? page) as Page | Frame | FrameLocator
 
   function loc(selector: string): Locator {
-    return scope ? scope.locator(selector).first() : page.locator(selector).first()
+    if (scope) return scope.locator(selector).first()
+    return root.locator(selector).first()
   }
 
   switch (step.type) {
@@ -184,12 +189,40 @@ async function executeStep(
       break
     }
 
+    case "switch_frame": {
+      const s = step as SwitchFrameStep
+      if (s.config.selector) {
+        ctx.currentFrame = page.frameLocator(String(cfg.selector))
+        opts.log(`Switch to frame: ${cfg.selector}`)
+      } else if (s.config.name) {
+        const frame = page.frame({ name: String(cfg.name) })
+        if (!frame) throw new Error(`Frame not found: name="${cfg.name}"`)
+        ctx.currentFrame = frame
+        opts.log(`Switch to frame: name="${cfg.name}"`)
+      } else if (s.config.url) {
+        const urlPat = String(cfg.url)
+        const frame = page.frames().find((f) => f.url().includes(urlPat))
+        if (!frame) throw new Error(`Frame not found: url contains "${urlPat}"`)
+        ctx.currentFrame = frame
+        opts.log(`Switch to frame: url contains "${urlPat}"`)
+      } else {
+        throw new Error("switch_frame requires selector, name, or url")
+      }
+      break
+    }
+
+    case "switch_frame_main": {
+      ctx.currentFrame = undefined
+      opts.log("Switch to main page")
+      break
+    }
+
     case "wait": {
       const s = step as WaitStep
       if (cfg.selector) {
         const target = scope
           ? scope.locator(String(cfg.selector)).first()
-          : page.locator(String(cfg.selector)).first()
+          : root.locator(String(cfg.selector)).first()
         await target.waitFor({
           timeout: (cfg.timeout as number) ?? 15000,
           state: (cfg.waitUntil as "visible" | "hidden") ?? "visible",
@@ -203,7 +236,7 @@ async function executeStep(
     case "fill_field": {
       const s = step as FillFieldStep
       const value = interpolate(s.config.value, ctx.vars)
-      const target = page.locator(String(cfg.selector)).first()
+      const target = root.locator(String(cfg.selector)).first()
       if (s.config.clearFirst) await target.clear()
       if (s.config.method === "type") {
         await target.fill("")
@@ -219,15 +252,16 @@ async function executeStep(
       const s = step as DateRangeStep
       const fromVal = interpolate(s.config.fromValue, ctx.vars)
       const toVal = interpolate(s.config.toValue, ctx.vars)
-      await page.fill(String(cfg.fromSelector), fromVal)
-      await page.fill(String(cfg.toSelector), toVal)
+      const r = root as { fill: (sel: string, val: string) => Promise<void> }
+      await r.fill(String(cfg.fromSelector), fromVal)
+      await r.fill(String(cfg.toSelector), toVal)
       break
     }
 
     case "select_dropdown": {
       const s = step as SelectDropdownStep
       const value = interpolate(s.config.value, ctx.vars)
-      const target = page.locator(String(cfg.selector)).first()
+      const target = root.locator(String(cfg.selector)).first()
       if (s.config.selectBy === "value") {
         await target.selectOption({ value })
       } else if (s.config.selectBy === "label") {
@@ -240,7 +274,7 @@ async function executeStep(
 
     case "checkbox": {
       const s = step as CheckboxStep
-      const target = page.locator(String(cfg.selector)).first()
+      const target = root.locator(String(cfg.selector)).first()
       const checked = await target.isChecked()
       if (s.config.state === "checked" && !checked) await target.check()
       else if (s.config.state === "unchecked" && checked) await target.uncheck()
@@ -249,19 +283,19 @@ async function executeStep(
 
     case "click": {
       const s = step as ClickStep
-      const target = page.locator(String(cfg.selector)).first()
+      const target = root.locator(String(cfg.selector)).first()
       if (s.config.scrollIntoView !== false) await target.scrollIntoViewIfNeeded()
       await target.click()
       if (s.config.waitAfter) await page.waitForTimeout(s.config.waitAfter)
       if (s.config.waitForSelector) {
-        await page.waitForSelector(s.config.waitForSelector, { timeout: 15000 })
+        await root.locator(String(s.config.waitForSelector)).first().waitFor({ timeout: 15000 })
       }
       break
     }
 
     case "for_each_option": {
       const s = step as ForEachOptionStep
-      const select = page.locator(String(cfg.selector)).first()
+      const select = root.locator(String(cfg.selector)).first()
       const optionHandles = await select.locator("option").all()
       const optionCount = optionHandles.length
       const start = s.config.skipFirst ? 1 : 0
@@ -291,7 +325,7 @@ async function executeStep(
 
     case "for_each_result": {
       const s = step as ForEachResultStep
-      const rows = await page.locator(String(cfg.selector)).all()
+      const rows = await root.locator(String(cfg.selector)).all()
       const limit =
         s.config.limit && s.config.limit > 0 ? s.config.limit : rows.length
       opts.log(`for_each_result: found ${rows.length} rows (processing ${Math.min(rows.length, limit)})`)
@@ -366,7 +400,7 @@ async function executeStep(
 
     case "extract_text": {
       const s = step as ExtractTextStep
-      const target = s.config.selector ? loc(String(s.config.selector)) : page.locator("body")
+      const target = s.config.selector ? loc(String(s.config.selector)) : root.locator("body")
       const count = await target.count()
       if (count > 0) {
         const text = (await target.textContent()) ?? ""
@@ -377,7 +411,7 @@ async function executeStep(
 
     case "paginate": {
       const s = step as PaginateStep
-      const nextBtn = page.locator(String(cfg.selector)).first()
+      const nextBtn = root.locator(String(cfg.selector)).first()
       const count = await nextBtn.count()
       if (count === 0) break
       const disabled = await nextBtn.isDisabled().catch(() => true)

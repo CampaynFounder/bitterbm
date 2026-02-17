@@ -20,6 +20,17 @@ Each scraped record should include:
 | `pdf_urls` | PDF document links | extract_pdf_url (appends to array) |
 | `text_content` | Text/transcript summary | extract_text |
 
+## Iframes
+
+Court sites often use iframes for navigation. Add a **Switch to iframe** step before interacting with elements inside the frame:
+
+1. Add step: **Switch to iframe**
+2. Enter the iframe selector (e.g. `iframe[name="main"]`, `iframe#content`) or frame name/URL
+3. Add your click, fill, extract steps
+4. Add **Switch to main page** when returning to the top-level document
+
+Example: Cobb County mainpage loads `Main.aspx` in a frame. Add Switch to iframe (selector: `iframe[name="main"]` or URL contains `Main.aspx`), then Click `#hlCivilSearch`.
+
 ## Manual Login (Auth-Backed Pages)
 
 For sites that require login:

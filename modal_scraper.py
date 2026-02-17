@@ -101,6 +101,7 @@ def _execute_flow(
         "vars": {**vars, "job_id": job_id},
         "row": {},
         "current_row": None,
+        "current_frame": None,
         "rows_stored": 0,
         "page_num": 1,
         "job_id": job_id,
@@ -111,11 +112,14 @@ def _execute_flow(
     steps = flow.get("steps", [])
     i = 0
 
+    def root():
+        return ctx.get("current_frame") or page
+
     def loc(selector: str):
         scope = ctx["current_row"]
         if scope is not None:
             return scope.locator(selector).first
-        return page.locator(selector).first
+        return root().locator(selector).first
 
     def execute_step(step: dict, step_idx: int) -> int | None:
         """Returns next index to jump to, or None to advance by 1."""
@@ -143,12 +147,36 @@ def _execute_flow(
             secs = cfg.get("waitSeconds", 120)
             page.wait_for_timeout(secs * 1000)
 
+        elif stype == "switch_frame":
+            if cfg.get("selector"):
+                ctx["current_frame"] = page.frame_locator(str(cfg["selector"]))
+                log_fn(f"Switch to frame: {cfg['selector']}")
+            elif cfg.get("name"):
+                frame = page.frame(name=str(cfg["name"]))
+                if not frame:
+                    raise RuntimeError(f'Frame not found: name="{cfg["name"]}"')
+                ctx["current_frame"] = frame
+                log_fn(f'Switch to frame: name="{cfg["name"]}"')
+            elif cfg.get("url"):
+                url_pat = str(cfg["url"])
+                frame = next((f for f in page.frames if url_pat in f.url), None)
+                if not frame:
+                    raise RuntimeError(f'Frame not found: url contains "{url_pat}"')
+                ctx["current_frame"] = frame
+                log_fn(f'Switch to frame: url contains "{url_pat}"')
+            else:
+                raise RuntimeError("switch_frame requires selector, name, or url")
+
+        elif stype == "switch_frame_main":
+            ctx["current_frame"] = None
+            log_fn("Switch to main page")
+
         elif stype == "wait":
             if cfg.get("selector"):
                 target = (
                     ctx["current_row"].locator(cfg["selector"]).first
                     if ctx["current_row"]
-                    else page.locator(cfg["selector"]).first
+                    else root().locator(cfg["selector"]).first
                 )
                 target.wait_for(
                     timeout=cfg.get("timeout", 15000),
@@ -159,7 +187,7 @@ def _execute_flow(
 
         elif stype == "fill_field":
             value = _interpolate(cfg.get("value", ""), ctx["vars"])
-            target = page.locator(cfg["selector"]).first
+            target = root().locator(cfg["selector"]).first
             if cfg.get("clearFirst"):
                 target.clear()
             if cfg.get("method") == "type":
@@ -173,12 +201,13 @@ def _execute_flow(
         elif stype == "date_range":
             from_val = _interpolate(cfg.get("fromValue", ""), ctx["vars"])
             to_val = _interpolate(cfg.get("toValue", ""), ctx["vars"])
-            page.fill(cfg["fromSelector"], from_val)
-            page.fill(cfg["toSelector"], to_val)
+            r = root()
+            r.fill(cfg["fromSelector"], from_val)
+            r.fill(cfg["toSelector"], to_val)
 
         elif stype == "select_dropdown":
             value = _interpolate(cfg.get("value", ""), ctx["vars"])
-            target = page.locator(cfg["selector"]).first
+            target = root().locator(cfg["selector"]).first
             sel_by = cfg.get("selectBy", "value")
             if sel_by == "value":
                 target.select_option(value=value)
@@ -188,7 +217,7 @@ def _execute_flow(
                 target.select_option(index=int(value))
 
         elif stype == "checkbox":
-            target = page.locator(cfg["selector"]).first
+            target = root().locator(cfg["selector"]).first
             checked = target.is_checked()
             want = cfg.get("state", "checked") == "checked"
             if want and not checked:
@@ -197,17 +226,17 @@ def _execute_flow(
                 target.uncheck()
 
         elif stype == "click":
-            target = page.locator(cfg["selector"]).first
+            target = root().locator(cfg["selector"]).first
             if cfg.get("scrollIntoView", True):
                 target.scroll_into_view_if_needed()
             target.click()
             if cfg.get("waitAfter"):
                 page.wait_for_timeout(cfg["waitAfter"])
             if cfg.get("waitForSelector"):
-                page.wait_for_selector(cfg["waitForSelector"], timeout=15_000)
+                root().locator(cfg["waitForSelector"]).first.wait_for(timeout=15_000)
 
         elif stype == "for_each_option":
-            select = page.locator(cfg["selector"]).first
+            select = root().locator(cfg["selector"]).first
             options = select.locator("option").all()
             start = 1 if cfg.get("skipFirst") else 0
             end_idx = _get_nested_step_range(steps, step_idx, "for_each_option")
@@ -233,7 +262,7 @@ def _execute_flow(
             return end_idx
 
         elif stype == "for_each_result":
-            rows = page.locator(cfg["selector"]).all()
+            rows = root().locator(cfg["selector"]).all()
             limit = cfg.get("limit") or 0
             limit = min(limit, len(rows)) if limit > 0 else len(rows)
             log_fn(f"for_each_result: found {len(rows)} rows (processing {limit})")
@@ -294,13 +323,13 @@ def _execute_flow(
             if cfg.get("selector"):
                 target = loc(cfg["selector"])
             else:
-                target = page.locator("body")
+                target = root().locator("body")
             if target.count() > 0:
                 text = (target.text_content() or "").strip()
                 ctx["row"][cfg["fieldId"]] = text
 
         elif stype == "paginate":
-            next_btn = page.locator(cfg["selector"]).first
+            next_btn = root().locator(cfg["selector"]).first
             if next_btn.count() == 0:
                 pass
             elif next_btn.is_disabled():
