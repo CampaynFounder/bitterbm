@@ -18,6 +18,8 @@ export type ScraperStep =
   | ForEachResultStep
   | ExtractFieldStep
   | ExtractLinkStep
+  | ExtractPdfUrlStep
+  | ExtractTextStep
   | PaginateStep
   | StoreRowStep
   | DelayStep
@@ -145,6 +147,27 @@ export interface ExtractLinkStep extends BaseStep {
   }
 }
 
+/** Extracts PDF link and appends to row.pdf_urls (or configurable array field) */
+export interface ExtractPdfUrlStep extends BaseStep {
+  type: "extract_pdf_url"
+  config: {
+    selector: string
+    /** Target field (default pdf_urls). Accumulates into array. */
+    fieldId?: string
+    makeAbsolute?: boolean
+  }
+}
+
+/** Extracts text content (page or element) into field */
+export interface ExtractTextStep extends BaseStep {
+  type: "extract_text"
+  config: {
+    fieldId: string
+    /** Omit for full page text */
+    selector?: string
+  }
+}
+
 export interface PaginateStep extends BaseStep {
   type: "paginate"
   config: {
@@ -161,6 +184,7 @@ export interface StoreRowStep extends BaseStep {
     table?: string
     flowId?: string
     sourceSite?: string
+    /** Map extracted fieldId -> DB column (e.g. case_no -> case_number) */
     columnMap?: Record<string, string>
   }
 }

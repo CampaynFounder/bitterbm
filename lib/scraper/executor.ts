@@ -20,12 +20,20 @@ import type {
   ForEachResultStep,
   ExtractFieldStep,
   ExtractLinkStep,
+  ExtractPdfUrlStep,
+  ExtractTextStep,
   PaginateStep,
   StoreRowStep,
   DelayStep,
 } from "./types"
 
-const RESULT_NESTED_TYPES = new Set(["extract_field", "extract_link", "store_row"])
+const RESULT_NESTED_TYPES = new Set([
+  "extract_field",
+  "extract_link",
+  "extract_pdf_url",
+  "extract_text",
+  "store_row",
+])
 
 function getNestedStepRange(
   steps: ScraperStep[],
@@ -319,6 +327,34 @@ async function executeStep(
       break
     }
 
+    case "extract_pdf_url": {
+      const s = step as ExtractPdfUrlStep
+      const target = loc(String(cfg.selector))
+      const count = await target.count()
+      if (count > 0) {
+        let href = (await target.getAttribute("href")) ?? ""
+        if (s.config.makeAbsolute && href && !href.startsWith("http")) {
+          href = new URL(href, page.url()).href
+        }
+        const fieldId = s.config.fieldId ?? "pdf_urls"
+        const arr = (Array.isArray(ctx.row[fieldId]) ? ctx.row[fieldId] : []) as string[]
+        if (href) arr.push(href)
+        ctx.row[fieldId] = arr
+      }
+      break
+    }
+
+    case "extract_text": {
+      const s = step as ExtractTextStep
+      const target = s.config.selector ? loc(String(s.config.selector)) : page.locator("body")
+      const count = await target.count()
+      if (count > 0) {
+        const text = (await target.textContent()) ?? ""
+        ctx.row[s.config.fieldId] = text.trim()
+      }
+      break
+    }
+
     case "paginate": {
       const s = step as PaginateStep
       const nextBtn = page.locator(String(cfg.selector)).first()
@@ -337,8 +373,17 @@ async function executeStep(
     case "store_row": {
       const s = step as StoreRowStep
       if (Object.keys(ctx.row).length === 0) break
+      let row = { ...ctx.row }
+      if (s.config.columnMap && Object.keys(s.config.columnMap).length > 0) {
+        const mapped: Record<string, unknown> = {}
+        for (const [key, val] of Object.entries(row)) {
+          const col = s.config.columnMap![key] ?? key
+          mapped[col] = val
+        }
+        row = mapped
+      }
       const data: Record<string, unknown> = {
-        ...ctx.row,
+        ...row,
         job_id: ctx.jobId,
         scraped_at: new Date().toISOString(),
         source_url: page.url(),

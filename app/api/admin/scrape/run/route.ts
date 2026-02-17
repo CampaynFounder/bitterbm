@@ -53,6 +53,12 @@ export async function POST(req: NextRequest) {
   const logs: string[] = []
 
   const onStoreRow = async (row: Record<string, unknown>) => {
+    const attorneysRaw = row.attorneys ?? row.attorney
+    const attorneysArr = Array.isArray(attorneysRaw)
+      ? attorneysRaw
+      : typeof attorneysRaw === "string"
+        ? (attorneysRaw ? attorneysRaw.split(/[,;]/).map((s: string) => s.trim()).filter(Boolean) : [])
+        : attorneysRaw ? [String(attorneysRaw)] : []
     const mapped: Record<string, unknown> = {
       flow_id: flowId ?? null,
       source_site: sourceSite,
@@ -62,9 +68,15 @@ export async function POST(req: NextRequest) {
       court: row.court ?? null,
       judge: row.judge ?? null,
       attorney: row.attorney ?? null,
+      state: row.state ?? null,
+      county: row.county ?? null,
+      attorneys: attorneysArr.length ? attorneysArr : null,
+      gal: row.gal ?? null,
       case_type: row.case_type ?? row.caseType ?? null,
       case_status: row.case_status ?? row.caseStatus ?? null,
       date_filed: row.date_filed ?? row.dateFiled ?? null,
+      pdf_urls: row.pdf_urls ?? null,
+      text_content: row.text_content ?? row.textContent ?? null,
       raw_data: row,
       scraped_at: row.scraped_at ?? new Date().toISOString(),
     }

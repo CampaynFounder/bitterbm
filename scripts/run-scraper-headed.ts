@@ -61,10 +61,22 @@ async function main() {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL
     if (key && url) {
       const supabase = createClient(url, key)
+      const attorneysRaw = row.attorneys ?? row.attorney
+      const attorneysArr = Array.isArray(attorneysRaw)
+        ? attorneysRaw
+        : typeof attorneysRaw === "string"
+          ? (attorneysRaw ? (attorneysRaw as string).split(/[,;]/).map((s) => s.trim()).filter(Boolean) : [])
+          : attorneysRaw ? [String(attorneysRaw)] : []
       await supabase.from("scraped_cases").insert({
         ...row,
         flow_id: null,
         source_site: (flow as { name?: string }).name ?? "scraper",
+        state: row.state ?? null,
+        county: row.county ?? null,
+        attorneys: attorneysArr.length ? attorneysArr : null,
+        gal: row.gal ?? null,
+        pdf_urls: row.pdf_urls ?? null,
+        text_content: row.text_content ?? row.textContent ?? null,
       })
     }
   }

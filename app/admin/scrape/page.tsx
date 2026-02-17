@@ -19,6 +19,8 @@ const STEP_TYPES = [
   { value: "for_each_result", label: "For each result row" },
   { value: "extract_field", label: "Extract field" },
   { value: "extract_link", label: "Extract link" },
+  { value: "extract_pdf_url", label: "Extract PDF URL (appends to pdf_urls)" },
+  { value: "extract_text", label: "Extract text content" },
   { value: "store_row", label: "Save row to database" },
   { value: "paginate", label: "Next page" },
   { value: "delay", label: "Delay" },
@@ -51,6 +53,10 @@ function createBlankStep(type: string): ScraperStep {
       return { ...base, type: "extract_field", config: { fieldId: "", selector: "", attr: "text" } }
     case "extract_link":
       return { ...base, type: "extract_link", config: { fieldId: "", selector: "", makeAbsolute: true } }
+    case "extract_pdf_url":
+      return { ...base, type: "extract_pdf_url", config: { selector: "", fieldId: "pdf_urls", makeAbsolute: true } }
+    case "extract_text":
+      return { ...base, type: "extract_text", config: { fieldId: "text_content", selector: "" } }
     case "store_row":
       return { ...base, type: "store_row", config: { sourceSite: "" } }
     case "paginate":
@@ -467,16 +473,73 @@ function StepCard({
             </label>
           </>
         )}
+        {step.type === "extract_pdf_url" && (
+          <>
+            <div>
+              <label style={labelStyle}>PDF link selector</label>
+              <input
+                value={String(cfg.selector ?? "")}
+                onChange={(e) => update("selector", e.target.value)}
+                placeholder="a[href$='.pdf'], .pdf-link"
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>Target field (default pdf_urls)</label>
+              <input
+                value={String(cfg.fieldId ?? "pdf_urls")}
+                onChange={(e) => update("fieldId", e.target.value)}
+                placeholder="pdf_urls"
+                style={inputStyle}
+              />
+            </div>
+            <label style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)", fontSize: "0.875rem" }}>
+              <input
+                type="checkbox"
+                checked={!!cfg.makeAbsolute}
+                onChange={(e) => update("makeAbsolute", e.target.checked)}
+              />
+              Make URL absolute
+            </label>
+          </>
+        )}
+        {step.type === "extract_text" && (
+          <>
+            <div>
+              <label style={labelStyle}>Field name</label>
+              <input
+                value={String(cfg.fieldId ?? "")}
+                onChange={(e) => update("fieldId", e.target.value)}
+                placeholder="text_content, transcript_summary"
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>Selector (omit for full page)</label>
+              <input
+                value={String(cfg.selector ?? "")}
+                onChange={(e) => update("selector", e.target.value)}
+                placeholder=".transcript-body, main"
+                style={inputStyle}
+              />
+            </div>
+          </>
+        )}
         {step.type === "store_row" && (
-          <div>
-            <label style={labelStyle}>Source site name</label>
-            <input
-              value={String(cfg.sourceSite ?? "")}
-              onChange={(e) => update("sourceSite", e.target.value)}
-              placeholder="example-court"
-              style={inputStyle}
-            />
-          </div>
+          <>
+            <div>
+              <label style={labelStyle}>Source site name</label>
+              <input
+                value={String(cfg.sourceSite ?? "")}
+                onChange={(e) => update("sourceSite", e.target.value)}
+                placeholder="example-court"
+                style={inputStyle}
+              />
+            </div>
+            <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "var(--space-sm)" }}>
+              Use extract_field with fieldId: state, county, court, judge, attorney, gal, case_number, case_name; extract_pdf_url for pdf_urls; extract_text for text_content.
+            </p>
+          </>
         )}
         {step.type === "paginate" && (
           <>
