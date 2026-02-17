@@ -824,6 +824,20 @@ export default function AdminDashboardPage() {
             </div>
 
             <div style={{ padding: "var(--space-xl)", borderRadius: "12px", background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+              <h2 style={{ fontSize: "1.125rem", fontWeight: 600, marginBottom: "var(--space-md)", color: "var(--accent-muted)" }}>Scraper</h2>
+              <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)", marginBottom: "var(--space-md)" }}>
+                Configure and run browser automation flows for court sites. Filter by court, judge, case type, status; traverse tables and extract case data.
+              </p>
+              <Link
+                href="/admin/scrape"
+                className="btn-primary"
+                style={{ display: "inline-block", textDecoration: "none", fontSize: "0.9375rem", padding: "var(--space-sm) var(--space-md)" }}
+              >
+                Open Scraper
+              </Link>
+            </div>
+
+            <div style={{ padding: "var(--space-xl)", borderRadius: "12px", background: "var(--bg-card)", border: "1px solid var(--border)" }}>
               <h2 style={{ fontSize: "1.125rem", fontWeight: 600, marginBottom: "var(--space-md)", color: "var(--accent-muted)" }}>User subscription</h2>
               <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)", marginBottom: "var(--space-lg)" }}>Grant or revoke plan for a user by email.</p>
               <div className="flex flex-wrap items-end gap-3">
