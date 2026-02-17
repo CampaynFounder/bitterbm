@@ -321,55 +321,64 @@ export default function LandingPage() {
             data-bg-image-id={`ai:${backgroundImageIds.ai}`}
             style={{ backgroundImage: `url('${backgroundImages.ai}')` }}
           >
-            <div className="container">
+            <div className="container" style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
               <AnimateOnScroll>
-                <span
-                  className="icon-pulse"
+                <div
+                  className="ai-benefits-card"
                   style={{
-                    display: "inline-block",
-                    fontSize: "2rem",
-                    marginBottom: "var(--space-md)",
+                    maxWidth: 560,
+                    width: "100%",
+                    margin: "0 auto",
+                    padding: "var(--space-xl)",
+                    background: "rgba(20, 25, 32, 0.92)",
+                    backdropFilter: "blur(12px)",
+                    borderRadius: 16,
+                    border: "1px solid var(--border-accent)",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
                   }}
                 >
-                  🤖
-                </span>
-                <h2 id="ai-benefits-heading" style={{ marginBottom: "var(--space-md)" }}>
-                  AI That Matches Your Case to Winning Precedents
-                </h2>
-                <p style={{ marginBottom: "var(--space-lg)", maxWidth: "52ch" }}>
-                  Our AI analyzes your communication patterns and matches them to
-                  similar custody cases where alienation was proven—resulting in
-                  penalties ranging from <strong>contempt of court</strong> to
-                  alienators <strong>losing custody</strong> and being forced to
-                  pay child support and legal fees.
-                </p>
-                <p
-                  style={{
-                    marginBottom: "var(--space-xl)",
-                    fontSize: "0.9375rem",
-                    color: "var(--accent-muted)",
-                  }}
-                >
-                  Built by a team of loving parents (Lawyers, Engineers, Tech
-                  Founders) who have ALL successfully protected our children
-                  from parental alienation—We spent hundreds of thousands of
-                  dollars fighting for our children and have now trained AI so
-                  you don&apos;t have to.
-                </p>
-                <a
-                  href="/assessment"
-                  className="btn-primary"
-                  data-ga4-cta="ai_benefits_match_case"
-                  onClick={() =>
-                  handleCtaClick(
-                    "ai_benefits",
-                    "match_your_case",
-                    backgroundImageIds.ai
-                  )
-                }
-                >
-                  See How AI Can Build Your Case
-                </a>
+                  <span
+                    className="icon-pulse"
+                    style={{
+                      display: "inline-block",
+                      fontSize: "2rem",
+                      marginBottom: "var(--space-md)",
+                    }}
+                  >
+                    🤖
+                  </span>
+                  <h2 id="ai-benefits-heading" style={{ marginBottom: "var(--space-lg)", color: "var(--text-primary)", textAlign: "center" }}>
+                    AI That Matches Your Case to Established Precedents
+                  </h2>
+                  <p style={{ marginBottom: "var(--space-lg)", color: "var(--text-primary)", lineHeight: 1.6, textAlign: "center" }}>
+                    BitterBM AI analyzes the facts of your case to cases of proven alienation. We remove the guesswork and give you what you need to build a strategy to prove parental alienation.
+                  </p>
+                  <p
+                    style={{
+                      marginBottom: "var(--space-xl)",
+                      fontSize: "0.9375rem",
+                      color: "var(--text-secondary)",
+                      lineHeight: 1.6,
+                      textAlign: "center",
+                    }}
+                  >
+                    BitterBM is backed by a team of loving parents (Attorneys, Engineers & Tech Founders). We have ALL successfully protected our children from parental alienation. We spent hundreds of thousands of dollars fighting for our children and have now trained AI so that you don&apos;t have to.
+                  </p>
+                  <a
+                    href="/assessment"
+                    className="btn-primary"
+                    data-ga4-cta="ai_benefits_match_case"
+                    onClick={() =>
+                      handleCtaClick(
+                        "ai_benefits",
+                        "match_your_case",
+                        backgroundImageIds.ai
+                      )
+                    }
+                  >
+                    See How AI Can Build Your Case
+                  </a>
+                </div>
               </AnimateOnScroll>
             </div>
           </section>
