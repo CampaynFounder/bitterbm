@@ -7,6 +7,7 @@ export type WaitUntil = "domcontentloaded" | "load" | "networkidle"
 // Step type discriminators
 export type ScraperStep =
   | NavigateStep
+  | PauseForLoginStep
   | WaitStep
   | FillFieldStep
   | DateRangeStep
@@ -31,6 +32,16 @@ export interface NavigateStep extends BaseStep {
   config: {
     url: string
     waitUntil?: WaitUntil
+  }
+}
+
+export interface PauseForLoginStep extends BaseStep {
+  type: "pause_for_login"
+  config: {
+    /** Seconds to wait (browser stays open; log in manually) */
+    waitSeconds?: number
+    /** Optional message shown in logs */
+    message?: string
   }
 }
 
