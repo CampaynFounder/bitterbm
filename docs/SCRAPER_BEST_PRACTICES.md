@@ -71,6 +71,15 @@ For sites that require login:
 
 - Extract into `attorney` (single) or `attorneys` (comma-separated string). The API converts `attorneys` to an array.
 
+## Modal Deployment (Production)
+
+Validate and Run work in production when the Modal scraper is deployed:
+
+1. **Deploy** – `modal deploy modal_scraper.py`
+2. **Create secret** – `modal secret create scraper-trigger ADMIN_SECRET=your-secret ADMIN_EMAILS=you@example.com`
+3. **Set env** – Add `NEXT_PUBLIC_MODAL_SCRAPER_URL` (from deploy output, e.g. `https://xxx--bitterbm-scraper-trigger-run.modal.run`) to your production env (Cloudflare, etc.)
+4. **Auth** – Use X-Admin-Secret header or Bearer token (with email in ADMIN_EMAILS). The scraper UI sends whichever you configure.
+
 ## Observability & Checkpoints
 
 Before running autonomously, validate your flow:

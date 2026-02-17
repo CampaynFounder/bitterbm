@@ -639,6 +639,7 @@ export default function AdminScrapePage() {
   const [showImportModal, setShowImportModal] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
+  const [sessionReady, setSessionReady] = useState(false)
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       if (!s) {
@@ -646,6 +647,7 @@ export default function AdminScrapePage() {
         return
       }
       setSession(s)
+      setSessionReady(true)
     })
   }, [router])
 
@@ -834,20 +836,23 @@ export default function AdminScrapePage() {
   }
 
   async function runScraper(options: { dryRun?: boolean; stopAtStep?: number }) {
-    if (!session?.access_token || !adminSecret) {
-      setResult({ error: "Session and admin secret required" })
+    if (!session?.access_token && !adminSecret) {
+      setResult({ error: "Session not ready or admin secret required. Wait a moment or log in again." })
       return
     }
     setRunning(true)
     setResult(null)
     try {
-      const res = await fetch("/api/admin/scrape/run", {
+      const modalUrl = process.env.NEXT_PUBLIC_MODAL_SCRAPER_URL
+      const url = modalUrl || "/api/admin/scrape/run"
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        ...(adminSecret ? { "X-Admin-Secret": adminSecret } : {}),
+      }
+      const res = await fetch(url, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-          "X-Admin-Secret": adminSecret,
-        },
+        headers,
         body: JSON.stringify({
           flow: buildFlow(),
           vars: buildVars(),
@@ -856,8 +861,16 @@ export default function AdminScrapePage() {
           stopAtStep: options.stopAtStep,
         }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? "Request failed")
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        const msg = data?.error ?? "Request failed"
+        const hint = res.status === 401
+          ? " Add your email to ADMIN_EMAILS or enter the admin secret."
+          : res.status === 404
+            ? " The run API is not available. Deploy modal_scraper.py and set NEXT_PUBLIC_MODAL_SCRAPER_URL."
+            : ""
+        throw new Error(msg + hint)
+      }
       setResult(data)
     } catch (err) {
       setResult({
@@ -1214,7 +1227,7 @@ export default function AdminScrapePage() {
             <button
               type="button"
               onClick={handleValidate}
-              disabled={running}
+              disabled={running || !sessionReady}
               style={{ ...btnSecondary, borderColor: "var(--accent-cyan)" }}
             >
               {running ? "Running…" : "Validate (dry run)"}
@@ -1231,14 +1244,14 @@ export default function AdminScrapePage() {
                   <option key={i} value={i}>{i + 1}</option>
                 ))}
               </select>
-              <button type="button" onClick={handleRunUpTo} disabled={running || runUpToStep === ""} style={btnSecondary}>
+              <button type="button" onClick={handleRunUpTo} disabled={running || !sessionReady || runUpToStep === ""} style={btnSecondary} title={runUpToStep === "" ? "Select a step first" : ""}>
                 Go
               </button>
             </div>
             <button
               type="button"
               onClick={handleRun}
-              disabled={running}
+              disabled={running || !sessionReady}
               className="btn-primary"
               style={{ padding: "var(--space-md) var(--space-xl)" }}
             >
@@ -1261,7 +1274,7 @@ export default function AdminScrapePage() {
             </button>
           </div>
           <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginTop: "var(--space-md)" }}>
-            For sites requiring login: export the flow, then run locally with a visible browser:{" "}
+            Validate and Run use <code style={{ background: "var(--bg-elevated)", padding: "2px 6px", borderRadius: 4 }}>npm run dev</code> locally, or Modal when <code style={{ background: "var(--bg-elevated)", padding: "2px 6px", borderRadius: 4 }}>NEXT_PUBLIC_MODAL_SCRAPER_URL</code> is set. For sites requiring login: export the flow, then run headed locally:{" "}
             <code style={{ background: "var(--bg-elevated)", padding: "2px 6px", borderRadius: 4 }}>npm run scraper:headed -- scraper-flow.json</code>
           </p>
         </section>
