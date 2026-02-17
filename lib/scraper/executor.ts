@@ -9,6 +9,7 @@ import type {
   ScraperStep,
   ExecutionContext,
   NavigateStep,
+  PauseForLoginStep,
   WaitStep,
   FillFieldStep,
   DateRangeStep,
@@ -54,13 +55,15 @@ export interface ExecutorOptions {
   sourceSite?: string
   onStoreRow: StoreRowFn
   onLog?: (msg: string) => void
+  /** When provided, called for pause_for_login instead of waiting fixed seconds (for headed/local runs) */
+  onPause?: (message?: string) => Promise<void>
 }
 
 export async function executeFlow(
   page: Page,
   options: ExecutorOptions
 ): Promise<{ rowsStored: number; error?: string }> {
-  const { flow, vars, jobId, flowId, sourceSite, onStoreRow, onLog } = options
+  const { flow, vars, jobId, flowId, sourceSite, onStoreRow, onLog, onPause } = options
   const log = onLog ?? (() => {})
 
   const ctx: ExecutionContext = {
@@ -86,7 +89,7 @@ export async function executeFlow(
         steps,
         i,
         ctx,
-        { onStoreRow, log }
+        { onStoreRow, log, onPause }
       )
       if (result?.nextIndex !== undefined) {
         i = result.nextIndex
@@ -109,7 +112,7 @@ async function executeStep(
   steps: ScraperStep[],
   stepIndex: number,
   ctx: ExecutionContext,
-  opts: { onStoreRow: StoreRowFn; log: (m: string) => void }
+  opts: { onStoreRow: StoreRowFn; log: (m: string) => void; onPause?: (message?: string) => Promise<void> }
 ): Promise<{ nextIndex?: number } | void> {
   const vars = {
     ...ctx.vars,
@@ -140,6 +143,19 @@ async function executeStep(
           "domcontentloaded",
         timeout: 60000,
       })
+      break
+    }
+
+    case "pause_for_login": {
+      const s = step as PauseForLoginStep
+      const msg = s.config.message ?? "Manual login"
+      opts.log(msg)
+      if (opts.onPause) {
+        await opts.onPause(msg)
+      } else {
+        const secs = s.config.waitSeconds ?? 120
+        await page.waitForTimeout(secs * 1000)
+      }
       break
     }
 
