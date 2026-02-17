@@ -622,7 +622,12 @@ export default function AdminScrapePage() {
     rowsStored?: number
     error?: string
     logs?: string[]
+    dryRun?: boolean
+    previewRows?: Record<string, unknown>[]
+    stoppedAt?: number
+    pageUrl?: string
   } | null>(null)
+  const [runUpToStep, setRunUpToStep] = useState<number | "">("")
   const [showJson, setShowJson] = useState(false)
   const [loadModalOpen, setLoadModalOpen] = useState(false)
   const [loadSearch, setLoadSearch] = useState("")
@@ -828,9 +833,9 @@ export default function AdminScrapePage() {
     }
   }
 
-  async function handleRun() {
+  async function runScraper(options: { dryRun?: boolean; stopAtStep?: number }) {
     if (!session?.access_token || !adminSecret) {
-      setResult({ error: "Session and admin secret required for Run" })
+      setResult({ error: "Session and admin secret required" })
       return
     }
     setRunning(true)
@@ -847,6 +852,8 @@ export default function AdminScrapePage() {
           flow: buildFlow(),
           vars: buildVars(),
           flowId: flowId ?? undefined,
+          dryRun: options.dryRun,
+          stopAtStep: options.stopAtStep,
         }),
       })
       const data = await res.json()
@@ -859,6 +866,20 @@ export default function AdminScrapePage() {
     } finally {
       setRunning(false)
     }
+  }
+
+  function handleRun() {
+    runScraper({})
+  }
+
+  function handleValidate() {
+    runScraper({ dryRun: true })
+  }
+
+  function handleRunUpTo() {
+    const n = runUpToStep === "" ? undefined : Number(runUpToStep)
+    if (n !== undefined && (n < 0 || n >= steps.length)) return
+    runScraper({ stopAtStep: n })
   }
 
   return (
@@ -1185,7 +1206,35 @@ export default function AdminScrapePage() {
             marginBottom: "var(--space-lg)",
           }}
         >
+          <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "var(--space-sm)", color: "var(--text-primary)" }}>Run</h2>
+          <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginBottom: "var(--space-md)" }}>
+            Validate (dry run) to preview extracted rows without saving. Run up to step N to checkpoint.
+          </p>
           <div style={{ display: "flex", gap: "var(--space-sm)", flexWrap: "wrap", alignItems: "center" }}>
+            <button
+              type="button"
+              onClick={handleValidate}
+              disabled={running}
+              style={{ ...btnSecondary, borderColor: "var(--accent-cyan)" }}
+            >
+              {running ? "Running…" : "Validate (dry run)"}
+            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: "var(--space-xs)" }}>
+              <label style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}>Run up to step</label>
+              <select
+                value={runUpToStep}
+                onChange={(e) => setRunUpToStep(e.target.value === "" ? "" : Number(e.target.value))}
+                style={{ ...inputStyle, width: 56, padding: "var(--space-xs)" }}
+              >
+                <option value="">—</option>
+                {steps.map((_, i) => (
+                  <option key={i} value={i}>{i + 1}</option>
+                ))}
+              </select>
+              <button type="button" onClick={handleRunUpTo} disabled={running || runUpToStep === ""} style={btnSecondary}>
+                Go
+              </button>
+            </div>
             <button
               type="button"
               onClick={handleRun}
@@ -1220,24 +1269,37 @@ export default function AdminScrapePage() {
         {result && (
           <section
             style={{
-              padding: "var(--space-lg)",
+              padding: "var(--space-md)",
               borderRadius: "12px",
               background: "var(--bg-card)",
               border: "1px solid var(--border)",
-              marginBottom: "var(--space-xl)",
+              marginBottom: "var(--space-lg)",
             }}
           >
             <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "var(--space-md)", color: result.error ? "var(--accent-gold)" : "var(--accent-cyan)" }}>
-              Result
+              Result {result.dryRun ? "(dry run)" : ""} {result.stoppedAt !== undefined ? `(stopped at step ${result.stoppedAt + 1})` : ""}
             </h2>
             <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)" }}>
-              Job: {result.jobId ?? "—"} · Rows stored: {result.rowsStored ?? 0}
+              {result.dryRun ? "Would have stored" : "Rows stored"}: {result.rowsStored ?? 0}
+              {result.jobId && !result.dryRun && ` · Job: ${result.jobId}`}
+              {result.pageUrl && <span style={{ display: "block", fontSize: "0.8125rem", marginTop: "var(--space-xs)", wordBreak: "break-all" }}>URL: {result.pageUrl}</span>}
             </p>
             {result.error && <p style={{ marginTop: "var(--space-sm)", color: "var(--accent-gold)" }}>{result.error}</p>}
+            {result.previewRows && result.previewRows.length > 0 && (
+              <div style={{ marginTop: "var(--space-md)" }}>
+                <h3 style={{ fontSize: "0.875rem", fontWeight: 600, marginBottom: "var(--space-xs)" }}>Preview rows</h3>
+                <pre style={{ padding: "var(--space-md)", background: "var(--bg-elevated)", borderRadius: "8px", fontSize: "0.75rem", overflow: "auto", maxHeight: 200 }}>
+                  {JSON.stringify(result.previewRows, null, 2)}
+                </pre>
+              </div>
+            )}
             {result.logs && result.logs.length > 0 && (
-              <pre style={{ marginTop: "var(--space-md)", padding: "var(--space-md)", background: "var(--bg-elevated)", borderRadius: "8px", fontSize: "0.75rem", overflow: "auto", maxHeight: 180 }}>
-                {result.logs.join("\n")}
-              </pre>
+              <details style={{ marginTop: "var(--space-md)" }}>
+                <summary style={{ cursor: "pointer", fontSize: "0.875rem" }}>Logs</summary>
+                <pre style={{ marginTop: "var(--space-sm)", padding: "var(--space-md)", background: "var(--bg-elevated)", borderRadius: "8px", fontSize: "0.75rem", overflow: "auto", maxHeight: 240 }}>
+                  {result.logs.join("\n")}
+                </pre>
+              </details>
             )}
           </section>
         )}

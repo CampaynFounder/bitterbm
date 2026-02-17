@@ -71,6 +71,22 @@ For sites that require login:
 
 - Extract into `attorney` (single) or `attorneys` (comma-separated string). The API converts `attorneys` to an array.
 
+## Observability & Checkpoints
+
+Before running autonomously, validate your flow:
+
+1. **Validate (dry run)** – Runs the full flow but does not save to the database. Returns a preview of extracted rows and logs. Use this to verify selection, filtering, and extraction before committing data.
+
+2. **Run up to step N** – Runs only the first N steps, then stops. Use this to checkpoint: e.g. run up to step 5 to confirm the search form and result list work before adding extraction steps.
+
+3. **Logs** – The result panel shows logs including:
+   - `for_each_result: found N rows`
+   - `extract_field fieldId: value`
+   - `store_row: saving field1, field2, ...`
+   - Page URL when stopped
+
+4. **Preview rows** – Dry run returns the exact data that would be stored. Inspect to ensure field mapping is correct.
+
 ## Typical Flow
 
 1. `navigate` – Search page (or login page)

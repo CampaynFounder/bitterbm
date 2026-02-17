@@ -65,13 +65,22 @@ export interface ExecutorOptions {
   onLog?: (msg: string) => void
   /** When provided, called for pause_for_login instead of waiting fixed seconds (for headed/local runs) */
   onPause?: (message?: string) => Promise<void>
+  /** Stop after this step index (0-based). For checkpoint debugging. */
+  stopAtStep?: number
+}
+
+export interface ExecuteResult {
+  rowsStored: number
+  error?: string
+  stoppedAt?: number
+  pageUrl?: string
 }
 
 export async function executeFlow(
   page: Page,
   options: ExecutorOptions
-): Promise<{ rowsStored: number; error?: string }> {
-  const { flow, vars, jobId, flowId, sourceSite, onStoreRow, onLog, onPause } = options
+): Promise<ExecuteResult> {
+  const { flow, vars, jobId, flowId, sourceSite, onStoreRow, onLog, onPause, stopAtStep } = options
   const log = onLog ?? (() => {})
 
   const ctx: ExecutionContext = {
@@ -89,6 +98,14 @@ export async function executeFlow(
   let i = 0
 
   while (i < steps.length) {
+    if (stopAtStep !== undefined && i > stopAtStep) {
+      log(`Checkpoint: stopped after step ${stopAtStep + 1}`)
+      return {
+        rowsStored: ctx.rowsStored,
+        stoppedAt: stopAtStep,
+        pageUrl: page.url(),
+      }
+    }
     const step = steps[i]
     try {
       const result = await executeStep(
@@ -107,11 +124,11 @@ export async function executeFlow(
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       log(`Step ${i + 1} (${step.type}) failed: ${msg}`)
-      return { rowsStored: ctx.rowsStored, error: msg }
+      return { rowsStored: ctx.rowsStored, error: msg, pageUrl: page.url() }
     }
   }
 
-  return { rowsStored: ctx.rowsStored }
+  return { rowsStored: ctx.rowsStored, pageUrl: page.url() }
 }
 
 async function executeStep(
@@ -277,6 +294,7 @@ async function executeStep(
       const rows = await page.locator(String(cfg.selector)).all()
       const limit =
         s.config.limit && s.config.limit > 0 ? s.config.limit : rows.length
+      opts.log(`for_each_result: found ${rows.length} rows (processing ${Math.min(rows.length, limit)})`)
       const endIdx = getNestedStepRange(steps, stepIndex, "for_each_result")
 
       for (let idx = 0; idx < Math.min(rows.length, limit); idx++) {
@@ -309,6 +327,8 @@ async function executeStep(
           value = (await target.getAttribute(attr)) ?? ""
         }
         ctx.row[s.config.fieldId] = value.trim()
+        const preview = value.length > 60 ? value.slice(0, 60) + "…" : value
+        opts.log(`  extract_field ${s.config.fieldId}: ${preview}`)
       }
       break
     }
@@ -390,6 +410,8 @@ async function executeStep(
       }
       if (s.config.sourceSite) data.source_site = s.config.sourceSite
       if (s.config.flowId) data.flow_id = s.config.flowId
+      const keys = Object.keys(data).filter((k) => !["job_id", "scraped_at"].includes(k))
+      opts.log(`store_row: saving ${keys.join(", ")}`)
       await opts.onStoreRow(data, ctx)
       ctx.rowsStored++
       ctx.row = {}

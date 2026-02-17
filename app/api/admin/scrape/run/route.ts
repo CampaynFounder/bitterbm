@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  let body: { flow: ScraperFlow; vars?: Record<string, string | number>; flowId?: string }
+  let body: { flow: ScraperFlow; vars?: Record<string, string | number>; flowId?: string; dryRun?: boolean; stopAtStep?: number }
   try {
     body = await req.json()
   } catch {
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const { flow, vars = {}, flowId } = body
+  const { flow, vars = {}, flowId, dryRun, stopAtStep } = body
   if (!flow?.steps?.length) {
     return NextResponse.json(
       { error: "flow.steps required" },
@@ -51,8 +51,13 @@ export async function POST(req: NextRequest) {
   const jobId = crypto.randomUUID()
   const sourceSite = flow.name
   const logs: string[] = []
+  const previewRows: Record<string, unknown>[] = []
 
   const onStoreRow = async (row: Record<string, unknown>) => {
+    if (dryRun) {
+      previewRows.push({ ...row })
+      return
+    }
     const attorneysRaw = row.attorneys ?? row.attorney
     const attorneysArr = Array.isArray(attorneysRaw)
       ? attorneysRaw
@@ -104,24 +109,29 @@ export async function POST(req: NextRequest) {
       sourceSite,
       onStoreRow,
       onLog: (msg) => logs.push(msg),
+      stopAtStep: typeof stopAtStep === "number" ? stopAtStep : undefined,
     })
 
-    await supabase.from("scraper_jobs").insert({
-      id: jobId,
-      flow_id: flowId ?? null,
-      status: result.error ? "failed" : "completed",
-      vars,
-      rows_scraped: result.rowsStored,
-      error_message: result.error ?? null,
-      started_at: new Date().toISOString(),
-      finished_at: new Date().toISOString(),
-    })
+    if (!dryRun) {
+      await supabase.from("scraper_jobs").insert({
+        id: jobId,
+        flow_id: flowId ?? null,
+        status: result.error ? "failed" : "completed",
+        vars,
+        rows_scraped: result.rowsStored,
+        error_message: result.error ?? null,
+        started_at: new Date().toISOString(),
+        finished_at: new Date().toISOString(),
+      })
+    }
 
     return NextResponse.json({
       jobId,
       rowsStored: result.rowsStored,
       error: result.error ?? null,
       logs,
+      ...(dryRun && { dryRun: true, previewRows }),
+      ...(result.stoppedAt !== undefined && { stoppedAt: result.stoppedAt, pageUrl: result.pageUrl }),
     })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
