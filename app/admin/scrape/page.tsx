@@ -612,7 +612,10 @@ export default function AdminScrapePage() {
     { key: "search_term", value: "" },
     { key: "court", value: "" },
   ])
-  const [adminSecret, setAdminSecret] = useState("")
+  const [adminSecret, setAdminSecret] = useState(() => {
+    if (typeof window === "undefined") return ""
+    return sessionStorage.getItem("scraper_admin_secret") ?? ""
+  })
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState<{
     jobId?: string
@@ -640,6 +643,13 @@ export default function AdminScrapePage() {
       setSession(s)
     })
   }, [router])
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && adminSecret !== undefined) {
+      if (adminSecret) sessionStorage.setItem("scraper_admin_secret", adminSecret)
+      else sessionStorage.removeItem("scraper_admin_secret")
+    }
+  }, [adminSecret])
 
   function addStep(type: string) {
     setSteps((prev) => [...prev, createBlankStep(type)])
@@ -707,16 +717,23 @@ export default function AdminScrapePage() {
       )
     : flowsList
 
+  const authHeaders = () => {
+    const h: Record<string, string> = {}
+    if (session?.access_token) h.Authorization = `Bearer ${session.access_token}`
+    if (adminSecret) h["X-Admin-Secret"] = adminSecret
+    return h
+  }
+
   useEffect(() => {
-    if (loadModalOpen && adminSecret) {
+    if (loadModalOpen && (adminSecret || session?.access_token)) {
       setFlowsLoading(true)
-      fetch(`/api/admin/scraper/flows`, { headers: { "X-Admin-Secret": adminSecret } })
+      fetch(`/api/admin/scraper/flows`, { headers: authHeaders() })
         .then((res) => res.json())
         .then((data) => setFlowsList(data.flows ?? []))
         .catch(() => setFlowsList([]))
         .finally(() => setFlowsLoading(false))
     }
-  }, [loadModalOpen, adminSecret])
+  }, [loadModalOpen, adminSecret, session?.access_token])
 
   function applyImportedPayload(payload: { flow?: { name?: string; steps?: ScraperStep[] }; vars?: Record<string, string | number> }) {
     const flow = payload.flow ?? payload
@@ -734,8 +751,12 @@ export default function AdminScrapePage() {
   }
 
   async function handleSave() {
-    if (!adminSecret || !flowName.trim()) {
+    if (!flowName.trim()) {
       setSaveError("Flow name required")
+      return
+    }
+    if (!adminSecret && !session?.access_token) {
+      setSaveError("Enter admin secret or ensure your email is in ADMIN_EMAILS")
       return
     }
     setSaveLoading(true)
@@ -746,7 +767,7 @@ export default function AdminScrapePage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Admin-Secret": adminSecret,
+          ...authHeaders(),
         },
         body: JSON.stringify({
           id: flowId ?? undefined,
@@ -809,7 +830,7 @@ export default function AdminScrapePage() {
 
   async function handleRun() {
     if (!session?.access_token || !adminSecret) {
-      setResult({ error: "Admin secret required" })
+      setResult({ error: "Session and admin secret required for Run" })
       return
     }
     setRunning(true)
@@ -907,7 +928,7 @@ export default function AdminScrapePage() {
             </div>
           </div>
           <div style={{ marginBottom: "var(--space-md)" }}>
-            <label style={labelStyle}>Admin secret (for Save / Load)</label>
+            <label style={labelStyle}>Admin secret (saved for session; optional if your email is in ADMIN_EMAILS)</label>
             <input type="password" value={adminSecret} onChange={(e) => setAdminSecret(e.target.value)} placeholder="ADMIN_SECRET" style={{ ...inputStyle, maxWidth: 280 }} />
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-xs)", alignItems: "center" }}>
@@ -979,9 +1000,7 @@ export default function AdminScrapePage() {
                 />
               </div>
               <div style={{ overflow: "auto", flex: 1, padding: "var(--space-sm)" }}>
-                {!adminSecret ? (
-                  <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>Enter admin secret above to load flows.</p>
-                ) : flowsLoading ? (
+                {flowsLoading ? (
                   <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>Loading…</p>
                 ) : filteredFlows.length === 0 ? (
                   <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>No flows found</p>
