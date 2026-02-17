@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
@@ -88,6 +88,7 @@ const inputStyle = {
 
 const btnSecondary = {
   padding: "var(--space-xs) var(--space-sm)",
+  minHeight: 44,
   background: "var(--bg-elevated)",
   border: "1px solid var(--border)",
   borderRadius: "6px",
@@ -592,7 +593,9 @@ function StepCard({
 export default function AdminScrapePage() {
   const router = useRouter()
   const [session, setSession] = useState<{ access_token?: string } | null>(null)
+  const [flowId, setFlowId] = useState<string | null>(null)
   const [flowName, setFlowName] = useState("Court Records Search")
+  const [flowDescription, setFlowDescription] = useState("")
   const [steps, setSteps] = useState<ScraperStep[]>(() => [
     createBlankStep("navigate"),
     createBlankStep("fill_field"),
@@ -618,6 +621,15 @@ export default function AdminScrapePage() {
     logs?: string[]
   } | null>(null)
   const [showJson, setShowJson] = useState(false)
+  const [loadModalOpen, setLoadModalOpen] = useState(false)
+  const [loadSearch, setLoadSearch] = useState("")
+  const [flowsList, setFlowsList] = useState<{ id: string; name: string; description?: string; flow_json: { flow?: { name: string; steps: ScraperStep[] }; vars?: Record<string, string | number> } }[]>([])
+  const [flowsLoading, setFlowsLoading] = useState(false)
+  const [saveLoading, setSaveLoading] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [importPaste, setImportPaste] = useState("")
+  const [showImportModal, setShowImportModal] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => {
@@ -687,6 +699,114 @@ export default function AdminScrapePage() {
     return out
   }
 
+  const filteredFlows = loadSearch.trim()
+    ? flowsList.filter(
+        (f) =>
+          (f.name ?? "").toLowerCase().includes(loadSearch.trim().toLowerCase()) ||
+          (f.description ?? "").toLowerCase().includes(loadSearch.trim().toLowerCase())
+      )
+    : flowsList
+
+  useEffect(() => {
+    if (loadModalOpen && adminSecret) {
+      setFlowsLoading(true)
+      fetch(`/api/admin/scraper/flows`, { headers: { "X-Admin-Secret": adminSecret } })
+        .then((res) => res.json())
+        .then((data) => setFlowsList(data.flows ?? []))
+        .catch(() => setFlowsList([]))
+        .finally(() => setFlowsLoading(false))
+    }
+  }, [loadModalOpen, adminSecret])
+
+  function applyImportedPayload(payload: { flow?: { name?: string; steps?: ScraperStep[] }; vars?: Record<string, string | number> }) {
+    const flow = payload.flow ?? payload
+    const steps = (flow as { steps?: ScraperStep[] }).steps
+    if (Array.isArray(steps) && steps.length > 0) {
+      setSteps(steps)
+    }
+    const name = (flow as { name?: string }).name
+    if (typeof name === "string" && name) setFlowName(name)
+    const vars = payload.vars
+    if (vars && typeof vars === "object") {
+      setVarsList(Object.entries(vars).map(([k, v]) => ({ key: k, value: String(v ?? "") })))
+    }
+    setFlowId(null)
+  }
+
+  async function handleSave() {
+    if (!adminSecret || !flowName.trim()) {
+      setSaveError("Flow name required")
+      return
+    }
+    setSaveLoading(true)
+    setSaveError(null)
+    try {
+      const flowJson = { flow: buildFlow(), vars: buildVars() }
+      const res = await fetch("/api/admin/scraper/flows", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Admin-Secret": adminSecret,
+        },
+        body: JSON.stringify({
+          id: flowId ?? undefined,
+          name: flowName.trim(),
+          description: flowDescription.trim() || undefined,
+          flow_json: flowJson,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? "Save failed")
+      setFlowId(data.id)
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Save failed")
+    } finally {
+      setSaveLoading(false)
+    }
+  }
+
+  function handleSelectFlow(f: (typeof flowsList)[0]) {
+    const fj = f.flow_json
+    if (fj?.flow?.steps) setSteps(fj.flow.steps)
+    if (fj?.flow?.name) setFlowName(fj.flow.name)
+    if (fj?.vars && typeof fj.vars === "object") {
+      setVarsList(Object.entries(fj.vars).map(([k, v]) => ({ key: k, value: String(v ?? "") })))
+    }
+    setFlowDescription(f.description ?? "")
+    setFlowId(f.id)
+    setLoadModalOpen(false)
+    setLoadSearch("")
+  }
+
+  function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        const payload = JSON.parse(String(reader.result))
+        applyImportedPayload(payload)
+        setShowImportModal(false)
+        setImportPaste("")
+      } catch {
+        setSaveError("Invalid JSON file")
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = ""
+  }
+
+  function handleImportPaste() {
+    try {
+      const payload = JSON.parse(importPaste)
+      applyImportedPayload(payload)
+      setShowImportModal(false)
+      setImportPaste("")
+    } catch {
+      setSaveError("Invalid JSON")
+    }
+  }
+
   async function handleRun() {
     if (!session?.access_token || !adminSecret) {
       setResult({ error: "Admin secret required" })
@@ -705,6 +825,7 @@ export default function AdminScrapePage() {
         body: JSON.stringify({
           flow: buildFlow(),
           vars: buildVars(),
+          flowId: flowId ?? undefined,
         }),
       })
       const data = await res.json()
@@ -720,10 +841,10 @@ export default function AdminScrapePage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg-primary)" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg-primary)" }} className="scraper-page">
       <header
         style={{
-          padding: "var(--space-md) var(--space-lg)",
+          padding: "var(--space-sm) var(--space-md)",
           borderBottom: "1px solid var(--border)",
           background: "var(--bg-elevated)",
         }}
@@ -736,43 +857,231 @@ export default function AdminScrapePage() {
             flexWrap: "wrap",
             alignItems: "center",
             justifyContent: "space-between",
-            gap: "var(--space-md)",
+            gap: "var(--space-sm)",
           }}
         >
-          <h1 style={{ fontSize: "1.25rem", fontWeight: 700 }}>Scraper</h1>
-          <Link href="/admin/dashboard" style={{ color: "var(--accent-muted)", fontSize: "0.9375rem" }}>
+          <h1 style={{ fontSize: "1.125rem", fontWeight: 700 }}>Scraper</h1>
+          <Link href="/admin/dashboard" style={{ color: "var(--accent-muted)", fontSize: "0.875rem" }}>
             ← Dashboard
           </Link>
         </div>
       </header>
 
       <main
+        className="container"
         style={{
           maxWidth: 900,
           margin: "0 auto",
-          padding: "var(--space-md)",
+          padding: "var(--space-sm)",
+          paddingBottom: "var(--space-2xl)",
         }}
       >
-        <div style={{ marginBottom: "var(--space-xl)" }}>
-          <label style={labelStyle}>Flow name</label>
-          <input
-            value={flowName}
-            onChange={(e) => setFlowName(e.target.value)}
-            placeholder="e.g. Court Records Search"
-            style={{ ...inputStyle, maxWidth: 400 }}
-          />
-        </div>
-
         <section
           style={{
-            padding: "var(--space-lg)",
+            padding: "var(--space-md)",
             borderRadius: "12px",
             background: "var(--bg-card)",
             border: "1px solid var(--border)",
-            marginBottom: "var(--space-xl)",
+            marginBottom: "var(--space-lg)",
           }}
         >
-          <h2 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "var(--space-md)", color: "var(--text-primary)" }}>
+          <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "var(--space-md)", color: "var(--text-primary)" }}>Flow</h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-sm)", marginBottom: "var(--space-md)" }}>
+            <div>
+              <label style={labelStyle}>Name</label>
+              <input
+                value={flowName}
+                onChange={(e) => setFlowName(e.target.value)}
+                placeholder="e.g. Court Records Search"
+                style={{ ...inputStyle, maxWidth: "100%" }}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>Description (optional)</label>
+              <input
+                value={flowDescription}
+                onChange={(e) => setFlowDescription(e.target.value)}
+                placeholder="Brief description"
+                style={{ ...inputStyle, maxWidth: "100%" }}
+              />
+            </div>
+          </div>
+          <div style={{ marginBottom: "var(--space-md)" }}>
+            <label style={labelStyle}>Admin secret (for Save / Load)</label>
+            <input type="password" value={adminSecret} onChange={(e) => setAdminSecret(e.target.value)} placeholder="ADMIN_SECRET" style={{ ...inputStyle, maxWidth: 280 }} />
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-xs)", alignItems: "center" }}>
+            <button type="button" onClick={handleSave} disabled={saveLoading} className="btn-primary" style={{ padding: "var(--space-xs) var(--space-sm)", fontSize: "0.8125rem" }}>
+              {saveLoading ? "Saving…" : "Save"}
+            </button>
+            <button type="button" onClick={() => setLoadModalOpen(true)} style={btnSecondary}>
+              Load
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const payload = { flow: buildFlow(), vars: buildVars() }
+                const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" })
+                const a = document.createElement("a")
+                a.href = URL.createObjectURL(blob)
+                a.download = `${flowName.replace(/\s+/g, "-") || "scraper-flow"}.json`
+                a.click()
+                URL.revokeObjectURL(a.href)
+              }}
+              style={btnSecondary}
+            >
+              Export
+            </button>
+            <button type="button" onClick={() => setShowImportModal(true)} style={btnSecondary}>
+              Import
+            </button>
+            {saveError && <span style={{ fontSize: "0.8125rem", color: "var(--accent-gold)" }}>{saveError}</span>}
+          </div>
+        </section>
+
+        {loadModalOpen && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 50,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "rgba(0,0,0,0.5)",
+              padding: "var(--space-md)",
+            }}
+            onClick={() => setLoadModalOpen(false)}
+          >
+            <div
+              style={{
+                background: "var(--bg-card)",
+                borderRadius: "12px",
+                border: "1px solid var(--border)",
+                maxWidth: 480,
+                width: "100%",
+                maxHeight: "80vh",
+                overflow: "hidden",
+                display: "flex",
+                flexDirection: "column",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ padding: "var(--space-md)", borderBottom: "1px solid var(--border)" }}>
+                <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "var(--space-sm)" }}>Load flow</h3>
+                <input
+                  type="text"
+                  value={loadSearch}
+                  onChange={(e) => setLoadSearch(e.target.value)}
+                  placeholder="Search by name…"
+                  style={{ ...inputStyle, marginBottom: 0 }}
+                  autoFocus
+                />
+              </div>
+              <div style={{ overflow: "auto", flex: 1, padding: "var(--space-sm)" }}>
+                {!adminSecret ? (
+                  <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>Enter admin secret above to load flows.</p>
+                ) : flowsLoading ? (
+                  <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>Loading…</p>
+                ) : filteredFlows.length === 0 ? (
+                  <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>No flows found</p>
+                ) : (
+                  <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                    {filteredFlows.map((f) => (
+                      <li key={f.id}>
+                        <button
+                          type="button"
+                          onClick={() => handleSelectFlow(f)}
+                          style={{
+                            width: "100%",
+                            padding: "var(--space-sm)",
+                            textAlign: "left",
+                            background: "none",
+                            border: "none",
+                            borderRadius: "8px",
+                            cursor: "pointer",
+                            fontSize: "0.875rem",
+                            color: "var(--text-primary)",
+                          }}
+                          className="hover:bg-[var(--bg-elevated)]"
+                        >
+                          <span style={{ fontWeight: 500 }}>{f.name}</span>
+                          {f.description && <span style={{ display: "block", fontSize: "0.75rem", color: "var(--text-muted)" }}>{f.description}</span>}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showImportModal && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 50,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "rgba(0,0,0,0.5)",
+              padding: "var(--space-md)",
+            }}
+            onClick={() => { setShowImportModal(false); setImportPaste(""); setSaveError(null) }}
+          >
+            <div
+              style={{
+                background: "var(--bg-card)",
+                borderRadius: "12px",
+                border: "1px solid var(--border)",
+                maxWidth: 480,
+                width: "100%",
+                padding: "var(--space-md)",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "var(--space-sm)" }}>Import JSON</h3>
+              <input
+                ref={(el) => { fileInputRef.current = el }}
+                type="file"
+                accept=".json,application/json"
+                onChange={handleImportFile}
+                style={{ display: "none" }}
+              />
+              <button type="button" onClick={() => fileInputRef.current?.click()} style={{ ...btnSecondary, marginBottom: "var(--space-sm)" }}>
+                Choose file
+              </button>
+              <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "var(--space-xs)" }}>Or paste JSON:</p>
+              <textarea
+                value={importPaste}
+                onChange={(e) => setImportPaste(e.target.value)}
+                placeholder='{"flow":{"name":"...","steps":[...]},"vars":{...}}'
+                style={{ ...inputStyle, minHeight: 120, resize: "vertical", fontFamily: "monospace", fontSize: "0.8125rem" }}
+              />
+              <div style={{ display: "flex", gap: "var(--space-sm)", marginTop: "var(--space-sm)" }}>
+                <button type="button" onClick={handleImportPaste} className="btn-primary" style={{ padding: "var(--space-xs) var(--space-sm)" }}>
+                  Import
+                </button>
+                <button type="button" onClick={() => { setShowImportModal(false); setImportPaste(""); setSaveError(null) }} style={btnSecondary}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <section
+          style={{
+            padding: "var(--space-md)",
+            borderRadius: "12px",
+            background: "var(--bg-card)",
+            border: "1px solid var(--border)",
+            marginBottom: "var(--space-lg)",
+          }}
+        >
+          <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "var(--space-md)", color: "var(--text-primary)" }}>
             Steps (order matters)
           </h2>
           {steps.map((step, i) => (
@@ -850,23 +1159,13 @@ export default function AdminScrapePage() {
 
         <section
           style={{
-            padding: "var(--space-lg)",
+            padding: "var(--space-md)",
             borderRadius: "12px",
             background: "var(--bg-card)",
             border: "1px solid var(--border)",
-            marginBottom: "var(--space-xl)",
+            marginBottom: "var(--space-lg)",
           }}
         >
-          <div style={{ marginBottom: "var(--space-md)" }}>
-            <label style={labelStyle}>Admin secret</label>
-            <input
-              type="password"
-              value={adminSecret}
-              onChange={(e) => setAdminSecret(e.target.value)}
-              placeholder="ADMIN_SECRET"
-              style={{ ...inputStyle, maxWidth: 320 }}
-            />
-          </div>
           <div style={{ display: "flex", gap: "var(--space-sm)", flexWrap: "wrap", alignItems: "center" }}>
             <button
               type="button"

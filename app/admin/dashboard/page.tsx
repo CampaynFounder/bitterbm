@@ -38,9 +38,9 @@ type DashboardState = {
   lastJudgeChunk: PipelineRun | null
 }
 
-type TabId = "case-law" | "judge" | "expert" | "attorney" | "filing" | "state-coverage" | "tools"
+type TabId = "case-law" | "judge" | "expert" | "attorney" | "filing" | "state-coverage" | "tools" | "scraper"
 
-const TABS: { id: TabId; label: string }[] = [
+const TABS: { id: TabId; label: string; href?: string }[] = [
   { id: "case-law", label: "Case Law RAG" },
   { id: "judge", label: "Judge RAG" },
   { id: "expert", label: "Expert RAG" },
@@ -48,6 +48,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "filing", label: "Filing RAG" },
   { id: "state-coverage", label: "State Coverage" },
   { id: "tools", label: "Tools" },
+  { id: "scraper", label: "Scraper", href: "/admin/scrape" },
 ]
 
 function StepCard({
@@ -434,10 +435,29 @@ export default function AdminDashboardPage() {
             <div className="flex items-center gap-4 flex-wrap">
               <h1 style={{ fontSize: "1.25rem", fontWeight: 600 }}>Admin</h1>
               <nav className="flex flex-wrap gap-1">
-                {TABS.map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => setActiveTab(t.id)}
+                {TABS.map((t) =>
+                  t.href ? (
+                    <Link
+                      key={t.id}
+                      href={t.href}
+                      style={{
+                        padding: "var(--space-xs) var(--space-md)",
+                        borderRadius: "8px",
+                        fontSize: "0.875rem",
+                        fontWeight: 500,
+                        background: "transparent",
+                        color: "var(--text-secondary)",
+                        textDecoration: "none",
+                        transition: "background 0.15s, color 0.15s",
+                      }}
+                      className="hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)]"
+                    >
+                      {t.label}
+                    </Link>
+                  ) : (
+                    <button
+                      key={t.id}
+                      onClick={() => setActiveTab(t.id)}
                     style={{
                       padding: "var(--space-xs) var(--space-md)",
                       borderRadius: "8px",
@@ -463,7 +483,8 @@ export default function AdminDashboardPage() {
                   >
                     {t.label}
                   </button>
-                ))}
+                  )
+                )}
               </nav>
             </div>
             <div className="flex items-center gap-3" style={{ fontSize: "0.875rem" }}>
