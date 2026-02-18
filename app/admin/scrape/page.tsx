@@ -115,6 +115,55 @@ const btnSecondary = {
   fontSize: "0.8125rem",
 } as const
 
+function InsertBar({
+  position,
+  onInsert,
+  onCancel,
+}: {
+  position: "above" | "below"
+  onInsert: (type: string) => void
+  onCancel: () => void
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "var(--space-sm)",
+        padding: "var(--space-sm) var(--space-md)",
+        marginBottom: "var(--space-md)",
+        background: "rgba(34, 211, 238, 0.08)",
+        border: "1px dashed var(--accent-cyan)",
+        borderRadius: "8px",
+      }}
+    >
+      <span style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
+        Insert step {position}:
+      </span>
+      <select
+        onChange={(e) => {
+          const v = e.target.value
+          if (v) {
+            onInsert(v)
+            e.target.value = ""
+          }
+        }}
+        style={{ ...inputStyle, flex: 1, maxWidth: 220, minWidth: 0 }}
+      >
+        <option value="">Choose type…</option>
+        {STEP_TYPES.map((t) => (
+          <option key={t.value} value={t.value}>
+            {t.label}
+          </option>
+        ))}
+      </select>
+      <button type="button" onClick={onCancel} style={btnSecondary}>
+        Cancel
+      </button>
+    </div>
+  )
+}
+
 function StepCard({
   step,
   index,
@@ -123,6 +172,8 @@ function StepCard({
   onMoveUp,
   onMoveDown,
   onRemove,
+  onInsertAbove,
+  onInsertBelow,
 }: {
   step: ScraperStep
   index: number
@@ -131,6 +182,8 @@ function StepCard({
   onMoveUp: () => void
   onMoveDown: () => void
   onRemove: () => void
+  onInsertAbove: () => void
+  onInsertBelow: () => void
 }) {
   const cfg = (step as { config?: Record<string, unknown> }).config ?? {}
   const update = (key: string, value: unknown) => {
@@ -152,7 +205,13 @@ function StepCard({
         <span style={{ fontWeight: 600, fontSize: "0.9375rem" }}>
           {index + 1}. {typeLabel}
         </span>
-        <div style={{ display: "flex", gap: "var(--space-xs)", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: "var(--space-xs)", flexWrap: "wrap", alignItems: "center" }}>
+          <button type="button" onClick={onInsertAbove} style={{ ...btnSecondary, borderColor: "var(--accent-cyan)", color: "var(--accent-cyan)" }} title="Insert step above">
+            + above
+          </button>
+          <button type="button" onClick={onInsertBelow} style={{ ...btnSecondary, borderColor: "var(--accent-cyan)", color: "var(--accent-cyan)" }} title="Insert step below">
+            + below
+          </button>
           <button type="button" onClick={onMoveUp} disabled={index === 0} style={btnSecondary}>
             ↑
           </button>
@@ -1005,6 +1064,19 @@ export default function AdminScrapePage() {
     setSteps((prev) => prev.filter((_, idx) => idx !== i))
   }
 
+  const [insertAt, setInsertAt] = useState<{ anchorIndex: number; position: "above" | "below" } | null>(null)
+
+  function insertStepAt(anchorIndex: number, position: "above" | "below", type: string) {
+    const newStep = createBlankStep(type)
+    setSteps((prev) => {
+      const idx = position === "above" ? anchorIndex : anchorIndex + 1
+      const next = [...prev]
+      next.splice(idx, 0, newStep)
+      return next
+    })
+    setInsertAt(null)
+  }
+
   function addVar() {
     setVarsList((prev) => [...prev, { key: "", value: "" }])
   }
@@ -1461,16 +1533,33 @@ export default function AdminScrapePage() {
             Steps (order matters)
           </h2>
           {steps.map((step, i) => (
-            <StepCard
-              key={i}
-              step={step}
-              index={i}
-              total={steps.length}
-              onChange={(s) => updateStep(i, s)}
-              onMoveUp={() => moveStep(i, -1)}
-              onMoveDown={() => moveStep(i, 1)}
-              onRemove={() => removeStep(i)}
-            />
+            <div key={i}>
+              {insertAt?.anchorIndex === i && insertAt?.position === "above" && (
+                <InsertBar
+                  position="above"
+                  onInsert={(type) => insertStepAt(i, "above", type)}
+                  onCancel={() => setInsertAt(null)}
+                />
+              )}
+              <StepCard
+                step={step}
+                index={i}
+                total={steps.length}
+                onChange={(s) => updateStep(i, s)}
+                onMoveUp={() => moveStep(i, -1)}
+                onMoveDown={() => moveStep(i, 1)}
+                onRemove={() => removeStep(i)}
+                onInsertAbove={() => setInsertAt({ anchorIndex: i, position: "above" })}
+                onInsertBelow={() => setInsertAt({ anchorIndex: i, position: "below" })}
+              />
+              {insertAt?.anchorIndex === i && insertAt?.position === "below" && (
+                <InsertBar
+                  position="below"
+                  onInsert={(type) => insertStepAt(i, "below", type)}
+                  onCancel={() => setInsertAt(null)}
+                />
+              )}
+            </div>
           ))}
           <div style={{ marginTop: "var(--space-md)" }}>
             <label style={labelStyle}>Add step</label>
