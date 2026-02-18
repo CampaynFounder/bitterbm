@@ -246,6 +246,21 @@ function StepCard({
                 placeholder=".results, #content, etc."
                 style={inputStyle}
               />
+              <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "var(--space-xs)" }}>
+                Leave empty to wait a fixed time (use Timeout below).
+              </p>
+            </div>
+            <div>
+              <label style={labelStyle}>Wait until</label>
+              <select
+                value={String(cfg.waitUntil ?? "visible")}
+                onChange={(e) => update("waitUntil", e.target.value)}
+                style={inputStyle}
+              >
+                <option value="visible">Visible</option>
+                <option value="hidden">Hidden</option>
+                <option value="attached">Attached</option>
+              </select>
             </div>
             <div>
               <label style={labelStyle}>Timeout (ms)</label>
@@ -278,6 +293,17 @@ function StepCard({
                 style={inputStyle}
               />
             </div>
+            <div>
+              <label style={labelStyle}>Method</label>
+              <select
+                value={String(cfg.method ?? "fill")}
+                onChange={(e) => update("method", e.target.value)}
+                style={inputStyle}
+              >
+                <option value="fill">Fill (fast)</option>
+                <option value="type">Type (simulates keystrokes)</option>
+              </select>
+            </div>
             <label style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)", fontSize: "0.875rem" }}>
               <input
                 type="checkbox"
@@ -285,6 +311,26 @@ function StepCard({
                 onChange={(e) => update("clearFirst", e.target.checked)}
               />
               Clear first
+            </label>
+            {cfg.method === "type" && (
+              <div>
+                <label style={labelStyle}>Type delay (ms) - keystroke interval</label>
+                <input
+                  type="number"
+                  value={Number(cfg.typeDelay ?? 50)}
+                  onChange={(e) => update("typeDelay", parseInt(e.target.value, 10) || 50)}
+                  min={0}
+                  style={inputStyle}
+                />
+              </div>
+            )}
+            <label style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)", fontSize: "0.875rem" }}>
+              <input
+                type="checkbox"
+                checked={!!cfg.pressEnter}
+                onChange={(e) => update("pressEnter", e.target.checked)}
+              />
+              Press Enter after fill
             </label>
           </>
         )}
@@ -397,6 +443,17 @@ function StepCard({
                 style={inputStyle}
               />
             </div>
+            <label style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)", fontSize: "0.875rem" }}>
+              <input
+                type="checkbox"
+                checked={cfg.scrollIntoView !== false}
+                onChange={(e) => update("scrollIntoView", e.target.checked)}
+              />
+              Scroll into view before click
+            </label>
+            <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+              Uncheck if element is already visible (e.g. after Wait) to avoid timeout in frames.
+            </p>
             <div>
               <label style={labelStyle}>Wait after (ms)</label>
               <input
@@ -405,6 +462,18 @@ function StepCard({
                 onChange={(e) => update("waitAfter", parseInt(e.target.value, 10) || 0)}
                 style={inputStyle}
               />
+            </div>
+            <div>
+              <label style={labelStyle}>Wait for selector (optional)</label>
+              <input
+                value={String(cfg.waitForSelector ?? "")}
+                onChange={(e) => update("waitForSelector", e.target.value)}
+                placeholder=".results-loaded, #content"
+                style={inputStyle}
+              />
+              <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "var(--space-xs)" }}>
+                After click, wait for this element before continuing.
+              </p>
             </div>
           </>
         )}
@@ -430,6 +499,24 @@ function StepCard({
               />
               Skip first option (e.g. placeholder)
             </label>
+            <div>
+              <label style={labelStyle}>Output value var (optional)</label>
+              <input
+                value={String(cfg.outputValueVar ?? "")}
+                onChange={(e) => update("outputValueVar", e.target.value)}
+                placeholder="current_option_value"
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>Output text var (optional)</label>
+              <input
+                value={String(cfg.outputTextVar ?? "")}
+                onChange={(e) => update("outputTextVar", e.target.value)}
+                placeholder="current_option_text"
+                style={inputStyle}
+              />
+            </div>
           </>
         )}
         {step.type === "for_each_result" && (
@@ -485,8 +572,17 @@ function StepCard({
                 <option value="text">Text</option>
                 <option value="html">HTML</option>
                 <option value="href">Link URL</option>
+                <option value="value">Input value</option>
               </select>
             </div>
+            <label style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)", fontSize: "0.875rem" }}>
+              <input
+                type="checkbox"
+                checked={!!cfg.required}
+                onChange={(e) => update("required", e.target.checked)}
+              />
+              Required (fail if not found)
+            </label>
           </>
         )}
         {step.type === "extract_link" && (
@@ -607,6 +703,17 @@ function StepCard({
                 min={1}
                 style={inputStyle}
               />
+            </div>
+            <div>
+              <label style={labelStyle}>Stop when</label>
+              <select
+                value={String(cfg.stopWhen ?? "disabled")}
+                onChange={(e) => update("stopWhen", e.target.value)}
+                style={inputStyle}
+              >
+                <option value="disabled">Next button disabled</option>
+                <option value="missing">Next button missing</option>
+              </select>
             </div>
             <div>
               <label style={labelStyle}>Wait after click (ms)</label>
