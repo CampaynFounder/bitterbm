@@ -123,6 +123,24 @@ For sites without nested tables:
 
 Set **state** and **county** in Variables (or extract from page) for RAG jurisdiction filtering.
 
+## Memory and deduplication
+
+### What gets kept in memory
+
+- **Variables** (e.g. state, county) are available to every step and are merged into the row when you use **Copy memory to row**.
+- Use **Extract to memory** to copy a value from the current row (or from vars) into a named memory key. You can use multiple **Extract to memory** steps at different points in the flow to add or overwrite keys (e.g. state, county, case_number).
+- Before **Save row to database**, add **Copy memory to row** and list the memory keys to copy into the row. The saved row will include those keys (and anything already in the row from extract_field, etc.).
+
+Example: early in the loop extract `case_number` into memory; later extract `state`/`county` from vars into memory; then **Copy memory to row** with keys `state`, `county`, `case_number`; then **Save row**.
+
+### Avoiding duplicate cases
+
+Configure **Deduplication: unique case key columns** in the Flow section (e.g. `state, county, case_number` or `state, county, court, case_number`). Column names must match the keys that will be in the row when saving (same names as in memory or extract_field).
+
+- Before inserting into `scraped_cases`, the runner checks if a row already exists with the same values for those columns.
+- If it exists, the row is skipped and a log line is added: `store_row: skipped duplicate (state, county, case_number)`.
+- Use the same combination that uniquely identifies a case in your jurisdiction (state + county + court + case_number, or state + county + case_number if court is not needed).
+
 ## Typical Flow
 
 1. `navigate` – Search page (or login page)

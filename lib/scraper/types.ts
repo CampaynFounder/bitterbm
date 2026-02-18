@@ -16,6 +16,12 @@ export interface FlowGeographicConfig {
   fromVars?: boolean
 }
 
+/** Flow-level deduplication: skip inserting row if one with same key already exists */
+export interface FlowDeduplicationConfig {
+  /** Column names that form the unique case key (e.g. state, county, case_number). Row is skipped if a scraped_case already exists with the same values. */
+  uniqueKeyColumns: string[]
+}
+
 // Step type discriminators
 export type ScraperStep =
   | NavigateStep
@@ -297,6 +303,8 @@ export interface ScraperFlow {
   steps: ScraperStep[]
   /** Optional: geographic context for RAG (state, county). From vars or extract. */
   geographic?: FlowGeographicConfig
+  /** Optional: skip storing row if a case with same key already exists (e.g. state + county + case_number). */
+  deduplication?: FlowDeduplicationConfig
 }
 
 export interface ExecutionContext {

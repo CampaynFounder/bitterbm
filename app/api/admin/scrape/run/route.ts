@@ -142,6 +142,25 @@ export async function POST(req: NextRequest) {
       previewRows.push({ ...row })
       return
     }
+    const uniqueCols = flow.deduplication?.uniqueKeyColumns
+    if (uniqueCols?.length) {
+      const pairs: [string, unknown][] = []
+      for (const col of uniqueCols) {
+        const val = row[col] ?? row[col.replace(/_/g, "")] ?? null
+        if (val != null && val !== "") pairs.push([col, val])
+      }
+      if (pairs.length > 0) {
+        let query = supabase.from("scraped_cases").select("id", { count: "exact", head: true })
+        for (const [col, val] of pairs) {
+          query = query.eq(col, val)
+        }
+        const { count } = await query
+        if (count && count > 0) {
+          logs.push(`store_row: skipped duplicate (${uniqueCols.join(", ")})`)
+          return
+        }
+      }
+    }
     const attorneysRaw = row.attorneys ?? row.attorney
     const attorneysArr = Array.isArray(attorneysRaw)
       ? attorneysRaw

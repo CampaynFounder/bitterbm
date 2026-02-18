@@ -1049,12 +1049,13 @@ export default function AdminScrapePage() {
   const [showJson, setShowJson] = useState(false)
   const [loadModalOpen, setLoadModalOpen] = useState(false)
   const [loadSearch, setLoadSearch] = useState("")
-  const [flowsList, setFlowsList] = useState<{ id: string; name: string; description?: string; flow_json: { flow?: { name: string; steps: ScraperStep[] }; vars?: Record<string, string | number> } }[]>([])
+  const [flowsList, setFlowsList] = useState<{ id: string; name: string; description?: string; flow_json: { flow?: { name: string; steps: ScraperStep[]; deduplication?: { uniqueKeyColumns: string[] } }; vars?: Record<string, string | number> } }[]>([])
   const [flowsLoading, setFlowsLoading] = useState(false)
   const [saveLoading, setSaveLoading] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [importPaste, setImportPaste] = useState("")
   const [showImportModal, setShowImportModal] = useState(false)
+  const [deduplicationColumns, setDeduplicationColumns] = useState("")
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const [sessionReady, setSessionReady] = useState(false)
@@ -1142,11 +1143,16 @@ export default function AdminScrapePage() {
 
   function buildFlow(): ScraperFlow {
     const hasGeo = varsList.some((v) => v.key.trim() === "state" || v.key.trim() === "county")
+    const uniqueKeyColumns = deduplicationColumns
+      .split(/[,;\s]+/)
+      .map((s) => s.trim())
+      .filter(Boolean)
     return {
       name: flowName,
       version: "1.0",
       steps,
       geographic: hasGeo ? { fromVars: true } : undefined,
+      deduplication: uniqueKeyColumns.length ? { uniqueKeyColumns } : undefined,
     }
   }
 
@@ -1184,7 +1190,7 @@ export default function AdminScrapePage() {
     }
   }, [loadModalOpen, adminSecret, session?.access_token])
 
-  function applyImportedPayload(payload: { flow?: { name?: string; steps?: ScraperStep[] }; vars?: Record<string, string | number> }) {
+  function applyImportedPayload(payload: { flow?: { name?: string; steps?: ScraperStep[]; deduplication?: { uniqueKeyColumns: string[] } }; vars?: Record<string, string | number> }) {
     const flow = payload.flow ?? payload
     const steps = (flow as { steps?: ScraperStep[] }).steps
     if (Array.isArray(steps) && steps.length > 0) {
@@ -1192,6 +1198,12 @@ export default function AdminScrapePage() {
     }
     const name = (flow as { name?: string }).name
     if (typeof name === "string" && name) setFlowName(name)
+    const dedup = (flow as { deduplication?: { uniqueKeyColumns: string[] } }).deduplication
+    if (dedup?.uniqueKeyColumns?.length) {
+      setDeduplicationColumns(dedup.uniqueKeyColumns.join(", "))
+    } else {
+      setDeduplicationColumns("")
+    }
     const vars = payload.vars
     if (vars && typeof vars === "object") {
       setVarsList(Object.entries(vars).map(([k, v]) => ({ key: k, value: String(v ?? "") })))
@@ -1239,6 +1251,11 @@ export default function AdminScrapePage() {
     const fj = f.flow_json
     if (fj?.flow?.steps) setSteps(fj.flow.steps)
     if (fj?.flow?.name) setFlowName(fj.flow.name)
+    if (fj?.flow?.deduplication?.uniqueKeyColumns?.length) {
+      setDeduplicationColumns(fj.flow.deduplication.uniqueKeyColumns.join(", "))
+    } else {
+      setDeduplicationColumns("")
+    }
     if (fj?.vars && typeof fj.vars === "object") {
       setVarsList(Object.entries(fj.vars).map(([k, v]) => ({ key: k, value: String(v ?? "") })))
     }
@@ -1405,6 +1422,18 @@ export default function AdminScrapePage() {
                 placeholder="Brief description"
                 style={{ ...inputStyle, maxWidth: "100%" }}
               />
+            </div>
+            <div>
+              <label style={labelStyle}>Deduplication: unique case key columns (optional)</label>
+              <input
+                value={deduplicationColumns}
+                onChange={(e) => setDeduplicationColumns(e.target.value)}
+                placeholder="e.g. state, county, case_number"
+                style={{ ...inputStyle, maxWidth: "100%" }}
+              />
+              <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "block", marginTop: "var(--space-xs)" }}>
+                Comma-separated. Rows with the same values are skipped to avoid duplicate cases.
+              </span>
             </div>
           </div>
           <div style={{ marginBottom: "var(--space-md)" }}>

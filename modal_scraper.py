@@ -605,6 +605,24 @@ def _run_scraper_impl(
             return
 
         sb = _supabase_client()
+        dedup_cols = (flow.get("deduplication") or {}).get("uniqueKeyColumns") or []
+        if dedup_cols:
+            pairs = []
+            for col in dedup_cols:
+                val = data.get(col)
+                if val is None:
+                    val = data.get(col.replace("_", ""))
+                if val is not None and val != "":
+                    pairs.append((col, val))
+            if pairs:
+                q = sb.table("scraped_cases").select("id")
+                for col, val in pairs:
+                    q = q.eq(col, val)
+                res = q.limit(1).execute()
+                if res.data and len(res.data) > 0:
+                    log_fn(f"store_row: skipped duplicate ({', '.join(dedup_cols)})")
+                    return
+
         attorneys_raw = data.get("attorneys") or data.get("attorney")
         if isinstance(attorneys_raw, list):
             attorneys_arr = attorneys_raw
