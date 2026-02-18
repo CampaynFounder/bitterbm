@@ -35,6 +35,8 @@ import type {
 
 const RESULT_NESTED_TYPES = new Set([
   "condition_group",
+  "click",
+  "wait",
   "extract_field",
   "extract_link",
   "extract_pdf_url",
@@ -315,7 +317,7 @@ async function executeStep(
 
     case "click": {
       const s = step as ClickStep
-      const target = root.locator(String(cfg.selector)).first()
+      const target = loc(String(cfg.selector))
       if (s.config.scrollIntoView !== false) await target.scrollIntoViewIfNeeded()
       await target.click({ force: s.config.force === true })
       if (s.config.waitAfter) await page.waitForTimeout(s.config.waitAfter)

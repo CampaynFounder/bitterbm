@@ -69,6 +69,8 @@ def _supabase_client():
 RESULT_NESTED_TYPES = frozenset(
     (
         "condition_group",
+        "click",
+        "wait",
         "extract_field",
         "extract_link",
         "extract_pdf_url",
@@ -248,7 +250,7 @@ def _execute_flow(
                 target.uncheck()
 
         elif stype == "click":
-            target = root().locator(cfg["selector"]).first
+            target = loc(cfg["selector"])
             if cfg.get("scrollIntoView", True):
                 target.scroll_into_view_if_needed()
             target.click(force=bool(cfg.get("force", False)))

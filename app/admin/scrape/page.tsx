@@ -168,6 +168,8 @@ function StepCard({
   step,
   index,
   total,
+  expanded,
+  onToggle,
   onChange,
   onMoveUp,
   onMoveDown,
@@ -178,6 +180,8 @@ function StepCard({
   step: ScraperStep
   index: number
   total: number
+  expanded: boolean
+  onToggle: () => void
   onChange: (s: ScraperStep) => void
   onMoveUp: () => void
   onMoveDown: () => void
@@ -190,22 +194,44 @@ function StepCard({
     onChange({ ...step, config: { ...cfg, [key]: value } } as ScraperStep)
   }
   const typeLabel = STEP_TYPES.find((t) => t.value === step.type)?.label ?? step.type
+  const userLabel = (step as { label?: string }).label ?? ""
 
   return (
     <div
       style={{
-        padding: "var(--space-md)",
         borderRadius: "12px",
         background: "var(--bg-elevated)",
         border: "1px solid var(--border)",
         marginBottom: "var(--space-md)",
+        overflow: "hidden",
       }}
     >
-      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "var(--space-sm)", marginBottom: "var(--space-md)" }}>
-        <span style={{ fontWeight: 600, fontSize: "0.9375rem" }}>
-          {index + 1}. {typeLabel}
-        </span>
-        <div style={{ display: "flex", gap: "var(--space-xs)", flexWrap: "wrap", alignItems: "center" }}>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "var(--space-sm)",
+          padding: "var(--space-md)",
+          cursor: "pointer",
+        }}
+        onClick={onToggle}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)", flex: 1, minWidth: 0 }}>
+          <span style={{ fontSize: "0.875rem", color: "var(--text-muted)", transition: "transform 0.2s", transform: expanded ? "rotate(90deg)" : "rotate(0deg)" }}>
+            ▶
+          </span>
+          <span style={{ fontWeight: 600, fontSize: "0.9375rem" }}>
+            {index + 1}. {typeLabel}
+          </span>
+          {userLabel && (
+            <span style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              — {userLabel}
+            </span>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: "var(--space-xs)", flexWrap: "wrap", alignItems: "center" }} onClick={(e) => e.stopPropagation()}>
           <button type="button" onClick={onInsertAbove} style={{ ...btnSecondary, borderColor: "var(--accent-cyan)", color: "var(--accent-cyan)" }} title="Insert step above">
             + above
           </button>
@@ -224,7 +250,18 @@ function StepCard({
         </div>
       </div>
 
-      <div style={{ display: "grid", gap: "var(--space-md)" }}>
+      {expanded && (
+      <div style={{ display: "grid", gap: "var(--space-md)", padding: "0 var(--space-md) var(--space-md)", borderTop: "1px solid var(--border)" }}>
+        <div>
+          <label style={labelStyle}>Step label (optional)</label>
+          <input
+            value={userLabel}
+            onChange={(e) => onChange({ ...step, label: e.target.value } as ScraperStep)}
+            placeholder="e.g. Go to search page"
+            style={{ ...inputStyle, maxWidth: 320 }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
         {step.type === "navigate" && (
           <>
             <div>
@@ -963,6 +1000,7 @@ function StepCard({
           </div>
         )}
       </div>
+      )}
     </div>
   )
 }
@@ -1065,6 +1103,15 @@ export default function AdminScrapePage() {
   }
 
   const [insertAt, setInsertAt] = useState<{ anchorIndex: number; position: "above" | "below" } | null>(null)
+  const [expandedSteps, setExpandedSteps] = useState<Set<number>>(() => new Set())
+
+  useEffect(() => {
+    setExpandedSteps((prev) => {
+      const next = new Set(prev)
+      for (let i = 0; i < steps.length; i++) next.add(i)
+      return next
+    })
+  }, [steps.length])
 
   function insertStepAt(anchorIndex: number, position: "above" | "below", type: string) {
     const newStep = createBlankStep(type)
@@ -1330,9 +1377,13 @@ export default function AdminScrapePage() {
           style={{
             padding: "var(--space-md)",
             borderRadius: "12px",
+            position: "sticky",
+            top: 0,
+            zIndex: 10,
             background: "var(--bg-card)",
             border: "1px solid var(--border)",
             marginBottom: "var(--space-lg)",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
           }}
         >
           <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "var(--space-md)", color: "var(--text-primary)" }}>Flow</h2>
@@ -1529,9 +1580,27 @@ export default function AdminScrapePage() {
             marginBottom: "var(--space-lg)",
           }}
         >
-          <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "var(--space-md)", color: "var(--text-primary)" }}>
-            Steps (order matters)
-          </h2>
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "var(--space-md)", marginBottom: "var(--space-md)" }}>
+            <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, margin: 0, color: "var(--text-primary)" }}>
+              Steps (order matters)
+            </h2>
+            <div style={{ display: "flex", gap: "var(--space-xs)" }}>
+              <button
+                type="button"
+                onClick={() => setExpandedSteps(new Set(steps.map((_, i) => i)))}
+                style={btnSecondary}
+              >
+                Expand all
+              </button>
+              <button
+                type="button"
+                onClick={() => setExpandedSteps(new Set())}
+                style={btnSecondary}
+              >
+                Collapse all
+              </button>
+            </div>
+          </div>
           {steps.map((step, i) => (
             <div key={i}>
               {insertAt?.anchorIndex === i && insertAt?.position === "above" && (
@@ -1545,6 +1614,8 @@ export default function AdminScrapePage() {
                 step={step}
                 index={i}
                 total={steps.length}
+                expanded={expandedSteps.has(i)}
+                onToggle={() => setExpandedSteps((prev) => { const next = new Set(prev); if (next.has(i)) next.delete(i); else next.add(i); return next })}
                 onChange={(s) => updateStep(i, s)}
                 onMoveUp={() => moveStep(i, -1)}
                 onMoveDown={() => moveStep(i, 1)}
