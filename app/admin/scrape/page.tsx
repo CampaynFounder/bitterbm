@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import type { ScraperFlow, ScraperStep } from "@/lib/scraper/types"
 
-const STEP_TYPES = [
+const STEP_TYPES: { value: string; label: string }[] = [
   { value: "navigate", label: "Go to URL" },
   { value: "pause_for_login", label: "Pause for login" },
   { value: "switch_frame", label: "Switch to iframe" },
@@ -19,10 +19,14 @@ const STEP_TYPES = [
   { value: "click", label: "Click" },
   { value: "for_each_option", label: "For each filter option" },
   { value: "for_each_result", label: "For each result row" },
+  { value: "condition_group", label: "Filter row (condition group)" },
   { value: "extract_field", label: "Extract field" },
   { value: "extract_link", label: "Extract link" },
   { value: "extract_pdf_url", label: "Extract PDF URL (appends to pdf_urls)" },
+  { value: "extract_to_memory", label: "Extract to memory (state, county)" },
   { value: "extract_text", label: "Extract text content" },
+  { value: "extract_pdf", label: "Download PDF → Supabase storage" },
+  { value: "store_memory", label: "Copy memory to row (state, county)" },
   { value: "store_row", label: "Save row to database" },
   { value: "paginate", label: "Next page" },
   { value: "delay", label: "Delay" },
@@ -55,6 +59,14 @@ function createBlankStep(type: string): ScraperStep {
       return { ...base, type: "for_each_option", config: { selector: "", skipFirst: true } }
     case "for_each_result":
       return { ...base, type: "for_each_result", config: { selector: "", limit: 0 } }
+    case "condition_group":
+      return { ...base, type: "condition_group", config: { fieldId: "", operator: "not_empty" } }
+    case "extract_to_memory":
+      return { ...base, type: "extract_to_memory", config: { source: "row", key: "state", memoryKey: "state" } }
+    case "extract_pdf":
+      return { ...base, type: "extract_pdf", config: { fieldId: "pdf_urls", uploadToStorage: true, screenshot: false } }
+    case "store_memory":
+      return { ...base, type: "store_memory", config: { keys: ["state", "county"] } }
     case "extract_field":
       return { ...base, type: "extract_field", config: { fieldId: "", selector: "", attr: "text" } }
     case "extract_link":
@@ -451,8 +463,16 @@ function StepCard({
               />
               Scroll into view before click
             </label>
+            <label style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)", fontSize: "0.875rem" }}>
+              <input
+                type="checkbox"
+                checked={!!cfg.force}
+                onChange={(e) => update("force", e.target.checked)}
+              />
+              Force click
+            </label>
             <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-              Uncheck if element is already visible (e.g. after Wait) to avoid timeout in frames.
+              Uncheck scroll if element is already visible. Use force click when visibility check times out in frames.
             </p>
             <div>
               <label style={labelStyle}>Wait after (ms)</label>
@@ -645,6 +665,152 @@ function StepCard({
             </label>
           </>
         )}
+        {step.type === "condition_group" && (
+          <>
+            <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginBottom: "var(--space-sm)" }}>
+              Skip remaining steps for this row if condition fails. Use for simple flows: filter → extract PDF.
+            </p>
+            <div>
+              <label style={labelStyle}>Field to check</label>
+              <input
+                value={String(cfg.fieldId ?? "")}
+                onChange={(e) => update("fieldId", e.target.value)}
+                placeholder="case_type, pdf_urls"
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>Operator</label>
+              <select
+                value={String(cfg.operator ?? "not_empty")}
+                onChange={(e) => update("operator", e.target.value)}
+                style={inputStyle}
+              >
+                <option value="not_empty">Not empty</option>
+                <option value="equals">Equals</option>
+                <option value="contains">Contains</option>
+                <option value="matches">Matches regex</option>
+                <option value="in">In list</option>
+              </select>
+            </div>
+            {cfg.operator && !["not_empty"].includes(String(cfg.operator)) && (
+              <div>
+                <label style={labelStyle}>Value (for equals/contains) or regex (for matches)</label>
+                <input
+                  value={String(cfg.value ?? cfg.pattern ?? "")}
+                  onChange={(e) =>
+                    cfg.operator === "matches"
+                      ? update("pattern", e.target.value)
+                      : update("value", e.target.value)
+                  }
+                  placeholder={cfg.operator === "matches" ? "\\d{4}" : "value"}
+                  style={inputStyle}
+                />
+              </div>
+            )}
+          </>
+        )}
+        {step.type === "extract_to_memory" && (
+          <>
+            <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginBottom: "var(--space-sm)" }}>
+              Store state, county, or other values from row/vars into memory for later rows.
+            </p>
+            <div>
+              <label style={labelStyle}>Source</label>
+              <select
+                value={String(cfg.source ?? "row")}
+                onChange={(e) => update("source", e.target.value)}
+                style={inputStyle}
+              >
+                <option value="row">From row</option>
+                <option value="vars">From vars</option>
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Key to read</label>
+              <input
+                value={String(cfg.key ?? "")}
+                onChange={(e) => update("key", e.target.value)}
+                placeholder="state, county"
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>Memory key (optional)</label>
+              <input
+                value={String(cfg.memoryKey ?? "")}
+                onChange={(e) => update("memoryKey", e.target.value)}
+                placeholder="Same as key if empty"
+                style={inputStyle}
+              />
+            </div>
+          </>
+        )}
+        {step.type === "store_memory" && (
+          <>
+            <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginBottom: "var(--space-sm)" }}>
+              Copy memory (state, county) into row before store_row.
+            </p>
+            <div>
+              <label style={labelStyle}>Keys to copy (comma-separated)</label>
+              <input
+                value={Array.isArray(cfg.keys) ? cfg.keys.join(", ") : "state, county"}
+                onChange={(e) =>
+                  update(
+                    "keys",
+                    e.target.value
+                      .split(",")
+                      .map((s) => s.trim())
+                      .filter(Boolean)
+                  )
+                }
+                placeholder="state, county"
+                style={inputStyle}
+              />
+            </div>
+          </>
+        )}
+        {step.type === "extract_pdf" && (
+          <>
+            <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginBottom: "var(--space-sm)" }}>
+              Download PDF, upload to Supabase scraped-pdfs bucket, insert into pdf_documents (state/county for RAG).
+            </p>
+            <div>
+              <label style={labelStyle}>URL from row field (or use selector)</label>
+              <input
+                value={String(cfg.fieldId ?? "")}
+                onChange={(e) => update("fieldId", e.target.value)}
+                placeholder="pdf_urls, pdf_url"
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>Or PDF link selector</label>
+              <input
+                value={String(cfg.selector ?? "")}
+                onChange={(e) => update("selector", e.target.value)}
+                placeholder="a[href$='.pdf']"
+                style={inputStyle}
+              />
+            </div>
+            <label style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)", fontSize: "0.875rem" }}>
+              <input
+                type="checkbox"
+                checked={cfg.uploadToStorage !== false}
+                onChange={(e) => update("uploadToStorage", e.target.checked)}
+              />
+              Upload to Supabase storage
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)", fontSize: "0.875rem" }}>
+              <input
+                type="checkbox"
+                checked={!!cfg.screenshot}
+                onChange={(e) => update("screenshot", e.target.checked)}
+              />
+              Take screenshot of PDF
+            </label>
+          </>
+        )}
         {step.type === "extract_text" && (
           <>
             <div>
@@ -763,6 +929,8 @@ export default function AdminScrapePage() {
   const [varsList, setVarsList] = useState<{ key: string; value: string }[]>([
     { key: "search_term", value: "" },
     { key: "court", value: "" },
+    { key: "state", value: "" },
+    { key: "county", value: "" },
   ])
   const [adminSecret, setAdminSecret] = useState(() => {
     if (typeof window === "undefined") return ""
@@ -772,6 +940,7 @@ export default function AdminScrapePage() {
   const [result, setResult] = useState<{
     jobId?: string
     rowsStored?: number
+    pdfDocumentsStored?: number
     error?: string
     logs?: string[]
     dryRun?: boolean
@@ -853,10 +1022,12 @@ export default function AdminScrapePage() {
   }
 
   function buildFlow(): ScraperFlow {
+    const hasGeo = varsList.some((v) => v.key.trim() === "state" || v.key.trim() === "county")
     return {
       name: flowName,
       version: "1.0",
       steps,
+      geographic: hasGeo ? { fromVars: true } : undefined,
     }
   }
 
@@ -1337,6 +1508,7 @@ export default function AdminScrapePage() {
           </h2>
           <p style={{ fontSize: "0.875rem", color: "var(--text-secondary)", marginBottom: "var(--space-md)" }}>
             Values to use in steps (e.g. search_term, court). Reference as {"{{name}}"} in field values.
+            <strong> state</strong> and <strong> county</strong> are stored for RAG jurisdiction filtering when provided.
           </p>
           {varsList.map((v, i) => (
             <div key={i} style={{ display: "flex", gap: "var(--space-sm)", marginBottom: "var(--space-sm)", flexWrap: "wrap" }}>
@@ -1446,6 +1618,7 @@ export default function AdminScrapePage() {
             </h2>
             <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)" }}>
               {result.dryRun ? "Would have stored" : "Rows stored"}: {result.rowsStored ?? 0}
+              {result.pdfDocumentsStored != null && result.pdfDocumentsStored > 0 && ` · PDFs stored: ${result.pdfDocumentsStored}`}
               {result.jobId && !result.dryRun && ` · Job: ${result.jobId}`}
               {result.pageUrl && <span style={{ display: "block", fontSize: "0.8125rem", marginTop: "var(--space-xs)", wordBreak: "break-all" }}>URL: {result.pageUrl}</span>}
             </p>

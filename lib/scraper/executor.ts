@@ -20,20 +20,28 @@ import type {
   ClickStep,
   ForEachOptionStep,
   ForEachResultStep,
+  ConditionGroupStep,
   ExtractFieldStep,
   ExtractLinkStep,
   ExtractPdfUrlStep,
+  ExtractToMemoryStep,
   ExtractTextStep,
+  ExtractPdfStep,
   PaginateStep,
   StoreRowStep,
+  StoreMemoryStep,
   DelayStep,
 } from "./types"
 
 const RESULT_NESTED_TYPES = new Set([
+  "condition_group",
   "extract_field",
   "extract_link",
   "extract_pdf_url",
+  "extract_to_memory",
   "extract_text",
+  "extract_pdf",
+  "store_memory",
   "store_row",
 ])
 
@@ -57,6 +65,14 @@ function getNestedStepRange(
 
 export type StoreRowFn = (row: Record<string, unknown>, ctx: ExecutionContext) => Promise<void>
 
+export type StorePdfDocumentFn = (data: {
+  pdfUrl: string
+  row: Record<string, unknown>
+  ctx: ExecutionContext
+  /** Optional screenshot buffer (from extract_pdf with screenshot: true) */
+  screenshotBuffer?: Buffer
+}) => Promise<void>
+
 export interface ExecutorOptions {
   flow: ScraperFlow
   vars: Record<string, string | number>
@@ -64,6 +80,8 @@ export interface ExecutorOptions {
   flowId?: string
   sourceSite?: string
   onStoreRow: StoreRowFn
+  /** Called by extract_pdf step to store PDF to pdf_documents + Supabase storage */
+  onStorePdfDocument?: StorePdfDocumentFn
   onLog?: (msg: string) => void
   /** When provided, called for pause_for_login instead of waiting fixed seconds (for headed/local runs) */
   onPause?: (message?: string) => Promise<void>
@@ -82,12 +100,21 @@ export async function executeFlow(
   page: Page,
   options: ExecutorOptions
 ): Promise<ExecuteResult> {
-  const { flow, vars, jobId, flowId, sourceSite, onStoreRow, onLog, onPause, stopAtStep } = options
+  const { flow, vars, jobId, flowId, sourceSite, onStoreRow, onStorePdfDocument, onLog, onPause, stopAtStep } = options
   const log = onLog ?? (() => {})
+
+  const memory: Record<string, string | number> = {}
+  if (flow.geographic?.fromVars) {
+    if (flow.geographic.state != null) memory.state = flow.geographic.state
+    else if (vars.state != null) memory.state = String(vars.state)
+    if (flow.geographic.county != null) memory.county = flow.geographic.county
+    else if (vars.county != null) memory.county = String(vars.county)
+  }
 
   const ctx: ExecutionContext = {
     vars: { ...vars, job_id: jobId },
     row: {},
+    memory,
     currentRow: null,
     currentFrame: undefined,
     rowsStored: 0,
@@ -117,7 +144,7 @@ export async function executeFlow(
         steps,
         i,
         ctx,
-        { onStoreRow, log, onPause }
+        { onStoreRow, onStorePdfDocument, log, onPause }
       )
       if (result?.nextIndex !== undefined) {
         i = result.nextIndex
@@ -140,8 +167,13 @@ async function executeStep(
   steps: ScraperStep[],
   stepIndex: number,
   ctx: ExecutionContext,
-  opts: { onStoreRow: StoreRowFn; log: (m: string) => void; onPause?: (message?: string) => Promise<void> }
-): Promise<{ nextIndex?: number } | void> {
+  opts: {
+    onStoreRow: StoreRowFn
+    onStorePdfDocument?: StorePdfDocumentFn
+    log: (m: string) => void
+    onPause?: (message?: string) => Promise<void>
+  }
+): Promise<{ nextIndex?: number; skipNested?: boolean; breakLoop?: boolean } | void> {
   const vars = {
     ...ctx.vars,
     ...(ctx.currentOption && {
@@ -285,7 +317,7 @@ async function executeStep(
       const s = step as ClickStep
       const target = root.locator(String(cfg.selector)).first()
       if (s.config.scrollIntoView !== false) await target.scrollIntoViewIfNeeded()
-      await target.click()
+      await target.click({ force: s.config.force === true })
       if (s.config.waitAfter) await page.waitForTimeout(s.config.waitAfter)
       if (s.config.waitForSelector) {
         await root.locator(String(s.config.waitForSelector)).first().waitFor({ timeout: 15000 })
@@ -316,7 +348,8 @@ async function executeStep(
 
         for (let j = stepIndex + 1; j < endIdx; j++) {
           ctx.currentRow = null
-          await executeStep(page, steps[j], steps, j, ctx, opts)
+          const res = await executeStep(page, steps[j], steps, j, ctx, opts)
+          if (res?.breakLoop) break
         }
       }
       ctx.currentOption = undefined
@@ -336,11 +369,101 @@ async function executeStep(
         ctx.currentRow = rows[idx]
 
         for (let j = stepIndex + 1; j < endIdx; j++) {
-          await executeStep(page, steps[j], steps, j, ctx, opts)
+          const res = await executeStep(page, steps[j], steps, j, ctx, opts)
+          if (res?.breakLoop) break
         }
       }
       ctx.currentRow = null
       return { nextIndex: endIdx }
+    }
+
+    case "condition_group": {
+      const s = step as ConditionGroupStep
+      const val = (ctx.row[s.config.fieldId] ?? ctx.vars[s.config.fieldId] ?? "") as string
+      const arr = Array.isArray(ctx.row[s.config.fieldId]) ? (ctx.row[s.config.fieldId] as string[]) : null
+      const op = s.config.operator
+      let pass = false
+      if (op === "not_empty") {
+        pass = (typeof val === "string" ? val.trim() : arr?.length) ? true : false
+      } else if (op === "equals") {
+        pass = String(val).trim() === String(s.config.value ?? "").trim()
+      } else if (op === "contains") {
+        pass = String(val).includes(String(s.config.value ?? ""))
+      } else if (op === "matches" && s.config.pattern) {
+        pass = new RegExp(s.config.pattern).test(String(val))
+      } else if (op === "in" && s.config.values?.length) {
+        pass = s.config.values!.includes(String(val).trim())
+      }
+      if (!pass) {
+        opts.log(`  condition_group: skip (${s.config.fieldId} ${op} failed)`)
+        return { breakLoop: true }
+      }
+      opts.log(`  condition_group: pass (${s.config.fieldId})`)
+      break
+    }
+
+    case "extract_to_memory": {
+      const s = step as ExtractToMemoryStep
+      const key = s.config.key
+      const memoryKey = s.config.memoryKey ?? key
+      const src = s.config.source === "vars" ? ctx.vars : ctx.row
+      const v = src[key]
+      if (v != null && v !== "") {
+        ctx.memory[memoryKey] = String(v)
+        opts.log(`  extract_to_memory: ${memoryKey}=${String(v).slice(0, 40)}`)
+      }
+      break
+    }
+
+    case "store_memory": {
+      const s = step as StoreMemoryStep
+      const keys = s.config.keys ?? ["state", "county"]
+      for (const k of keys) {
+        const v = ctx.memory[k]
+        if (v != null && v !== "") ctx.row[k] = v
+      }
+      opts.log(`  store_memory: ${keys.join(", ")} -> row`)
+      break
+    }
+
+    case "extract_pdf": {
+      const s = step as ExtractPdfStep
+      let pdfUrl = ""
+      if (s.config.fieldId) {
+        const u = ctx.row[s.config.fieldId]
+        pdfUrl = typeof u === "string" ? u : Array.isArray(u) ? (u[0] ?? "") : ""
+      } else if (s.config.selector) {
+        const target = loc(String(cfg.selector))
+        const count = await target.count()
+        if (count > 0) {
+          let href = (await target.getAttribute("href")) ?? ""
+          if (href && !href.startsWith("http")) href = new URL(href, page.url()).href
+          pdfUrl = href
+        }
+      }
+      if (!pdfUrl || !opts.onStorePdfDocument) {
+        if (!pdfUrl) opts.log(`  extract_pdf: no URL found`)
+        break
+      }
+      let screenshotBuffer: Buffer | undefined
+      if (s.config.screenshot) {
+        try {
+          await page.goto(pdfUrl, { waitUntil: "domcontentloaded", timeout: 15000 })
+          const buf = await page.screenshot({ type: "png" })
+          screenshotBuffer = Buffer.isBuffer(buf) ? buf : Buffer.from(buf)
+        } catch (e) {
+          opts.log(`  extract_pdf: screenshot failed: ${e instanceof Error ? e.message : String(e)}`)
+        }
+      }
+      const rowWithGeo = { ...ctx.row, state: ctx.row.state ?? ctx.memory.state, county: ctx.row.county ?? ctx.memory.county }
+      await opts.onStorePdfDocument({
+        pdfUrl,
+        row: rowWithGeo,
+        ctx,
+        screenshotBuffer,
+      })
+      opts.log(`  extract_pdf: stored ${pdfUrl}`)
+      break
     }
 
     case "extract_field": {
@@ -427,7 +550,8 @@ async function executeStep(
     case "store_row": {
       const s = step as StoreRowStep
       if (Object.keys(ctx.row).length === 0) break
-      let row = { ...ctx.row }
+      const merged = { ...ctx.memory, ...ctx.row }
+      let row = { ...merged }
       if (s.config.columnMap && Object.keys(s.config.columnMap).length > 0) {
         const mapped: Record<string, unknown> = {}
         for (const [key, val] of Object.entries(row)) {

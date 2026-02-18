@@ -8,8 +8,8 @@ Each scraped record should include:
 
 | Field | Use | Extract with |
 |-------|-----|--------------|
-| `state` | State (e.g. NC, CA) | extract_field, fieldId: state |
-| `county` | County | extract_field, fieldId: county |
+| `state` | State (e.g. NC, CA) – required for RAG jurisdiction filtering | extract_field or Variables (state) |
+| `county` | County – required for RAG jurisdiction filtering | extract_field or Variables (county) |
 | `court` | Court name | extract_field, fieldId: court |
 | `judge` | Presiding judge | extract_field, fieldId: judge |
 | `attorney` | Primary attorney | extract_field, fieldId: attorney |
@@ -18,6 +18,7 @@ Each scraped record should include:
 | `case_number` | Case number | extract_field, fieldId: case_number |
 | `case_name` | Case name | extract_field, fieldId: case_name |
 | `pdf_urls` | PDF document links | extract_pdf_url (appends to array) |
+| (store to pdf_documents) | One row per PDF for RAG; state/county filterable | extract_pdf step (downloads, uploads to Supabase) |
 | `text_content` | Text/transcript summary | extract_text |
 
 ## Iframes
@@ -106,6 +107,21 @@ Before running autonomously, validate your flow:
    - Page URL when stopped
 
 4. **Preview rows** – Dry run returns the exact data that would be stored. Inspect to ensure field mapping is correct.
+
+## Simple Flows (flat PDF lists)
+
+For sites without nested tables:
+
+1. `navigate` → `fill_field` / `select_dropdown` → `click` → `wait`
+2. `for_each_result` over rows:
+   - `condition_group` – filter by case_type, doc_type, etc.
+   - `extract_field` – case_number, state, county (or use Variables)
+   - `extract_pdf_url` or `extract_pdf` – get PDF URL
+   - `extract_pdf` – download, upload to Supabase, store in pdf_documents (state/county for RAG)
+   - `store_row` – optional, for scraped_cases
+3. `paginate` – next page
+
+Set **state** and **county** in Variables (or extract from page) for RAG jurisdiction filtering.
 
 ## Typical Flow
 
