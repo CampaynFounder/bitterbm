@@ -1106,14 +1106,6 @@ export default function AdminScrapePage() {
   const [insertAt, setInsertAt] = useState<{ anchorIndex: number; position: "above" | "below" } | null>(null)
   const [expandedSteps, setExpandedSteps] = useState<Set<number>>(() => new Set())
 
-  useEffect(() => {
-    setExpandedSteps((prev) => {
-      const next = new Set(prev)
-      for (let i = 0; i < steps.length; i++) next.add(i)
-      return next
-    })
-  }, [steps.length])
-
   function insertStepAt(anchorIndex: number, position: "above" | "below", type: string) {
     const newStep = createBlankStep(type)
     setSteps((prev) => {
@@ -1375,9 +1367,25 @@ export default function AdminScrapePage() {
           }}
         >
           <h1 style={{ fontSize: "1.125rem", fontWeight: 700 }}>Scraper</h1>
-          <Link href="/admin/dashboard" style={{ color: "var(--accent-muted)", fontSize: "0.875rem" }}>
-            ← Dashboard
-          </Link>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={() => setExpandedSteps(new Set(steps.map((_, i) => i)))}
+              style={btnSecondary}
+            >
+              Expand all
+            </button>
+            <button
+              type="button"
+              onClick={() => setExpandedSteps(new Set())}
+              style={btnSecondary}
+            >
+              Collapse all
+            </button>
+            <Link href="/admin/dashboard" style={{ color: "var(--accent-muted)", fontSize: "0.875rem" }}>
+              ← Dashboard
+            </Link>
+          </div>
         </div>
       </header>
 
