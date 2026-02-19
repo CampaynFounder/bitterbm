@@ -50,6 +50,7 @@ on conflict (id) do update set public = true;
 -- RLS: Service role (Modal/API) bypasses RLS. This policy allows anon/authenticated read for RAG.
 alter table pdf_documents enable row level security;
 
+drop policy if exists "Allow read pdf_documents for RAG" on pdf_documents;
 create policy "Allow read pdf_documents for RAG"
   on pdf_documents for select
   using (true);

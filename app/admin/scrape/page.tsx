@@ -1419,6 +1419,9 @@ export default function AdminScrapePage() {
             >
               Collapse all
             </button>
+            <Link href="/admin/autoscrape" style={{ color: "var(--accent-cyan)", fontSize: "0.875rem" }}>
+              Autoscrape
+            </Link>
             <Link href="/admin/dashboard" style={{ color: "var(--accent-muted)", fontSize: "0.875rem" }}>
               ← Dashboard
             </Link>
