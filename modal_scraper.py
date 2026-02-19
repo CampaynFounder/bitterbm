@@ -333,11 +333,23 @@ def _execute_flow(
         elif stype == "extract_to_memory":
             key = cfg.get("key", "")
             mem_key = cfg.get("memoryKey") or key
+            cond_field = cfg.get("conditionFieldId")
+            cond_val = cfg.get("conditionValue")
             src = ctx["vars"] if cfg.get("source") == "vars" else ctx["row"]
-            v = src.get(key)
-            if v is not None and v != "":
-                ctx["memory"][mem_key] = str(v)
-                log_fn(f"  extract_to_memory: {mem_key}={str(v)[:40]}")
+            if cond_field and cond_val is not None:
+                check = str(src.get(cond_field) or "").strip()
+                if check != str(cond_val).strip():
+                    pass
+                else:
+                    v = src.get(key)
+                    if v is not None and v != "":
+                        ctx["memory"][mem_key] = str(v)
+                        log_fn(f"  extract_to_memory: {mem_key}={str(v)[:40]}")
+            else:
+                v = src.get(key)
+                if v is not None and v != "":
+                    ctx["memory"][mem_key] = str(v)
+                    log_fn(f"  extract_to_memory: {mem_key}={str(v)[:40]}")
 
         elif stype == "store_memory":
             keys = cfg.get("keys") or ["state", "county"]

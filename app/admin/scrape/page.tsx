@@ -845,6 +845,29 @@ function StepCard({
                 style={inputStyle}
               />
             </div>
+            <div style={{ display: "flex", gap: "var(--space-sm)", flexWrap: "wrap", alignItems: "center" }}>
+              <div style={{ flex: "1 1 140px", minWidth: 0 }}>
+                <label style={labelStyle}>Only when field (optional)</label>
+                <input
+                  value={String(cfg.conditionFieldId ?? "")}
+                  onChange={(e) => update("conditionFieldId", e.target.value)}
+                  placeholder="e.g. Represents"
+                  style={inputStyle}
+                />
+              </div>
+              <div style={{ flex: "1 1 80px", minWidth: 0 }}>
+                <label style={labelStyle}>equals</label>
+                <input
+                  value={String(cfg.conditionValue ?? "")}
+                  onChange={(e) => update("conditionValue", e.target.value)}
+                  placeholder="D, P, G"
+                  style={inputStyle}
+                />
+              </div>
+            </div>
+            <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "var(--space-xs)" }}>
+              Use with one for_each_result: extract Name + Represents, then three extract_to_memory steps (when Represents = D → Defendant, etc.).
+            </p>
           </>
         )}
         {step.type === "store_memory" && (

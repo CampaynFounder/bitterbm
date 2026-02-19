@@ -226,10 +226,13 @@ export interface ExtractToMemoryStep extends BaseStep {
   config: {
     /** Source: "row" | "vars" - where to read from */
     source: "row" | "vars"
-    /** Field/key to read */
+    /** Field/key to read (use extracted fieldId, e.g. "Name") */
     key: string
     /** Memory key to store under (default same as key) */
     memoryKey?: string
+    /** Only set memory when this row/vars field equals conditionValue (e.g. Represents === "D") */
+    conditionFieldId?: string
+    conditionValue?: string
   }
 }
 

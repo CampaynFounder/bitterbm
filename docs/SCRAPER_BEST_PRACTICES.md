@@ -83,6 +83,17 @@ For sites that require login:
 
 - Extract into `attorney` (single) or `attorneys` (comma-separated string). The API converts `attorneys` to an array.
 
+### Role-based table (e.g. Name + Represents D/P/G)
+
+When a table has one column for name and one for role (e.g. Defendant / Plaintiff / Guardian), use **one** `for_each_result` and conditional `extract_to_memory` instead of three separate loops:
+
+1. **Row selector** – Exclude header: `table#AttorneyGrid tbody tr:not(:first-child)` (or ensure the first data row has Represents D/P/G).
+2. **Extract** – `extract_field` **Name** from `td:nth-of-type(1)` and **Represents** from `td:nth-of-type(2)`.
+3. **Conditional memory** – Add three **Extract to memory** steps (source: row, key: **Name**, memoryKey: Defendant / Plaintiff / Guardian). In each step set **Only when field** = `Represents` and **equals** = `D`, `P`, or `G` respectively.
+4. **Copy to row** – Use **Copy memory to row** with keys `Defendant`, `Plaintiff`, `Guardian` before **Save row**.
+
+Result: one pass over the table; each row sets at most one of Defendant/Plaintiff/Guardian in memory.
+
 ## Modal Deployment (Production)
 
 Validate and Run work in production when the Modal scraper is deployed:

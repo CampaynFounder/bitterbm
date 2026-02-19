@@ -408,7 +408,14 @@ async function executeStep(
       const s = step as ExtractToMemoryStep
       const key = s.config.key
       const memoryKey = s.config.memoryKey ?? key
+      const condField = s.config.conditionFieldId
+      const condVal = s.config.conditionValue
       const src = s.config.source === "vars" ? ctx.vars : ctx.row
+      const checkSrc = s.config.source === "vars" ? ctx.vars : ctx.row
+      if (condField != null && condField !== "" && condVal !== undefined) {
+        const check = String(checkSrc[condField] ?? "").trim()
+        if (check !== String(condVal).trim()) break
+      }
       const v = src[key]
       if (v != null && v !== "") {
         ctx.memory[memoryKey] = String(v)
