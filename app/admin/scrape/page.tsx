@@ -176,6 +176,7 @@ function StepCard({
   onRemove,
   onInsertAbove,
   onInsertBelow,
+  onDuplicate,
 }: {
   step: ScraperStep
   index: number
@@ -188,6 +189,7 @@ function StepCard({
   onRemove: () => void
   onInsertAbove: () => void
   onInsertBelow: () => void
+  onDuplicate: () => void
 }) {
   const cfg = (step as { config?: Record<string, unknown> }).config ?? {}
   const update = (key: string, value: unknown) => {
@@ -237,6 +239,9 @@ function StepCard({
           </button>
           <button type="button" onClick={onInsertBelow} style={{ ...btnSecondary, borderColor: "var(--accent-cyan)", color: "var(--accent-cyan)" }} title="Insert step below">
             + below
+          </button>
+          <button type="button" onClick={onDuplicate} style={{ ...btnSecondary, borderColor: "var(--accent-muted)", color: "var(--accent-muted)" }} title="Duplicate step (copy below)">
+            Duplicate
           </button>
           <button type="button" onClick={onMoveUp} disabled={index === 0} style={btnSecondary}>
             ↑
@@ -1103,6 +1108,15 @@ export default function AdminScrapePage() {
     setSteps((prev) => prev.filter((_, idx) => idx !== i))
   }
 
+  function duplicateStep(i: number) {
+    const copy = JSON.parse(JSON.stringify(steps[i])) as ScraperStep
+    setSteps((prev) => {
+      const next = [...prev]
+      next.splice(i + 1, 0, copy)
+      return next
+    })
+  }
+
   const [insertAt, setInsertAt] = useState<{ anchorIndex: number; position: "above" | "below" } | null>(null)
   const [expandedSteps, setExpandedSteps] = useState<Set<number>>(() => new Set())
 
@@ -1659,6 +1673,7 @@ export default function AdminScrapePage() {
                 onRemove={() => removeStep(i)}
                 onInsertAbove={() => setInsertAt({ anchorIndex: i, position: "above" })}
                 onInsertBelow={() => setInsertAt({ anchorIndex: i, position: "below" })}
+                onDuplicate={() => duplicateStep(i)}
               />
               {insertAt?.anchorIndex === i && insertAt?.position === "below" && (
                 <InsertBar
