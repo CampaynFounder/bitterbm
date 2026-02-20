@@ -44,6 +44,7 @@ const SUPERSET_STEP_TYPES: { value: string; label: string }[] = [
   { value: "fill_field", label: "Fill text field" },
   { value: "date_range", label: "Set date range" },
   { value: "form_fill", label: "Form fill (multiple fields + submit)" },
+  { value: "checkbox", label: "Check / uncheck box" },
   { value: "click", label: "Click" },
   { value: "delay", label: "Delay (ms)" },
 ]
@@ -65,6 +66,8 @@ function createBlankSupersetStep(type: string): ScraperStep {
       return { ...base, type: "date_range", config: { fromSelector: "", toSelector: "", fromValue: "{{date_from}}", toValue: "{{date_to}}" } }
     case "form_fill":
       return { ...base, type: "form_fill", config: { fields: [], submit: "" } }
+    case "checkbox":
+      return { ...base, type: "checkbox", config: { selector: "", state: "checked" } }
     case "click":
       return { ...base, type: "click", config: { selector: "", waitAfter: 1000 } }
     case "delay":
@@ -388,6 +391,12 @@ function SupersetStepCard({
             <>
               <div><label style={labelStyle}>Submit button selector</label><input value={String(cfg.submit ?? "")} onChange={(e) => update("submit", e.target.value)} placeholder="#btnSearch" style={inputStyle} /></div>
               <FormFillFieldsEditor fields={(cfg.fields ?? []) as Array<{ selector?: string; value?: string; name?: string }>} onChange={(fields) => update("fields", fields)} />
+            </>
+          )}
+          {step.type === "checkbox" && (
+            <>
+              <div><label style={labelStyle}>Checkbox selector</label><input value={String(cfg.selector ?? "")} onChange={(e) => update("selector", e.target.value)} placeholder="#activeOnly, input[name=civil]" style={inputStyle} /></div>
+              <div><label style={labelStyle}>State</label><select value={String(cfg.state ?? "checked")} onChange={(e) => update("state", e.target.value)} style={inputStyle}><option value="checked">Checked (true)</option><option value="unchecked">Unchecked (false)</option></select></div>
             </>
           )}
           {step.type === "click" && (
