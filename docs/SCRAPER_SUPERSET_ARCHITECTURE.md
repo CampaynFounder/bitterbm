@@ -235,6 +235,7 @@ Config is JSON (one per site/campaign). Structure below is backward-compatible s
   "resultTable": {
     "tableSelector": "table#gvResults",
     "rowSelector": "tbody tr",
+    "columnNames": ["Case #", "Status", "Case Type"],
     "primaryId": {
       "source": "column",
       "columnIndex": 0,
@@ -244,9 +245,14 @@ Config is JSON (one per site/campaign). Structure below is backward-compatible s
     },
     "signatureColumns": [0, 1, 2],
     "threshold": 5,
+    "rowFilterLogic": "and",
     "rowFilter": [
-      { "columnIndex": 1, "operator": "equals", "value": "Active" },
-      { "columnIndex": 2, "operator": "in", "value": ["CV", "CR"] }
+      { "columnIndex": 1, "operator": "equals", "value": "Active", "not": false },
+      { "columnIndex": 2, "operator": "in", "value": ["CV", "CR"], "not": false }
+    ],
+    "extractColumns": [
+      { "columnIndex": 0, "outputKey": "caseNumber" },
+      { "columnIndex": 1, "outputKey": "status" }
     ]
   },
   "pagination": {

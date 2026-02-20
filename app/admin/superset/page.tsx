@@ -100,8 +100,14 @@ export type SiteConfigState = {
     primaryId: { source: "column" | "link"; columnIndex?: number; linkSelector?: string; linkAttribute?: string }
     signatureColumns?: number[]
     threshold: number
-    /** Optional: only include rows where cell at columnIndex matches. Column index is 0-based (nth child). */
-    rowFilter?: Array<{ columnIndex: number; operator: "equals" | "in"; value: string | string[] }>
+    /** Optional human-readable labels; UI shows these, JSON still uses columnIndex (nth child). */
+    columnNames?: string[]
+    /** How to combine row filter conditions: "and" = all must match, "or" = any must match. */
+    rowFilterLogic?: "and" | "or"
+    /** Only include rows where conditions match (combined by rowFilterLogic). Each condition can have not: true to invert. */
+    rowFilter?: Array<{ columnIndex: number; operator: "equals" | "in"; value: string | string[]; not?: boolean }>
+    /** Column indices (and optional output keys) to extract per matching row; primaryId is always extracted as id. */
+    extractColumns?: Array<{ columnIndex: number; outputKey?: string }>
   }
   pagination: { mode: string }
 }
@@ -510,32 +516,58 @@ function SiteConfigForm({ config, onChange }: { config: SiteConfigState; onChang
           <div><label style={labelStyle}>Wildcard character</label><input value={config.patternGeneration.wildcardChar} onChange={(e) => update("patternGeneration.wildcardChar", e.target.value)} style={{ ...inputStyle, maxWidth: 80 }} /></div>
         </>
       ))}
-      {section("Result table", (
+      {section("Result table", (() => {
+        const rt = config.resultTable
+        const columnNames = rt.columnNames ?? []
+        const maxCol = Math.max(11, columnNames.length)
+        const columnLabel = (idx: number) => (columnNames[idx] != null ? `${columnNames[idx]} (column ${idx})` : `Column ${idx}`)
+        return (
         <>
-          <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Table selector</label><input value={config.resultTable.tableSelector} onChange={(e) => update("resultTable.tableSelector", e.target.value)} placeholder="table#gvResults" style={inputStyle} /></div>
-          <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Row selector</label><input value={config.resultTable.rowSelector} onChange={(e) => update("resultTable.rowSelector", e.target.value)} placeholder="tbody tr" style={inputStyle} /></div>
-          <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Primary ID source</label><select value={config.resultTable.primaryId.source} onChange={(e) => update("resultTable.primaryId.source", e.target.value as "column" | "link")} style={inputStyle}><option value="column">column</option><option value="link">link</option></select></div>
-          {config.resultTable.primaryId.source === "column" && <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Column index (0-based)</label><input type="number" value={config.resultTable.primaryId.columnIndex ?? 0} onChange={(e) => update("resultTable.primaryId.columnIndex", parseInt(e.target.value, 10) || 0)} style={{ ...inputStyle, maxWidth: 100 }} /><span style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginLeft: "var(--space-xs)" }}>0 = first column, 1 = second, etc.</span></div>}
-          {config.resultTable.primaryId.source === "link" && (<><div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Link selector</label><input value={config.resultTable.primaryId.linkSelector ?? ""} onChange={(e) => update("resultTable.primaryId.linkSelector", e.target.value)} style={inputStyle} /></div><div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Link attribute</label><input value={config.resultTable.primaryId.linkAttribute ?? "href"} onChange={(e) => update("resultTable.primaryId.linkAttribute", e.target.value)} style={inputStyle} /></div></>)}
-          <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Threshold (min rows)</label><input type="number" value={config.resultTable.threshold} onChange={(e) => update("resultTable.threshold", parseInt(e.target.value, 10) || 5)} style={{ ...inputStyle, maxWidth: 100 }} /></div>
-          <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "var(--space-sm)" }}>Unique IDs are taken from the primary ID column/link per row. Phase 1 script uses tableSelector + rowSelector to find rows, then applies row filter (if any) and extracts IDs; search criteria + ids are stored in the superset output.</p>
-          {(config.resultTable.rowFilter ?? []).length > 0 && (
-            <div style={{ marginTop: "var(--space-md)" }}>
-              <label style={labelStyle}>Row filter (only include rows where…)</label>
-              {(config.resultTable.rowFilter ?? []).map((f, i) => (
+          <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Table selector</label><input value={rt.tableSelector} onChange={(e) => update("resultTable.tableSelector", e.target.value)} placeholder="table#gvResults" style={inputStyle} /></div>
+          <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Row selector</label><input value={rt.rowSelector} onChange={(e) => update("resultTable.rowSelector", e.target.value)} placeholder="tbody tr" style={inputStyle} /></div>
+          <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Column names (optional, comma-separated)</label><input value={columnNames.join(", ")} onChange={(e) => update("resultTable.columnNames", e.target.value.split(",").map((s) => s.trim()).filter(Boolean))} placeholder="Case #, Status, Case Type, …" style={inputStyle} /><span style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "block", marginTop: 2 }}>Labels for UX only; config still uses 0-based column index (nth child).</span></div>
+          <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Primary ID source</label><select value={rt.primaryId.source} onChange={(e) => update("resultTable.primaryId.source", e.target.value as "column" | "link")} style={inputStyle}><option value="column">column</option><option value="link">link</option></select></div>
+          {rt.primaryId.source === "column" && <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Primary ID column</label><select value={String(rt.primaryId.columnIndex ?? 0)} onChange={(e) => update("resultTable.primaryId.columnIndex", parseInt(e.target.value, 10) || 0)} style={inputStyle}>{Array.from({ length: maxCol + 1 }, (_, i) => <option key={i} value={i}>{columnLabel(i)}</option>)}</select></div>}
+          {rt.primaryId.source === "link" && (<><div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Link selector</label><input value={rt.primaryId.linkSelector ?? ""} onChange={(e) => update("resultTable.primaryId.linkSelector", e.target.value)} style={inputStyle} /></div><div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Link attribute</label><input value={rt.primaryId.linkAttribute ?? "href"} onChange={(e) => update("resultTable.primaryId.linkAttribute", e.target.value)} style={inputStyle} /></div></>)}
+          <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Threshold (min rows)</label><input type="number" value={rt.threshold} onChange={(e) => update("resultTable.threshold", parseInt(e.target.value, 10) || 5)} style={{ ...inputStyle, maxWidth: 100 }} /></div>
+          <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "var(--space-sm)" }}>DOM: tableSelector + rowSelector find rows. Row filter (below) keeps only rows matching conditions (AND/OR + optional NOT). For matching rows we extract primary ID and any extract columns; output = search criteria + list of ids (and those values).</p>
+          <div style={{ marginTop: "var(--space-md)" }}>
+            <label style={labelStyle}>Row filter logic</label>
+            <select value={rt.rowFilterLogic ?? "and"} onChange={(e) => update("resultTable.rowFilterLogic", e.target.value as "and" | "or")} style={{ ...inputStyle, maxWidth: 180 }}>
+              <option value="and">Match all (AND)</option>
+              <option value="or">Match any (OR)</option>
+            </select>
+          </div>
+          {(rt.rowFilter ?? []).length > 0 && (
+            <div style={{ marginTop: "var(--space-sm)" }}>
+              <label style={labelStyle}>Row conditions (nth child = value / in values; NOT inverts)</label>
+              {(rt.rowFilter ?? []).map((f, i) => (
                 <div key={i} style={{ display: "flex", gap: "var(--space-sm)", marginBottom: "var(--space-xs)", flexWrap: "wrap", alignItems: "center" }}>
-                  <span style={{ fontSize: "0.8125rem" }}>Column</span>
-                  <input type="number" value={f.columnIndex} onChange={(e) => { const arr = [...(config.resultTable.rowFilter ?? [])]; arr[i] = { ...arr[i], columnIndex: parseInt(e.target.value, 10) || 0 }; update("resultTable.rowFilter", arr) }} style={{ ...inputStyle, width: 60 }} />
-                  <select value={f.operator} onChange={(e) => { const arr = [...(config.resultTable.rowFilter ?? [])]; arr[i] = { ...arr[i], operator: e.target.value as "equals" | "in" }; update("resultTable.rowFilter", arr) }} style={{ ...inputStyle, width: 100 }}><option value="equals">equals</option><option value="in">in</option></select>
-                  <input value={Array.isArray(f.value) ? f.value.join(", ") : String(f.value ?? "")} onChange={(e) => { const v = e.target.value; const arr = [...(config.resultTable.rowFilter ?? [])]; arr[i] = { ...arr[i], value: f.operator === "in" ? v.split(",").map((s) => s.trim()).filter(Boolean) : v }; update("resultTable.rowFilter", arr) }} placeholder={f.operator === "in" ? "A, B, C" : "value"} style={{ ...inputStyle, flex: 1, minWidth: 100 }} />
-                  <button type="button" onClick={() => update("resultTable.rowFilter", (config.resultTable.rowFilter ?? []).filter((_, j) => j !== i))} style={btnSecondary}>Remove</button>
+                  <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.8125rem" }}><input type="checkbox" checked={f.not ?? false} onChange={(e) => { const arr = [...(rt.rowFilter ?? [])]; arr[i] = { ...arr[i], not: e.target.checked }; update("resultTable.rowFilter", arr) }} />NOT</label>
+                  <select value={String(f.columnIndex)} onChange={(e) => { const arr = [...(rt.rowFilter ?? [])]; arr[i] = { ...arr[i], columnIndex: parseInt(e.target.value, 10) || 0 }; update("resultTable.rowFilter", arr) }} style={{ ...inputStyle, width: 180 }} title="Column (nth child)">{Array.from({ length: maxCol + 1 }, (_, j) => <option key={j} value={j}>{columnLabel(j)}</option>)}</select>
+                  <select value={f.operator} onChange={(e) => { const arr = [...(rt.rowFilter ?? [])]; arr[i] = { ...arr[i], operator: e.target.value as "equals" | "in" }; update("resultTable.rowFilter", arr) }} style={{ ...inputStyle, width: 90 }}><option value="equals">equals</option><option value="in">in</option></select>
+                  <input value={Array.isArray(f.value) ? f.value.join(", ") : String(f.value ?? "")} onChange={(e) => { const v = e.target.value; const arr = [...(rt.rowFilter ?? [])]; arr[i] = { ...arr[i], value: f.operator === "in" ? v.split(",").map((s) => s.trim()).filter(Boolean) : v }; update("resultTable.rowFilter", arr) }} placeholder={f.operator === "in" ? "A, B, C" : "value"} style={{ ...inputStyle, flex: 1, minWidth: 100 }} />
+                  <button type="button" onClick={() => update("resultTable.rowFilter", (rt.rowFilter ?? []).filter((_, j) => j !== i))} style={btnSecondary}>Remove</button>
                 </div>
               ))}
             </div>
           )}
-          <button type="button" onClick={() => update("resultTable.rowFilter", [...(config.resultTable.rowFilter ?? []), { columnIndex: 0, operator: "equals" as const, value: "" }])} style={{ ...btnSecondary, marginTop: "var(--space-sm)" }}>+ Add row filter</button>
+          <button type="button" onClick={() => update("resultTable.rowFilter", [...(rt.rowFilter ?? []), { columnIndex: 0, operator: "equals" as const, value: "", not: false }])} style={{ ...btnSecondary, marginTop: "var(--space-sm)" }}>+ Add row condition</button>
+          <div style={{ marginTop: "var(--space-lg)" }}>
+            <label style={labelStyle}>Extract columns (optional; primary ID is always extracted as id)</label>
+            <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "var(--space-xs)" }}>For each matching row, also extract these column values; output key defaults to col_0, col_1, or set a name.</p>
+            {(rt.extractColumns ?? []).map((ec, i) => (
+              <div key={i} style={{ display: "flex", gap: "var(--space-sm)", marginBottom: "var(--space-xs)", flexWrap: "wrap", alignItems: "center" }}>
+                <select value={String(ec.columnIndex)} onChange={(e) => { const arr = [...(rt.extractColumns ?? [])]; arr[i] = { ...arr[i], columnIndex: parseInt(e.target.value, 10) || 0 }; update("resultTable.extractColumns", arr) }} style={{ ...inputStyle, width: 180 }}>{Array.from({ length: maxCol + 1 }, (_, j) => <option key={j} value={j}>{columnLabel(j)}</option>)}</select>
+                <input value={ec.outputKey ?? ""} onChange={(e) => { const arr = [...(rt.extractColumns ?? [])]; arr[i] = { ...arr[i], outputKey: e.target.value.trim() || undefined }; update("resultTable.extractColumns", arr) }} placeholder="Output key (e.g. status) or leave blank for col_N" style={{ ...inputStyle, width: 140 }} />
+                <button type="button" onClick={() => update("resultTable.extractColumns", (rt.extractColumns ?? []).filter((_, j) => j !== i))} style={btnSecondary}>Remove</button>
+              </div>
+            ))}
+            <button type="button" onClick={() => update("resultTable.extractColumns", [...(rt.extractColumns ?? []), { columnIndex: 0, outputKey: undefined }])} style={{ ...btnSecondary, marginTop: "var(--space-sm)" }}>+ Add extract column</button>
+          </div>
         </>
-      ))}
+        )
+      })())}
       {section("Pagination", (
         <div><label style={labelStyle}>Mode</label><select value={config.pagination.mode} onChange={(e) => update("pagination.mode", e.target.value)} style={inputStyle}><option value="all_in_dom">all_in_dom</option></select></div>
       ))}
