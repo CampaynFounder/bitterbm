@@ -261,6 +261,18 @@ Config is JSON (one per site/campaign). Structure below is backward-compatible s
         "includeParentWhen": true,
         "description": "Has nested table rows (e.g. filings)"
       }
+    ],
+    "nestedTableChecks": [
+      {
+        "name": "Filings table",
+        "tableSelector": "table.nested-filings",
+        "scope": "row",
+        "rowSelector": "tbody tr",
+        "columnIndex": 0,
+        "operator": "in",
+        "value": ["PDF", "Doc"],
+        "outputInRow": true
+      }
     ]
   },
   "pagination": {
@@ -274,6 +286,8 @@ Config is JSON (one per site/campaign). Structure below is backward-compatible s
 - **primaryId:** If `source` is `"link"`, use `linkSelector` + `linkAttribute` inside the cell; else use cell text. Dedupe by this id across all supersets for this site.
 - **resultTable.rowFilter (optional):** Array of filters. Only rows that satisfy **all** filters are included. Each filter: `columnIndex` (0-based: 0 = first column, 1 = second, etc.), `operator` `"equals"` (cell text equals `value`) or `"in"` (cell text is one of the strings in `value` array). Phase 1 applies: find table → query rows by `rowSelector` → for each row, check each filter on the nth child/cell → keep row only if all match → extract primary id (and optionally other values) from kept rows. Stored output = search criteria + list of unique ids (and optionally other column values).
 - **Table and unique ID logic (summary):** The **table** is located by `tableSelector`; **rows** are all elements matching `rowSelector` (e.g. `tbody tr`). Optionally **rowFilter** restricts to “rows where nth column equals X” or “nth column in [A, B, C]”. **Unique ID** per row comes from `primaryId`: either the text (or link attribute) of the cell at `columnIndex`, or the attribute of the link matching `linkSelector` in that cell. Phase 1 stores **search criteria** (pattern, dates, etc.) and the **list of unique ids** (and optionally other values) from the filtered rows.
+- **resultTable.nestedTableChecks (optional):** Nested tables by absolute or row-scoped CSS selector. Each check: name, tableSelector, scope (row|page), rowSelector, columnIndex, operator, value(s). Output can include name, exists (boolean), selectors, nth-child; outputInRow: true includes per row.
+- **Result config (one JSON):** Admin save/load result config (kind `superset_result_config`) = resultTable + patternGeneration. Search loop is a separate UI container but in the same JSON.
 - Pattern generation: build combinations from `alphabet` with `length`; if `useWildcard` then insert `wildcardChar` per config (e.g. A%A%A). Respect `caseSensitive` when comparing.
 
 ### 6.3 Superset output format (Phase 1 → Phase 2)

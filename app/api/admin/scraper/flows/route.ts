@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   const q = searchParams.get("q")?.trim().toLowerCase() || ""
   const kind = searchParams.get("kind")?.trim() || ""
 
-  const allowedKinds = ["scraper", "superset_flow", "superset_site_config", "retrieval_flow", "autoscrape_flow"]
+  const allowedKinds = ["scraper", "superset_flow", "superset_site_config", "superset_result_config", "retrieval_flow", "autoscrape_flow"]
   if (!kind || !allowedKinds.includes(kind)) {
     return NextResponse.json(
       { error: "Query param 'kind' required. Use one of: " + allowedKinds.join(", ") },
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "name and flow_json required" }, { status: 400 })
   }
 
-  const flowKind = (kind && ["scraper", "superset_flow", "superset_site_config", "retrieval_flow", "autoscrape_flow"].includes(kind))
+  const flowKind = (kind && ["scraper", "superset_flow", "superset_site_config", "superset_result_config", "retrieval_flow", "autoscrape_flow"].includes(kind))
     ? kind
     : "scraper"
 

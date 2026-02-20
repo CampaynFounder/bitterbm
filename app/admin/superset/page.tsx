@@ -119,6 +119,25 @@ export type SiteConfigState = {
       /** Optional label for UI (e.g. "Has filings in nested table"). */
       description?: string
     }>
+    /** Nested table checks: absolute or row-scoped CSS selector(s); check if value(s) exist in column/row; output name, boolean, selectors, nth-child. */
+    nestedTableChecks?: Array<{
+      /** Display name (printed in output). */
+      name: string
+      /** CSS selector for the nested table (or container). Can be absolute (page) or relative to row. */
+      tableSelector: string
+      /** "row" = selector is evaluated within parent row; "page" = from page/frame root. */
+      scope?: "row" | "page"
+      /** Optional: row selector within the table (e.g. tbody tr). */
+      rowSelector?: string
+      /** 0-based column index (nth child) to check. */
+      columnIndex?: number
+      /** "equals" or "in" for value check. */
+      operator?: "equals" | "in"
+      /** Value(s) to match in that column. */
+      value?: string | string[]
+      /** If set, output includes: name, exists (boolean), tableSelector, columnIndex, rowIndex (nth row match). */
+      outputInRow?: boolean
+    }>
   }
   pagination: { mode: string }
 }
@@ -564,10 +583,36 @@ function SiteConfigForm({ config, onChange }: { config: SiteConfigState; onChang
             ))}
             <button type="button" onClick={() => update("resultTable.nestedRowFilters", [...(rt.nestedRowFilters ?? []), { selectorWithinRow: "td:nth-child(1) table tr", condition: "exists" as const, includeParentWhen: true }])} style={{ ...btnSecondary, marginTop: "var(--space-xs)" }}>+ Add nested filter</button>
           </div>
+          <div style={{ marginTop: "var(--space-lg)" }}>
+            <label style={labelStyle}>Nested table checks (output: name, boolean, selectors, nth-child)</label>
+            <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "var(--space-sm)" }}>Absolute or row-scoped CSS selector(s) for 1+ nested tables. Optionally check if value(s) exist in a column/row; output includes name(s), boolean, selectors, nth-child values.</p>
+            {(rt.nestedTableChecks ?? []).map((nc, i) => (
+              <div key={i} style={{ marginBottom: "var(--space-sm)", padding: "var(--space-sm)", background: "var(--bg-elevated)", borderRadius: 8, border: "1px solid var(--border)" }}>
+                <div style={{ display: "flex", gap: "var(--space-sm)", flexWrap: "wrap", marginBottom: "var(--space-xs)" }}>
+                  <input value={nc.name} onChange={(e) => { const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], name: e.target.value }; update("resultTable.nestedTableChecks", arr) }} placeholder="Name (output label)" style={{ ...inputStyle, width: 140 }} />
+                  <select value={nc.scope ?? "row"} onChange={(e) => { const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], scope: e.target.value as "row" | "page" }; update("resultTable.nestedTableChecks", arr) }} style={{ ...inputStyle, width: 80 }}><option value="row">row</option><option value="page">page</option></select>
+                  <input value={nc.tableSelector} onChange={(e) => { const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], tableSelector: e.target.value }; update("resultTable.nestedTableChecks", arr) }} placeholder="Table CSS selector" style={{ ...inputStyle, flex: 1, minWidth: 160 }} title="Absolute (page) or relative to row" />
+                </div>
+                <div style={{ display: "flex", gap: "var(--space-sm)", flexWrap: "wrap", alignItems: "center", marginBottom: "var(--space-xs)" }}>
+                  <input value={nc.rowSelector ?? ""} onChange={(e) => { const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], rowSelector: e.target.value.trim() || undefined }; update("resultTable.nestedTableChecks", arr) }} placeholder="Row selector (e.g. tbody tr)" style={{ ...inputStyle, width: 120 }} />
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Column (nth):</span>
+                  <input type="number" value={nc.columnIndex ?? 0} onChange={(e) => { const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], columnIndex: parseInt(e.target.value, 10) || 0 }; update("resultTable.nestedTableChecks", arr) }} style={{ ...inputStyle, width: 56 }} />
+                  <select value={nc.operator ?? "equals"} onChange={(e) => { const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], operator: e.target.value as "equals" | "in" }; update("resultTable.nestedTableChecks", arr) }} style={{ ...inputStyle, width: 80 }}><option value="equals">equals</option><option value="in">in</option></select>
+                  <input value={Array.isArray(nc.value) ? (nc.value as string[]).join(", ") : String(nc.value ?? "")} onChange={(e) => { const v = e.target.value; const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], value: (nc.operator ?? "equals") === "in" ? v.split(",").map((s) => s.trim()).filter(Boolean) : v }; update("resultTable.nestedTableChecks", arr) }} placeholder="Value(s)" style={{ ...inputStyle, width: 100 }} />
+                  <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.8125rem" }}><input type="checkbox" checked={nc.outputInRow ?? false} onChange={(e) => { const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], outputInRow: e.target.checked }; update("resultTable.nestedTableChecks", arr) }} />Output in row</label>
+                </div>
+                <button type="button" onClick={() => update("resultTable.nestedTableChecks", (rt.nestedTableChecks ?? []).filter((_, j) => j !== i))} style={btnSecondary}>Remove</button>
+              </div>
+            ))}
+            <button type="button" onClick={() => update("resultTable.nestedTableChecks", [...(rt.nestedTableChecks ?? []), { name: "Nested table 1", tableSelector: "table.nested", scope: "row", columnIndex: 0, operator: "equals" as const, value: "", outputInRow: true }])} style={{ ...btnSecondary, marginTop: "var(--space-xs)" }}>+ Add nested table check</button>
+          </div>
         </>
         )
       })())}
-      {section("Pattern generation (AAB, AAC … loop)", (
+      {section("Result config (table + filters + search loop in one JSON)", (
+        <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginBottom: "var(--space-sm)" }}>Save or load the result table, row filters, nested filters, extract columns, and pattern generation (search loop) as a single JSON. The search loop runs separately in Phase 1 (e.g. AAB, AAC) and uses this config to filter and extract from the result table.</p>
+      ))}
+      {section("Pattern generation (AAB, AAC … search loop)", (
         <>
           <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Alphabet</label><input value={config.patternGeneration.alphabet} onChange={(e) => update("patternGeneration.alphabet", e.target.value)} style={inputStyle} /></div>
           <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Length</label><input type="number" value={config.patternGeneration.length} onChange={(e) => update("patternGeneration.length", parseInt(e.target.value, 10) || 3)} style={{ ...inputStyle, maxWidth: 80 }} /></div>
@@ -673,16 +718,21 @@ export default function AdminSupersetPage() {
 
   const [savedFlowsList, setSavedFlowsList] = useState<{ id: string; name: string; description?: string; flow_json: unknown }[]>([])
   const [savedConfigsList, setSavedConfigsList] = useState<{ id: string; name: string; description?: string; flow_json: unknown }[]>([])
+  const [savedResultConfigsList, setSavedResultConfigsList] = useState<{ id: string; name: string; description?: string; flow_json: unknown }[]>([])
   const [loadFlowModalOpen, setLoadFlowModalOpen] = useState(false)
   const [loadConfigModalOpen, setLoadConfigModalOpen] = useState(false)
+  const [loadResultConfigModalOpen, setLoadResultConfigModalOpen] = useState(false)
   const [saveFlowModalOpen, setSaveFlowModalOpen] = useState(false)
   const [saveConfigModalOpen, setSaveConfigModalOpen] = useState(false)
+  const [saveResultConfigModalOpen, setSaveResultConfigModalOpen] = useState(false)
   const [saveName, setSaveName] = useState("")
   const [saveDescription, setSaveDescription] = useState("")
   const [flowSearch, setFlowSearch] = useState("")
   const [configSearch, setConfigSearch] = useState("")
+  const [resultConfigSearch, setResultConfigSearch] = useState("")
   const [savedFlowsLoading, setSavedFlowsLoading] = useState(false)
   const [savedConfigsLoading, setSavedConfigsLoading] = useState(false)
+  const [savedResultConfigsLoading, setSavedResultConfigsLoading] = useState(false)
   const [saveLoading, setSaveLoading] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
@@ -706,6 +756,16 @@ export default function AdminSupersetPage() {
         .finally(() => setSavedConfigsLoading(false))
     }
   }, [loadConfigModalOpen, adminSecret, session?.access_token])
+  useEffect(() => {
+    if (loadResultConfigModalOpen && (adminSecret || session?.access_token)) {
+      setSavedResultConfigsLoading(true)
+      fetch(`/api/admin/scraper/flows?kind=superset_result_config`, { headers: authHeaders() })
+        .then((res) => res.json())
+        .then((data) => setSavedResultConfigsList(data.flows ?? []))
+        .catch(() => setSavedResultConfigsList([]))
+        .finally(() => setSavedResultConfigsLoading(false))
+    }
+  }, [loadResultConfigModalOpen, adminSecret, session?.access_token])
 
   const filteredSavedFlows = flowSearch.trim()
     ? savedFlowsList.filter((f) => (f.name ?? "").toLowerCase().includes(flowSearch.trim().toLowerCase()) || (f.description ?? "").toLowerCase().includes(flowSearch.trim().toLowerCase()))
@@ -713,6 +773,9 @@ export default function AdminSupersetPage() {
   const filteredSavedConfigs = configSearch.trim()
     ? savedConfigsList.filter((f) => (f.name ?? "").toLowerCase().includes(configSearch.trim().toLowerCase()) || (f.description ?? "").toLowerCase().includes(configSearch.trim().toLowerCase()))
     : savedConfigsList
+  const filteredSavedResultConfigs = resultConfigSearch.trim()
+    ? savedResultConfigsList.filter((f) => (f.name ?? "").toLowerCase().includes(resultConfigSearch.trim().toLowerCase()) || (f.description ?? "").toLowerCase().includes(resultConfigSearch.trim().toLowerCase()))
+    : savedResultConfigsList
 
   async function handleSaveFlow() {
     if (!saveName.trim()) { setSaveError("Name required"); return }
@@ -748,6 +811,30 @@ export default function AdminSupersetPage() {
       const data = (await res.json()) as { error?: string }
       if (!res.ok) throw new Error(data.error ?? "Save failed")
       setSaveConfigModalOpen(false)
+      setSaveName("")
+      setSaveDescription("")
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Save failed")
+    } finally {
+      setSaveLoading(false)
+    }
+  }
+  function getResultConfigBlob() {
+    return { resultTable: siteConfig.resultTable, patternGeneration: siteConfig.patternGeneration }
+  }
+  async function handleSaveResultConfig() {
+    if (!saveName.trim()) { setSaveError("Name required"); return }
+    setSaveLoading(true)
+    setSaveError(null)
+    try {
+      const res = await fetch("/api/admin/scraper/flows", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ name: saveName.trim(), description: saveDescription.trim() || undefined, flow_json: getResultConfigBlob(), kind: "superset_result_config" }),
+      })
+      const data = (await res.json()) as { error?: string }
+      if (!res.ok) throw new Error(data.error ?? "Save failed")
+      setSaveResultConfigModalOpen(false)
       setSaveName("")
       setSaveDescription("")
     } catch (err) {
@@ -963,6 +1050,15 @@ export default function AdminSupersetPage() {
             <button type="button" onClick={() => setLoadConfigModalOpen(true)} style={btnSecondary}>
               Load site config
             </button>
+            <button type="button" onClick={() => { try { downloadJson("result-config.json", getResultConfigBlob()) } catch { setRetrievalResult((r) => ({ ...r, error: "Invalid config" })) } }} style={btnSecondary} title="Result table + filters + search loop only">
+              Download result config
+            </button>
+            <button type="button" onClick={() => { setSaveName("result-config"); setSaveDescription(""); setSaveError(null); setSaveResultConfigModalOpen(true) }} style={btnSecondary}>
+              Save result config
+            </button>
+            <button type="button" onClick={() => setLoadResultConfigModalOpen(true)} style={btnSecondary}>
+              Load result config
+            </button>
           </div>
         </section>
 
@@ -994,6 +1090,22 @@ export default function AdminSupersetPage() {
               <div style={{ display: "flex", gap: "var(--space-sm)" }}>
                 <button type="button" onClick={handleSaveConfig} disabled={saveLoading} className="btn-primary" style={{ padding: "var(--space-xs) var(--space-sm)" }}>{saveLoading ? "Saving…" : "Save"}</button>
                 <button type="button" onClick={() => { setSaveConfigModalOpen(false); setSaveError(null) }} style={btnSecondary}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        )}
+        {saveResultConfigModalOpen && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", padding: "var(--space-md)" }} onClick={() => setSaveResultConfigModalOpen(false)}>
+            <div style={{ background: "var(--bg-card)", borderRadius: 12, border: "1px solid var(--border)", padding: "var(--space-md)", maxWidth: 400, width: "100%" }} onClick={(e) => e.stopPropagation()}>
+              <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "var(--space-sm)" }}>Save result config (table + filters + search loop)</h3>
+              <label style={labelStyle}>Name</label>
+              <input value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder="e.g. cobb-result" style={{ ...inputStyle, marginBottom: "var(--space-sm)" }} />
+              <label style={labelStyle}>Description (optional)</label>
+              <input value={saveDescription} onChange={(e) => setSaveDescription(e.target.value)} style={{ ...inputStyle, marginBottom: "var(--space-sm)" }} />
+              {saveError && <p style={{ fontSize: "0.875rem", color: "var(--accent-gold)", marginBottom: "var(--space-sm)" }}>{saveError}</p>}
+              <div style={{ display: "flex", gap: "var(--space-sm)" }}>
+                <button type="button" onClick={handleSaveResultConfig} disabled={saveLoading} className="btn-primary" style={{ padding: "var(--space-xs) var(--space-sm)" }}>{saveLoading ? "Saving…" : "Save"}</button>
+                <button type="button" onClick={() => { setSaveResultConfigModalOpen(false); setSaveError(null) }} style={btnSecondary}>Cancel</button>
               </div>
             </div>
           </div>
@@ -1050,6 +1162,36 @@ export default function AdminSupersetPage() {
                           </button>
                           <button type="button" onClick={() => { downloadJson(`${(f.name || "site-config").replace(/\s+/g, "-")}.json`, f.flow_json) }} style={{ ...btnSecondary, padding: "var(--space-xs)", minHeight: 32 }} title="Download">↓</button>
                           <button type="button" onClick={async () => { if (!confirm(`Delete "${f.name}"?`)) return; try { const res = await fetch("/api/admin/scraper/flows", { method: "DELETE", headers: authHeaders(), body: JSON.stringify({ id: f.id }) }); if (!res.ok) throw new Error(); setSavedConfigsList((list) => list.filter((x) => x.id !== f.id)) } catch { setSaveError("Delete failed") } }} style={{ ...btnSecondary, padding: "var(--space-xs)", minHeight: 32, color: "var(--accent-gold)" }} title="Delete">✕</button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        {loadResultConfigModalOpen && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", padding: "var(--space-md)" }} onClick={() => setLoadResultConfigModalOpen(false)}>
+            <div style={{ background: "var(--bg-card)", borderRadius: 12, border: "1px solid var(--border)", maxWidth: 480, width: "100%", maxHeight: "80vh", overflow: "hidden", display: "flex", flexDirection: "column" }} onClick={(e) => e.stopPropagation()}>
+              <div style={{ padding: "var(--space-md)", borderBottom: "1px solid var(--border)" }}>
+                <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "var(--space-sm)" }}>Load result config (table + filters + search loop)</h3>
+                <input type="text" value={resultConfigSearch} onChange={(e) => setResultConfigSearch(e.target.value)} placeholder="Search by name…" style={inputStyle} />
+              </div>
+              <div style={{ overflow: "auto", flex: 1, padding: "var(--space-sm)" }}>
+                {savedResultConfigsLoading ? <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>Loading…</p> : filteredSavedResultConfigs.length === 0 ? <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>No saved result configs</p> : (
+                  <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                    {filteredSavedResultConfigs.map((f) => {
+                      const raw = f.flow_json
+                      const blob = (typeof raw === "string" ? (() => { try { return JSON.parse(raw) } catch { return null } })() : raw) as { resultTable?: SiteConfigState["resultTable"]; patternGeneration?: SiteConfigState["patternGeneration"] } | null
+                      return (
+                        <li key={f.id} style={{ display: "flex", alignItems: "center", gap: "var(--space-xs)", marginBottom: "var(--space-xs)" }}>
+                          <button type="button" onClick={() => { if (blob && typeof blob === "object") { setSiteConfig((prev) => ({ ...prev, resultTable: blob.resultTable ?? prev.resultTable, patternGeneration: blob.patternGeneration ?? prev.patternGeneration })); setLoadResultConfigModalOpen(false); setResultConfigSearch("") } }} style={{ flex: 1, padding: "var(--space-sm)", textAlign: "left", background: "none", border: "none", borderRadius: 8, cursor: "pointer", fontSize: "0.875rem", color: "var(--text-primary)" }} className="hover:bg-[var(--bg-elevated)]">
+                            <span style={{ fontWeight: 500 }}>{f.name}</span>
+                            {f.description && <span style={{ display: "block", fontSize: "0.75rem", color: "var(--text-muted)" }}>{f.description}</span>}
+                          </button>
+                          <button type="button" onClick={() => downloadJson(`${(f.name || "result-config").replace(/\s+/g, "-")}.json`, f.flow_json)} style={{ ...btnSecondary, padding: "var(--space-xs)", minHeight: 32 }} title="Download">↓</button>
+                          <button type="button" onClick={async () => { if (!confirm(`Delete "${f.name}"?`)) return; try { const res = await fetch("/api/admin/scraper/flows", { method: "DELETE", headers: authHeaders(), body: JSON.stringify({ id: f.id }) }); if (!res.ok) throw new Error(); setSavedResultConfigsList((list) => list.filter((x) => x.id !== f.id)) } catch { setSaveError("Delete failed") } }} style={{ ...btnSecondary, padding: "var(--space-xs)", minHeight: 32, color: "var(--accent-gold)" }} title="Delete">✕</button>
                         </li>
                       )
                     })}
