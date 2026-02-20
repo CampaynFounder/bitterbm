@@ -208,14 +208,14 @@ function SupersetFlowEditor({
     const next = [...steps]
     next.splice(at, 0, createBlankSupersetStep(type))
     onStepsChange(next)
-    setExpandedSet((s) => new Set(s).add(at))
+    setExpandedSet((s) => new Set(Array.from(s)).add(at))
     setInsertAt(null)
   }
 
   const removeStep = (index: number) => {
     const next = steps.filter((_, i) => i !== index)
     onStepsChange(next)
-    setExpandedSet((s) => new Set([...s].filter((i) => i !== index).map((i) => (i >= index ? i - 1 : i))))
+    setExpandedSet((s) => new Set(Array.from(s).filter((i) => i !== index).map((i) => (i >= index ? i - 1 : i))))
   }
 
   const moveStep = (index: number, dir: "up" | "down") => {
@@ -225,7 +225,7 @@ function SupersetFlowEditor({
     ;[next[index], next[j]] = [next[j], next[index]]
     onStepsChange(next)
     setExpandedSet((s) => {
-      const out = new Set(s)
+      const out = new Set(Array.from(s))
       out.delete(index)
       out.delete(j)
       out.add(j)
@@ -237,7 +237,7 @@ function SupersetFlowEditor({
     const next = [...steps]
     next.splice(index + 1, 0, { ...steps[index] })
     onStepsChange(next)
-    setExpandedSet((s) => new Set(s).add(index + 1))
+    setExpandedSet((s) => new Set(Array.from(s)).add(index + 1))
   }
 
   return (
@@ -289,7 +289,7 @@ function SupersetFlowEditor({
             index={index}
             total={steps.length}
             expanded={expandedSet.has(index)}
-            onToggle={() => setExpandedSet((s) => { const n = new Set(s); if (n.has(index)) n.delete(index); else n.add(index); return n })}
+            onToggle={() => setExpandedSet((s) => { const n = new Set(Array.from(s)); if (n.has(index)) n.delete(index); else n.add(index); return n })}
             onChange={(s) => updateStep(index, s)}
             onTypeChange={(newType) => changeStepType(index, newType)}
             onRemove={() => removeStep(index)}
