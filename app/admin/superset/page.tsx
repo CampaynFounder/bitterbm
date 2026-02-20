@@ -1009,10 +1009,12 @@ export default function AdminSupersetPage() {
                 {savedFlowsLoading ? <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>Loading…</p> : filteredSavedFlows.length === 0 ? <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>No saved flows</p> : (
                   <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                     {filteredSavedFlows.map((f) => {
-                      const fj = f.flow_json as { name?: string; steps?: ScraperStep[] }
+                      const raw = f.flow_json
+                      const fj = (typeof raw === "string" ? (() => { try { return JSON.parse(raw) } catch { return null } })() : raw) as { name?: string; steps?: ScraperStep[] } | null
+                      const stepsArr = Array.isArray(fj?.steps) ? fj.steps : []
                       return (
                         <li key={f.id} style={{ display: "flex", alignItems: "center", gap: "var(--space-xs)", marginBottom: "var(--space-xs)" }}>
-                          <button type="button" onClick={() => { if (fj?.steps?.length) { setFlowName(fj.name ?? f.name); setSteps(fj.steps); setLoadFlowModalOpen(false); setFlowSearch("") } }} style={{ flex: 1, padding: "var(--space-sm)", textAlign: "left", background: "none", border: "none", borderRadius: 8, cursor: "pointer", fontSize: "0.875rem", color: "var(--text-primary)" }} className="hover:bg-[var(--bg-elevated)]">
+                          <button type="button" onClick={() => { setFlowName((fj?.name ?? f.name) || "superset-search"); setSteps(stepsArr); setLoadFlowModalOpen(false); setFlowSearch("") }} style={{ flex: 1, padding: "var(--space-sm)", textAlign: "left", background: "none", border: "none", borderRadius: 8, cursor: "pointer", fontSize: "0.875rem", color: "var(--text-primary)" }} className="hover:bg-[var(--bg-elevated)]">
                             <span style={{ fontWeight: 500 }}>{f.name}</span>
                             {f.description && <span style={{ display: "block", fontSize: "0.75rem", color: "var(--text-muted)" }}>{f.description}</span>}
                           </button>
@@ -1038,10 +1040,11 @@ export default function AdminSupersetPage() {
                 {savedConfigsLoading ? <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>Loading…</p> : filteredSavedConfigs.length === 0 ? <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>No saved configs</p> : (
                   <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                     {filteredSavedConfigs.map((f) => {
-                      const cfg = f.flow_json as SiteConfigState
+                      const raw = f.flow_json
+                      const cfg = (typeof raw === "string" ? (() => { try { return JSON.parse(raw) as SiteConfigState } catch { return null } })() : raw) as SiteConfigState | null
                       return (
                         <li key={f.id} style={{ display: "flex", alignItems: "center", gap: "var(--space-xs)", marginBottom: "var(--space-xs)" }}>
-                          <button type="button" onClick={() => { if (cfg) { setSiteConfig(cfg); setLoadConfigModalOpen(false); setConfigSearch("") } }} style={{ flex: 1, padding: "var(--space-sm)", textAlign: "left", background: "none", border: "none", borderRadius: 8, cursor: "pointer", fontSize: "0.875rem", color: "var(--text-primary)" }} className="hover:bg-[var(--bg-elevated)]">
+                          <button type="button" onClick={() => { if (cfg && typeof cfg === "object") { setSiteConfig(cfg); setLoadConfigModalOpen(false); setConfigSearch("") } }} style={{ flex: 1, padding: "var(--space-sm)", textAlign: "left", background: "none", border: "none", borderRadius: 8, cursor: "pointer", fontSize: "0.875rem", color: "var(--text-primary)" }} className="hover:bg-[var(--bg-elevated)]">
                             <span style={{ fontWeight: 500 }}>{f.name}</span>
                             {f.description && <span style={{ display: "block", fontSize: "0.75rem", color: "var(--text-muted)" }}>{f.description}</span>}
                           </button>
