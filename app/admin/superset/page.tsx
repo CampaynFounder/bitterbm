@@ -493,8 +493,12 @@ function FormFillFieldsEditor({ fields, onChange }: { fields: Array<{ selector?:
   )
 }
 
+const SITE_CONFIG_SECTIONS = ["resultTable", "patternGeneration", "site", "iframe", "searchForm", "pagination"] as const
+type SiteConfigSection = (typeof SITE_CONFIG_SECTIONS)[number]
+
 // ——— Visual site config form ———
-function SiteConfigForm({ config, onChange }: { config: SiteConfigState; onChange: (c: SiteConfigState) => void }) {
+function SiteConfigForm({ config, onChange, onlySections }: { config: SiteConfigState; onChange: (c: SiteConfigState) => void; onlySections?: SiteConfigSection[] }) {
+  const show = (s: SiteConfigSection) => !onlySections || onlySections.includes(s)
   const update = (path: string, value: unknown) => {
     const keys = path.split(".")
     const next = JSON.parse(JSON.stringify(config)) as SiteConfigState
@@ -515,7 +519,7 @@ function SiteConfigForm({ config, onChange }: { config: SiteConfigState; onChang
   )
   return (
     <div>
-      {section("Result table", (() => {
+      {show("resultTable") && section("Result table", (() => {
         const rt = config.resultTable
         const columnNames = rt.columnNames ?? []
         const maxCol = Math.max(11, columnNames.length)
@@ -609,10 +613,10 @@ function SiteConfigForm({ config, onChange }: { config: SiteConfigState; onChang
         </>
         )
       })())}
-      {section("Result config (table + filters + search loop in one JSON)", (
+      {show("resultTable") && section("Result config (table + filters + search loop in one JSON)", (
         <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginBottom: "var(--space-sm)" }}>Save or load the result table, row filters, nested filters, extract columns, and pattern generation (search loop) as a single JSON. The search loop runs separately in Phase 1 (e.g. AAB, AAC) and uses this config to filter and extract from the result table.</p>
       ))}
-      {section("Pattern generation (AAB, AAC … search loop)", (
+      {show("patternGeneration") && section("Pattern generation (AAB, AAC … search loop)", (
         <>
           <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Alphabet</label><input value={config.patternGeneration.alphabet} onChange={(e) => update("patternGeneration.alphabet", e.target.value)} style={inputStyle} /></div>
           <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Length</label><input type="number" value={config.patternGeneration.length} onChange={(e) => update("patternGeneration.length", parseInt(e.target.value, 10) || 3)} style={{ ...inputStyle, maxWidth: 80 }} /></div>
@@ -620,20 +624,20 @@ function SiteConfigForm({ config, onChange }: { config: SiteConfigState; onChang
           <div><label style={labelStyle}>Wildcard character</label><input value={config.patternGeneration.wildcardChar} onChange={(e) => update("patternGeneration.wildcardChar", e.target.value)} style={{ ...inputStyle, maxWidth: 80 }} /></div>
         </>
       ))}
-      {section("Site", (
+      {show("site") && section("Site", (
         <>
           <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Site ID</label><input value={config.siteId} onChange={(e) => update("siteId", e.target.value)} style={inputStyle} /></div>
           <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Base URL</label><input value={config.baseUrl} onChange={(e) => update("baseUrl", e.target.value)} placeholder="https://..." style={inputStyle} /></div>
           <div><label style={labelStyle}>Description (optional)</label><input value={config.description ?? ""} onChange={(e) => update("description", e.target.value)} style={inputStyle} /></div>
         </>
       ))}
-      {section("Iframe", (
+      {show("iframe") && section("Iframe", (
         <>
           <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Selector</label><input value={config.iframe.selector ?? ""} onChange={(e) => update("iframe.selector", e.target.value)} placeholder="iframe#content" style={inputStyle} /></div>
           <div><label style={labelStyle}>URL contains (optional)</label><input value={config.iframe.urlContains ?? ""} onChange={(e) => update("iframe.urlContains", e.target.value)} style={inputStyle} /></div>
         </>
       ))}
-      {section("Search form", (
+      {show("searchForm") && section("Search form", (
         <>
           <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Pattern field selector</label><input value={config.searchForm.patternField.selector} onChange={(e) => update("searchForm.patternField.selector", e.target.value)} placeholder="#tbPersonSearch" style={inputStyle} /></div>
           <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Pattern field type</label><select value={config.searchForm.patternField.type} onChange={(e) => update("searchForm.patternField.type", e.target.value)} style={inputStyle}><option value="text">text</option></select></div>
@@ -643,7 +647,7 @@ function SiteConfigForm({ config, onChange }: { config: SiteConfigState; onChang
           <div><label style={labelStyle}>Submit button selector</label><input value={config.searchForm.submitSelector} onChange={(e) => update("searchForm.submitSelector", e.target.value)} placeholder="#btnSearch" style={inputStyle} /></div>
         </>
       ))}
-      {section("Pagination", (
+      {show("pagination") && section("Pagination", (
         <div><label style={labelStyle}>Mode</label><select value={config.pagination.mode} onChange={(e) => update("pagination.mode", e.target.value)} style={inputStyle}><option value="all_in_dom">all_in_dom</option></select></div>
       ))}
     </div>
@@ -720,12 +724,18 @@ export default function AdminSupersetPage() {
   const [savedFlowsList, setSavedFlowsList] = useState<SavedFlowRow[]>([])
   const [savedConfigsList, setSavedConfigsList] = useState<SavedFlowRow[]>([])
   const [savedResultConfigsList, setSavedResultConfigsList] = useState<SavedFlowRow[]>([])
+  const [savedE2EList, setSavedE2EList] = useState<SavedFlowRow[]>([])
+  const [sectionExpanded, setSectionExpanded] = useState({ flow: true, results: true, siteConfig: true })
   const [loadFlowModalOpen, setLoadFlowModalOpen] = useState(false)
   const [loadConfigModalOpen, setLoadConfigModalOpen] = useState(false)
   const [loadResultConfigModalOpen, setLoadResultConfigModalOpen] = useState(false)
+  const [loadE2EModalOpen, setLoadE2EModalOpen] = useState(false)
   const [saveFlowModalOpen, setSaveFlowModalOpen] = useState(false)
   const [saveConfigModalOpen, setSaveConfigModalOpen] = useState(false)
   const [saveResultConfigModalOpen, setSaveResultConfigModalOpen] = useState(false)
+  const [saveE2EModalOpen, setSaveE2EModalOpen] = useState(false)
+  const [e2ESearch, setE2ESearch] = useState("")
+  const [savedE2ELoading, setSavedE2ELoading] = useState(false)
   const [saveName, setSaveName] = useState("")
   const [saveDescription, setSaveDescription] = useState("")
   const [flowSearch, setFlowSearch] = useState("")
@@ -767,6 +777,16 @@ export default function AdminSupersetPage() {
         .finally(() => setSavedResultConfigsLoading(false))
     }
   }, [loadResultConfigModalOpen, adminSecret, session?.access_token])
+  useEffect(() => {
+    if (loadE2EModalOpen && (adminSecret || session?.access_token)) {
+      setSavedE2ELoading(true)
+      fetch(`/api/admin/scraper/flows?kind=superset_e2e`, { headers: authHeaders() })
+        .then((res) => res.json())
+        .then((data) => setSavedE2EList(data.flows ?? []))
+        .catch(() => setSavedE2EList([]))
+        .finally(() => setSavedE2ELoading(false))
+    }
+  }, [loadE2EModalOpen, adminSecret, session?.access_token])
 
   const filteredSavedFlows = (flowSearch.trim()
     ? savedFlowsList.filter((f) => (f.name ?? "").toLowerCase().includes(flowSearch.trim().toLowerCase()) || (f.description ?? "").toLowerCase().includes(flowSearch.trim().toLowerCase()))
@@ -777,6 +797,9 @@ export default function AdminSupersetPage() {
   const filteredSavedResultConfigs = (resultConfigSearch.trim()
     ? savedResultConfigsList.filter((f) => (f.name ?? "").toLowerCase().includes(resultConfigSearch.trim().toLowerCase()) || (f.description ?? "").toLowerCase().includes(resultConfigSearch.trim().toLowerCase()))
     : savedResultConfigsList).filter((f) => !f.kind || f.kind === "superset_result_config")
+  const filteredSavedE2E = (e2ESearch.trim()
+    ? savedE2EList.filter((f) => (f.name ?? "").toLowerCase().includes(e2ESearch.trim().toLowerCase()) || (f.description ?? "").toLowerCase().includes(e2ESearch.trim().toLowerCase()))
+    : savedE2EList).filter((f) => !f.kind || f.kind === "superset_e2e")
 
   async function handleSaveFlow() {
     if (!saveName.trim()) { setSaveError("Name required"); return }
@@ -844,6 +867,30 @@ export default function AdminSupersetPage() {
       setSaveLoading(false)
     }
   }
+  function getE2EBlob() {
+    return { flow: { name: flowName, steps }, siteConfig }
+  }
+  async function handleSaveE2E() {
+    if (!saveName.trim()) { setSaveError("Name required"); return }
+    setSaveLoading(true)
+    setSaveError(null)
+    try {
+      const res = await fetch("/api/admin/scraper/flows", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ name: saveName.trim(), description: saveDescription.trim() || undefined, flow_json: getE2EBlob(), kind: "superset_e2e" }),
+      })
+      const data = (await res.json()) as { error?: string }
+      if (!res.ok) throw new Error(data.error ?? "Save failed")
+      setSaveE2EModalOpen(false)
+      setSaveName("")
+      setSaveDescription("")
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Save failed")
+    } finally {
+      setSaveLoading(false)
+    }
+  }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => {
@@ -876,7 +923,7 @@ export default function AdminSupersetPage() {
     setList((l) => l.filter((x) => x.id !== id))
     setSaveError(null)
     try {
-      const res = await fetch("/api/admin/scraper/flows", { method: "DELETE", headers: authHeaders(), body: JSON.stringify({ id }) })
+      const res = await fetch("/api/admin/scraper/flows", { method: "POST", headers: authHeaders(), body: JSON.stringify({ action: "delete", id }) })
       const data = (await res.json()) as { error?: string }
       if (!res.ok) {
         setList(prev)
@@ -1004,8 +1051,8 @@ export default function AdminSupersetPage() {
               <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "var(--space-sm)" }}>Full config schema and table/row filter logic: <code>docs/SCRAPER_SUPERSET_ARCHITECTURE.md</code> (§6.2, resultTable.rowFilter and unique ID).</p>
               <p style={{ marginBottom: "var(--space-sm)" }}><strong>Phase 1 (build superset file):</strong></p>
               <ol style={{ marginBottom: "var(--space-md)", paddingLeft: "1.25rem" }}>
-                <li>Download <strong>combined (flow + site config)</strong> as one file, or download flow and site-config separately.</li>
-                <li>Run Phase 1: <code>python scraper/superset/phase1_build.py --config superset-phase1.json</code> (or <code>--flow flow.json --site-config site-config.json</code>). The script runs the flow (one search), then uses the result table config (table/row selectors, row filter, nested exists/not exists, primary ID, extract columns) to filter rows and extract IDs. Output: superset file (search criteria + ids + extracted values).</li>
+                <li>Download <strong>combined (flow + site config)</strong> as one file, or use <strong>Save superset (e2e)</strong> for a single saved preset.</li>
+                <li>Run Phase 1: <code>python scraper/superset/phase1_build.py --config superset-phase1.json</code> (or <code>--flow flow.json --site-config site-config.json</code>). The script runs the flow (one search), then uses the result table config to filter rows and extract IDs. Output: superset file.</li>
               </ol>
               <p style={{ marginBottom: "var(--space-sm)" }}><strong>Phase 2 (retrieval by IDs):</strong></p>
               <ol style={{ marginBottom: 0, paddingLeft: "1.25rem" }}>
@@ -1016,68 +1063,86 @@ export default function AdminSupersetPage() {
             </div>
           </details>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-md)", marginBottom: "var(--space-sm)" }}>
-            <label style={labelStyle}>Superset flow (one search)</label>
-            <button type="button" onClick={() => setFlowJsonMode((m) => !m)} style={btnSecondary}>
-              {flowJsonMode ? "Use visual editor" : "Edit as JSON"}
-            </button>
-          </div>
-          {flowJsonMode ? (
-            <>
-              <textarea value={flowJsonText} onChange={(e) => setFlowJsonText(e.target.value)} style={{ ...inputStyle, minHeight: 140, fontFamily: "monospace", fontSize: "0.8125rem" }} />
-              <button type="button" onClick={applyFlowJson} style={{ ...btnSecondary, marginTop: "var(--space-sm)" }}>Apply JSON</button>
-            </>
-          ) : (
-            <SupersetFlowEditor flowName={flowName} steps={steps} onFlowNameChange={setFlowName} onStepsChange={setSteps} onError={(msg) => setRetrievalResult((r) => ({ ...r, error: msg }))} />
-          )}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-sm)", marginTop: "var(--space-md)" }}>
-            <button type="button" onClick={() => { try { downloadJson("superset-flow.json", flowJsonMode ? JSON.parse(flowJsonText) : { name: flowName, steps }) } catch { setRetrievalResult((r) => ({ ...r, error: "Invalid flow JSON" })) } }} style={btnSecondary}>
-              Download flow.json
-            </button>
-            <button type="button" onClick={() => { setSaveName(flowName); setSaveDescription(""); setSaveError(null); setSaveFlowModalOpen(true) }} style={btnSecondary}>
-              Save flow
-            </button>
-            <button type="button" onClick={() => setLoadFlowModalOpen(true)} style={btnSecondary}>
-              Load flow
-            </button>
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "var(--space-sm)", marginBottom: "var(--space-md)", paddingBottom: "var(--space-sm)", borderBottom: "1px solid var(--border)" }}>
+            <button type="button" onClick={() => setSectionExpanded({ flow: true, results: true, siteConfig: true })} style={btnSecondary}>Expand all</button>
+            <button type="button" onClick={() => setSectionExpanded({ flow: false, results: false, siteConfig: false })} style={btnSecondary}>Collapse all</button>
+            <span style={{ width: "1px", height: 20, background: "var(--border)", margin: "0 var(--space-xs)" }} />
+            <button type="button" onClick={() => { setSaveName(flowName); setSaveDescription(""); setSaveError(null); setSaveE2EModalOpen(true) }} style={btnSecondary} title="Save flow + site config as one superset preset">Save superset (e2e)</button>
+            <button type="button" onClick={() => setLoadE2EModalOpen(true)} style={btnSecondary} title="Load a full superset preset (flow + site config)">Load superset (e2e)</button>
+            <button type="button" onClick={() => { try { downloadJson("superset-phase1.json", getE2EBlob()) } catch { setRetrievalResult((r) => ({ ...r, error: "Invalid flow or config" })) } }} style={btnSecondary} title="Download single file for phase1_build.py --config superset-phase1.json">Download superset (e2e)</button>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-md)", marginTop: "var(--space-lg)", marginBottom: "var(--space-sm)" }}>
-            <label style={labelStyle}>Site config (pattern, threshold, selectors)</label>
-            <button type="button" onClick={() => setSiteConfigJsonMode((m) => !m)} style={btnSecondary}>
-              {siteConfigJsonMode ? "Use form" : "Edit as JSON"}
+          <div style={{ border: "1px solid var(--border)", borderRadius: 8, marginBottom: "var(--space-md)", overflow: "hidden" }}>
+            <button type="button" onClick={() => setSectionExpanded((s) => ({ ...s, flow: !s.flow }))} style={{ width: "100%", display: "flex", alignItems: "center", gap: "var(--space-sm)", padding: "var(--space-sm) var(--space-md)", background: "var(--bg-elevated)", border: "none", cursor: "pointer", fontSize: "0.9375rem", fontWeight: 600, color: "var(--text-primary)", textAlign: "left" }} className="hover:opacity-90">
+              <span style={{ transform: sectionExpanded.flow ? "rotate(90deg)" : "none", display: "inline-block" }}>▶</span>
+              1. Flow (route)
             </button>
+            {sectionExpanded.flow && (
+              <div style={{ padding: "var(--space-md)", borderTop: "1px solid var(--border)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-md)", marginBottom: "var(--space-sm)" }}>
+                  <label style={labelStyle}>Superset flow (one search)</label>
+                  <button type="button" onClick={() => setFlowJsonMode((m) => !m)} style={btnSecondary}>{flowJsonMode ? "Use visual editor" : "Edit as JSON"}</button>
+                </div>
+                {flowJsonMode ? (
+                  <>
+                    <textarea value={flowJsonText} onChange={(e) => setFlowJsonText(e.target.value)} style={{ ...inputStyle, minHeight: 140, fontFamily: "monospace", fontSize: "0.8125rem" }} />
+                    <button type="button" onClick={applyFlowJson} style={{ ...btnSecondary, marginTop: "var(--space-sm)" }}>Apply JSON</button>
+                  </>
+                ) : (
+                  <SupersetFlowEditor flowName={flowName} steps={steps} onFlowNameChange={setFlowName} onStepsChange={setSteps} onError={(msg) => setRetrievalResult((r) => ({ ...r, error: msg }))} />
+                )}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-sm)", marginTop: "var(--space-md)" }}>
+                  <button type="button" onClick={() => { try { downloadJson("superset-flow.json", flowJsonMode ? JSON.parse(flowJsonText) : { name: flowName, steps }) } catch { setRetrievalResult((r) => ({ ...r, error: "Invalid flow JSON" })) } }} style={btnSecondary}>Download flow.json</button>
+                  <button type="button" onClick={() => { setSaveName(flowName); setSaveDescription(""); setSaveError(null); setSaveFlowModalOpen(true) }} style={btnSecondary}>Save flow</button>
+                  <button type="button" onClick={() => setLoadFlowModalOpen(true)} style={btnSecondary}>Load flow</button>
+                </div>
+              </div>
+            )}
           </div>
-          {siteConfigJsonMode ? (
-            <>
-              <textarea value={siteConfigJsonText} onChange={(e) => setSiteConfigJsonText(e.target.value)} style={{ ...inputStyle, minHeight: 220, fontFamily: "monospace", fontSize: "0.8125rem" }} />
-              <button type="button" onClick={applySiteConfigJson} style={{ ...btnSecondary, marginTop: "var(--space-sm)" }}>Apply JSON</button>
-            </>
-          ) : (
-            <SiteConfigForm config={siteConfig} onChange={setSiteConfig} />
-          )}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-sm)", marginTop: "var(--space-md)" }}>
-            <button type="button" onClick={() => { try { downloadJson("site-config.json", siteConfigJsonMode ? JSON.parse(siteConfigJsonText) : siteConfig) } catch { setRetrievalResult((r) => ({ ...r, error: "Invalid config JSON" })) } }} style={btnSecondary}>
-              Download site-config.json
+
+          <div style={{ border: "1px solid var(--border)", borderRadius: 8, marginBottom: "var(--space-md)", overflow: "hidden" }}>
+            <button type="button" onClick={() => setSectionExpanded((s) => ({ ...s, results: !s.results }))} style={{ width: "100%", display: "flex", alignItems: "center", gap: "var(--space-sm)", padding: "var(--space-sm) var(--space-md)", background: "var(--bg-elevated)", border: "none", cursor: "pointer", fontSize: "0.9375rem", fontWeight: 600, color: "var(--text-primary)", textAlign: "left" }} className="hover:opacity-90">
+              <span style={{ transform: sectionExpanded.results ? "rotate(90deg)" : "none", display: "inline-block" }}>▶</span>
+              2. Results &amp; pattern
             </button>
-            <button type="button" onClick={() => { try { downloadJson("superset-phase1.json", { flow: flowJsonMode ? JSON.parse(flowJsonText) : { name: flowName, steps }, siteConfig: siteConfigJsonMode ? JSON.parse(siteConfigJsonText) : siteConfig }) } catch { setRetrievalResult((r) => ({ ...r, error: "Invalid flow or config JSON" })) } }} style={btnSecondary} title="Single file for phase1_build.py --config superset-phase1.json">
-              Download combined (flow + site config)
+            {sectionExpanded.results && (
+              <div style={{ padding: "var(--space-md)", borderTop: "1px solid var(--border)" }}>
+                <SiteConfigForm config={siteConfig} onChange={setSiteConfig} onlySections={["resultTable", "patternGeneration"]} />
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-sm)", marginTop: "var(--space-md)" }}>
+                  <button type="button" onClick={() => { try { downloadJson("result-config.json", getResultConfigBlob()) } catch { setRetrievalResult((r) => ({ ...r, error: "Invalid config" })) } }} style={btnSecondary} title="Result table + filters + search loop only">Download result config</button>
+                  <button type="button" onClick={() => { setSaveName("result-config"); setSaveDescription(""); setSaveError(null); setSaveResultConfigModalOpen(true) }} style={btnSecondary}>Save result config</button>
+                  <button type="button" onClick={() => setLoadResultConfigModalOpen(true)} style={btnSecondary}>Load result config</button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div style={{ border: "1px solid var(--border)", borderRadius: 8, marginBottom: "var(--space-md)", overflow: "hidden" }}>
+            <button type="button" onClick={() => setSectionExpanded((s) => ({ ...s, siteConfig: !s.siteConfig }))} style={{ width: "100%", display: "flex", alignItems: "center", gap: "var(--space-sm)", padding: "var(--space-sm) var(--space-md)", background: "var(--bg-elevated)", border: "none", cursor: "pointer", fontSize: "0.9375rem", fontWeight: 600, color: "var(--text-primary)", textAlign: "left" }} className="hover:opacity-90">
+              <span style={{ transform: sectionExpanded.siteConfig ? "rotate(90deg)" : "none", display: "inline-block" }}>▶</span>
+              3. Site config
             </button>
-            <button type="button" onClick={() => { setSaveName(siteConfig.siteId); setSaveDescription(""); setSaveError(null); setSaveConfigModalOpen(true) }} style={btnSecondary}>
-              Save site config
-            </button>
-            <button type="button" onClick={() => setLoadConfigModalOpen(true)} style={btnSecondary}>
-              Load site config
-            </button>
-            <button type="button" onClick={() => { try { downloadJson("result-config.json", getResultConfigBlob()) } catch { setRetrievalResult((r) => ({ ...r, error: "Invalid config" })) } }} style={btnSecondary} title="Result table + filters + search loop only">
-              Download result config
-            </button>
-            <button type="button" onClick={() => { setSaveName("result-config"); setSaveDescription(""); setSaveError(null); setSaveResultConfigModalOpen(true) }} style={btnSecondary}>
-              Save result config
-            </button>
-            <button type="button" onClick={() => setLoadResultConfigModalOpen(true)} style={btnSecondary}>
-              Load result config
-            </button>
+            {sectionExpanded.siteConfig && (
+              <div style={{ padding: "var(--space-md)", borderTop: "1px solid var(--border)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-md)", marginBottom: "var(--space-sm)" }}>
+                  <label style={labelStyle}>Site config (pattern, threshold, selectors)</label>
+                  <button type="button" onClick={() => setSiteConfigJsonMode((m) => !m)} style={btnSecondary}>{siteConfigJsonMode ? "Use form" : "Edit as JSON"}</button>
+                </div>
+                {siteConfigJsonMode ? (
+                  <>
+                    <textarea value={siteConfigJsonText} onChange={(e) => setSiteConfigJsonText(e.target.value)} style={{ ...inputStyle, minHeight: 220, fontFamily: "monospace", fontSize: "0.8125rem" }} />
+                    <button type="button" onClick={applySiteConfigJson} style={{ ...btnSecondary, marginTop: "var(--space-sm)" }}>Apply JSON</button>
+                  </>
+                ) : (
+                  <SiteConfigForm config={siteConfig} onChange={setSiteConfig} onlySections={["site", "iframe", "searchForm", "pagination"]} />
+                )}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-sm)", marginTop: "var(--space-md)" }}>
+                  <button type="button" onClick={() => { try { downloadJson("site-config.json", siteConfigJsonMode ? JSON.parse(siteConfigJsonText) : siteConfig) } catch { setRetrievalResult((r) => ({ ...r, error: "Invalid config JSON" })) } }} style={btnSecondary}>Download site-config.json</button>
+                  <button type="button" onClick={() => { setSaveName(siteConfig.siteId); setSaveDescription(""); setSaveError(null); setSaveConfigModalOpen(true) }} style={btnSecondary}>Save site config</button>
+                  <button type="button" onClick={() => setLoadConfigModalOpen(true)} style={btnSecondary}>Load site config</button>
+                </div>
+              </div>
+            )}
           </div>
         </section>
 
@@ -1125,6 +1190,23 @@ export default function AdminSupersetPage() {
               <div style={{ display: "flex", gap: "var(--space-sm)" }}>
                 <button type="button" onClick={handleSaveResultConfig} disabled={saveLoading} className="btn-primary" style={{ padding: "var(--space-xs) var(--space-sm)" }}>{saveLoading ? "Saving…" : "Save"}</button>
                 <button type="button" onClick={() => { setSaveResultConfigModalOpen(false); setSaveError(null) }} style={btnSecondary}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        )}
+        {saveE2EModalOpen && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", padding: "var(--space-md)" }} onClick={() => setSaveE2EModalOpen(false)}>
+            <div style={{ background: "var(--bg-card)", borderRadius: 12, border: "1px solid var(--border)", padding: "var(--space-md)", maxWidth: 400, width: "100%" }} onClick={(e) => e.stopPropagation()}>
+              <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "var(--space-sm)" }}>Save superset (e2e)</h3>
+              <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginBottom: "var(--space-sm)" }}>Saves current flow and site config as one preset.</p>
+              <label style={labelStyle}>Name</label>
+              <input value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder="e.g. cobb-superset" style={{ ...inputStyle, marginBottom: "var(--space-sm)" }} />
+              <label style={labelStyle}>Description (optional)</label>
+              <input value={saveDescription} onChange={(e) => setSaveDescription(e.target.value)} style={{ ...inputStyle, marginBottom: "var(--space-sm)" }} />
+              {saveError && <p style={{ fontSize: "0.875rem", color: "var(--accent-gold)", marginBottom: "var(--space-sm)" }}>{saveError}</p>}
+              <div style={{ display: "flex", gap: "var(--space-sm)" }}>
+                <button type="button" onClick={handleSaveE2E} disabled={saveLoading} className="btn-primary" style={{ padding: "var(--space-xs) var(--space-sm)" }}>{saveLoading ? "Saving…" : "Save"}</button>
+                <button type="button" onClick={() => { setSaveE2EModalOpen(false); setSaveError(null) }} style={btnSecondary}>Cancel</button>
               </div>
             </div>
           </div>
@@ -1214,6 +1296,42 @@ export default function AdminSupersetPage() {
                           </button>
                           <button type="button" onClick={() => downloadJson(`${(f.name || "result-config").replace(/\s+/g, "-")}.json`, f.flow_json)} style={{ ...btnSecondary, padding: "var(--space-xs)", minHeight: 32 }} title="Download">↓</button>
                           <button type="button" onClick={() => handleDeleteFlow(f.id, f.name, setSavedResultConfigsList, savedResultConfigsList)} style={{ ...btnSecondary, padding: "var(--space-xs)", minHeight: 32, color: "var(--accent-gold)" }} title="Delete">✕</button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        {loadE2EModalOpen && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", padding: "var(--space-md)" }} onClick={() => { setLoadE2EModalOpen(false); setSaveError(null) }}>
+            <div style={{ background: "var(--bg-card)", borderRadius: 12, border: "1px solid var(--border)", maxWidth: 480, width: "100%", maxHeight: "80vh", overflow: "hidden", display: "flex", flexDirection: "column" }} onClick={(e) => e.stopPropagation()}>
+              <div style={{ padding: "var(--space-md)", borderBottom: "1px solid var(--border)" }}>
+                <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "var(--space-sm)" }}>Load superset (e2e)</h3>
+                <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginBottom: "var(--space-sm)" }}>Load a full preset: flow + site config.</p>
+                <input type="text" value={e2ESearch} onChange={(e) => setE2ESearch(e.target.value)} placeholder="Search by name…" style={inputStyle} />
+                {saveError && <p style={{ fontSize: "0.875rem", color: "var(--accent-gold)", marginTop: "var(--space-sm)" }}>{saveError}</p>}
+              </div>
+              <div style={{ overflow: "auto", flex: 1, padding: "var(--space-sm)" }}>
+                {savedE2ELoading ? <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>Loading…</p> : filteredSavedE2E.length === 0 ? <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>No saved supersets</p> : (
+                  <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                    {filteredSavedE2E.map((f) => {
+                      const raw = f.flow_json
+                      const e2e = (typeof raw === "string" ? (() => { try { return JSON.parse(raw) } catch { return null } })() : raw) as { flow?: { name?: string; steps?: ScraperStep[] }; siteConfig?: SiteConfigState } | null
+                      const flowPart = e2e?.flow
+                      const name = flowPart?.name ?? f.name
+                      const stepsArr = Array.isArray(flowPart?.steps) ? flowPart.steps : []
+                      const cfg = e2e?.siteConfig
+                      return (
+                        <li key={f.id} style={{ display: "flex", alignItems: "center", gap: "var(--space-xs)", marginBottom: "var(--space-xs)" }}>
+                          <button type="button" onClick={() => { setFlowName(name ?? "superset-search"); setSteps(stepsArr); if (cfg && typeof cfg === "object") setSiteConfig(cfg); setLoadE2EModalOpen(false); setE2ESearch("") }} style={{ flex: 1, padding: "var(--space-sm)", textAlign: "left", background: "none", border: "none", borderRadius: 8, cursor: "pointer", fontSize: "0.875rem", color: "var(--text-primary)" }} className="hover:bg-[var(--bg-elevated)]">
+                            <span style={{ fontWeight: 500 }}>{f.name}</span>
+                            {f.description && <span style={{ display: "block", fontSize: "0.75rem", color: "var(--text-muted)" }}>{f.description}</span>}
+                          </button>
+                          <button type="button" onClick={() => downloadJson(`${(f.name || "superset-e2e").replace(/\s+/g, "-")}.json`, f.flow_json)} style={{ ...btnSecondary, padding: "var(--space-xs)", minHeight: 32 }} title="Download">↓</button>
+                          <button type="button" onClick={() => handleDeleteFlow(f.id, f.name, setSavedE2EList, savedE2EList)} style={{ ...btnSecondary, padding: "var(--space-xs)", minHeight: 32, color: "var(--accent-gold)" }} title="Delete">✕</button>
                         </li>
                       )
                     })}

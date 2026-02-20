@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
   const q = searchParams.get("q")?.trim().toLowerCase() || ""
   const kind = searchParams.get("kind")?.trim() || ""
 
-  const allowedKinds = ["scraper", "superset_flow", "superset_site_config", "superset_result_config", "retrieval_flow", "autoscrape_flow"]
+  const allowedKinds = ["scraper", "superset_flow", "superset_site_config", "superset_result_config", "superset_e2e", "retrieval_flow", "autoscrape_flow"]
   if (!kind || !allowedKinds.includes(kind)) {
     return NextResponse.json(
       { error: "Query param 'kind' required. Use one of: " + allowedKinds.join(", ") },
@@ -76,11 +76,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  let body: { id?: string; name: string; description?: string; flow_json: object; kind?: string }
+  let body: { id?: string; name?: string; description?: string; flow_json?: object; kind?: string; action?: string }
   try {
     body = await req.json()
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
+  }
+
+  if (body.action === "delete" && body.id?.trim()) {
+    const { error } = await supabase.from("scraper_flows").delete().eq("id", body.id.trim())
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ ok: true })
   }
 
   const { id, name, description, flow_json, kind } = body
@@ -88,7 +94,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "name and flow_json required" }, { status: 400 })
   }
 
-  const flowKind = (kind && ["scraper", "superset_flow", "superset_site_config", "superset_result_config", "retrieval_flow", "autoscrape_flow"].includes(kind))
+  const flowKind = (kind && ["scraper", "superset_flow", "superset_site_config", "superset_result_config", "superset_e2e", "retrieval_flow", "autoscrape_flow"].includes(kind))
     ? kind
     : "scraper"
 
