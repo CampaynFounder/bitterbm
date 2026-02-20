@@ -1,17 +1,31 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
+async function authorize(
+  req: NextRequest,
+  supabase: { auth: { getUser: (token: string) => Promise<{ data: { user: { email?: string } | null } }> } }
+): Promise<boolean> {
+  const adminSecret = process.env.ADMIN_SECRET
+  const headerSecret = req.headers.get("x-admin-secret")
+  if (adminSecret && headerSecret === adminSecret) return true
+  const authHeader = req.headers.get("authorization")
+  if (!authHeader?.startsWith("Bearer ")) return false
+  const adminEmails = (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean)
+  if (adminEmails.length === 0) return false
+  const { data: { user } } = await supabase.auth.getUser(authHeader.slice(7))
+  return !!(user?.email && adminEmails.includes(user.email.toLowerCase()))
+}
+
 /**
- * GET /api/admin/scraper/flows?q=...
- * List flows, optional search by name/description
+ * GET /api/admin/scraper/flows?kind=...&q=...
+ * List flows by kind; optional search by name/description
  */
 export async function GET(req: NextRequest) {
-  const adminSecret = process.env.ADMIN_SECRET
-  if (!adminSecret) {
-    return NextResponse.json({ error: "Admin secret not configured" }, { status: 500 })
-  }
-  const headerSecret = req.headers.get("x-admin-secret")
-  if (headerSecret !== adminSecret) {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+  if (!(await authorize(req, supabase))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
@@ -26,11 +40,6 @@ export async function GET(req: NextRequest) {
       { status: 400 }
     )
   }
-
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
 
   const { data, error } = await supabase
     .from("scraper_flows")
@@ -56,15 +65,14 @@ export async function GET(req: NextRequest) {
 
 /**
  * POST /api/admin/scraper/flows
- * Create or update flow. Body: { id?, name, description?, flow_json }
+ * Create or update flow. Body: { id?, name, description?, flow_json, kind? }
  */
 export async function POST(req: NextRequest) {
-  const adminSecret = process.env.ADMIN_SECRET
-  if (!adminSecret) {
-    return NextResponse.json({ error: "Admin secret not configured" }, { status: 500 })
-  }
-  const headerSecret = req.headers.get("x-admin-secret")
-  if (headerSecret !== adminSecret) {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+  if (!(await authorize(req, supabase))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
@@ -83,11 +91,6 @@ export async function POST(req: NextRequest) {
   const flowKind = (kind && ["scraper", "superset_flow", "superset_site_config", "superset_result_config", "retrieval_flow", "autoscrape_flow"].includes(kind))
     ? kind
     : "scraper"
-
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
 
   const payload = {
     name: name.trim(),
@@ -122,12 +125,11 @@ export async function POST(req: NextRequest) {
  * Body: { id: string } or query ?id=...
  */
 export async function DELETE(req: NextRequest) {
-  const adminSecret = process.env.ADMIN_SECRET
-  if (!adminSecret) {
-    return NextResponse.json({ error: "Admin secret not configured" }, { status: 500 })
-  }
-  const headerSecret = req.headers.get("x-admin-secret")
-  if (headerSecret !== adminSecret) {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+  if (!(await authorize(req, supabase))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
@@ -144,10 +146,6 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "id required" }, { status: 400 })
   }
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
   const { error } = await supabase.from("scraper_flows").delete().eq("id", id.trim())
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ ok: true })

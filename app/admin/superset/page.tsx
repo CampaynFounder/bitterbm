@@ -716,9 +716,10 @@ export default function AdminSupersetPage() {
   const [retrievalLoading, setRetrievalLoading] = useState(false)
   const [retrievalResult, setRetrievalResult] = useState<{ jobId?: string; rowsStored?: number; pdfDocumentsStored?: number; error?: string; logs?: string[] } | null>(null)
 
-  const [savedFlowsList, setSavedFlowsList] = useState<{ id: string; name: string; description?: string; flow_json: unknown }[]>([])
-  const [savedConfigsList, setSavedConfigsList] = useState<{ id: string; name: string; description?: string; flow_json: unknown }[]>([])
-  const [savedResultConfigsList, setSavedResultConfigsList] = useState<{ id: string; name: string; description?: string; flow_json: unknown }[]>([])
+  type SavedFlowRow = { id: string; name: string; description?: string; flow_json: unknown; kind?: string }
+  const [savedFlowsList, setSavedFlowsList] = useState<SavedFlowRow[]>([])
+  const [savedConfigsList, setSavedConfigsList] = useState<SavedFlowRow[]>([])
+  const [savedResultConfigsList, setSavedResultConfigsList] = useState<SavedFlowRow[]>([])
   const [loadFlowModalOpen, setLoadFlowModalOpen] = useState(false)
   const [loadConfigModalOpen, setLoadConfigModalOpen] = useState(false)
   const [loadResultConfigModalOpen, setLoadResultConfigModalOpen] = useState(false)
@@ -767,15 +768,15 @@ export default function AdminSupersetPage() {
     }
   }, [loadResultConfigModalOpen, adminSecret, session?.access_token])
 
-  const filteredSavedFlows = flowSearch.trim()
+  const filteredSavedFlows = (flowSearch.trim()
     ? savedFlowsList.filter((f) => (f.name ?? "").toLowerCase().includes(flowSearch.trim().toLowerCase()) || (f.description ?? "").toLowerCase().includes(flowSearch.trim().toLowerCase()))
-    : savedFlowsList
-  const filteredSavedConfigs = configSearch.trim()
+    : savedFlowsList).filter((f) => !f.kind || f.kind === "superset_flow")
+  const filteredSavedConfigs = (configSearch.trim()
     ? savedConfigsList.filter((f) => (f.name ?? "").toLowerCase().includes(configSearch.trim().toLowerCase()) || (f.description ?? "").toLowerCase().includes(configSearch.trim().toLowerCase()))
-    : savedConfigsList
-  const filteredSavedResultConfigs = resultConfigSearch.trim()
+    : savedConfigsList).filter((f) => !f.kind || f.kind === "superset_site_config")
+  const filteredSavedResultConfigs = (resultConfigSearch.trim()
     ? savedResultConfigsList.filter((f) => (f.name ?? "").toLowerCase().includes(resultConfigSearch.trim().toLowerCase()) || (f.description ?? "").toLowerCase().includes(resultConfigSearch.trim().toLowerCase()))
-    : savedResultConfigsList
+    : savedResultConfigsList).filter((f) => !f.kind || f.kind === "superset_result_config")
 
   async function handleSaveFlow() {
     if (!saveName.trim()) { setSaveError("Name required"); return }
@@ -867,6 +868,24 @@ export default function AdminSupersetPage() {
     if (session?.access_token) h.Authorization = `Bearer ${session.access_token}`
     if (adminSecret) h["X-Admin-Secret"] = adminSecret
     return h
+  }
+
+  async function handleDeleteFlow(id: string, name: string, setList: React.Dispatch<React.SetStateAction<SavedFlowRow[]>>, list: SavedFlowRow[]) {
+    if (!confirm(`Delete "${name}"?`)) return
+    const prev = list
+    setList((l) => l.filter((x) => x.id !== id))
+    setSaveError(null)
+    try {
+      const res = await fetch("/api/admin/scraper/flows", { method: "DELETE", headers: authHeaders(), body: JSON.stringify({ id }) })
+      const data = (await res.json()) as { error?: string }
+      if (!res.ok) {
+        setList(prev)
+        setSaveError(data.error ?? "Delete failed")
+      }
+    } catch {
+      setList(prev)
+      setSaveError("Delete failed")
+    }
   }
 
   function handleSupersetFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -1111,11 +1130,12 @@ export default function AdminSupersetPage() {
           </div>
         )}
         {loadFlowModalOpen && (
-          <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", padding: "var(--space-md)" }} onClick={() => setLoadFlowModalOpen(false)}>
+          <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", padding: "var(--space-md)" }} onClick={() => { setLoadFlowModalOpen(false); setSaveError(null) }}>
             <div style={{ background: "var(--bg-card)", borderRadius: 12, border: "1px solid var(--border)", maxWidth: 480, width: "100%", maxHeight: "80vh", overflow: "hidden", display: "flex", flexDirection: "column" }} onClick={(e) => e.stopPropagation()}>
               <div style={{ padding: "var(--space-md)", borderBottom: "1px solid var(--border)" }}>
                 <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "var(--space-sm)" }}>Load superset flow</h3>
                 <input type="text" value={flowSearch} onChange={(e) => setFlowSearch(e.target.value)} placeholder="Search by name…" style={inputStyle} />
+                {saveError && <p style={{ fontSize: "0.875rem", color: "var(--accent-gold)", marginTop: "var(--space-sm)" }}>{saveError}</p>}
               </div>
               <div style={{ overflow: "auto", flex: 1, padding: "var(--space-sm)" }}>
                 {savedFlowsLoading ? <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>Loading…</p> : filteredSavedFlows.length === 0 ? <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>No saved flows</p> : (
@@ -1131,7 +1151,7 @@ export default function AdminSupersetPage() {
                             {f.description && <span style={{ display: "block", fontSize: "0.75rem", color: "var(--text-muted)" }}>{f.description}</span>}
                           </button>
                           <button type="button" onClick={() => { downloadJson(`${(f.name || "flow").replace(/\s+/g, "-")}.json`, f.flow_json) }} style={{ ...btnSecondary, padding: "var(--space-xs)", minHeight: 32 }} title="Download">↓</button>
-                          <button type="button" onClick={async () => { if (!confirm(`Delete "${f.name}"?`)) return; try { const res = await fetch("/api/admin/scraper/flows", { method: "DELETE", headers: authHeaders(), body: JSON.stringify({ id: f.id }) }); if (!res.ok) throw new Error(); setSavedFlowsList((list) => list.filter((x) => x.id !== f.id)) } catch { setSaveError("Delete failed") } }} style={{ ...btnSecondary, padding: "var(--space-xs)", minHeight: 32, color: "var(--accent-gold)" }} title="Delete">✕</button>
+                          <button type="button" onClick={() => handleDeleteFlow(f.id, f.name, setSavedFlowsList, savedFlowsList)} style={{ ...btnSecondary, padding: "var(--space-xs)", minHeight: 32, color: "var(--accent-gold)" }} title="Delete">✕</button>
                         </li>
                       )
                     })}
@@ -1142,11 +1162,12 @@ export default function AdminSupersetPage() {
           </div>
         )}
         {loadConfigModalOpen && (
-          <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", padding: "var(--space-md)" }} onClick={() => setLoadConfigModalOpen(false)}>
+          <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", padding: "var(--space-md)" }} onClick={() => { setLoadConfigModalOpen(false); setSaveError(null) }}>
             <div style={{ background: "var(--bg-card)", borderRadius: 12, border: "1px solid var(--border)", maxWidth: 480, width: "100%", maxHeight: "80vh", overflow: "hidden", display: "flex", flexDirection: "column" }} onClick={(e) => e.stopPropagation()}>
               <div style={{ padding: "var(--space-md)", borderBottom: "1px solid var(--border)" }}>
                 <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "var(--space-sm)" }}>Load site config</h3>
                 <input type="text" value={configSearch} onChange={(e) => setConfigSearch(e.target.value)} placeholder="Search by name…" style={inputStyle} />
+                {saveError && <p style={{ fontSize: "0.875rem", color: "var(--accent-gold)", marginTop: "var(--space-sm)" }}>{saveError}</p>}
               </div>
               <div style={{ overflow: "auto", flex: 1, padding: "var(--space-sm)" }}>
                 {savedConfigsLoading ? <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>Loading…</p> : filteredSavedConfigs.length === 0 ? <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>No saved configs</p> : (
@@ -1161,7 +1182,7 @@ export default function AdminSupersetPage() {
                             {f.description && <span style={{ display: "block", fontSize: "0.75rem", color: "var(--text-muted)" }}>{f.description}</span>}
                           </button>
                           <button type="button" onClick={() => { downloadJson(`${(f.name || "site-config").replace(/\s+/g, "-")}.json`, f.flow_json) }} style={{ ...btnSecondary, padding: "var(--space-xs)", minHeight: 32 }} title="Download">↓</button>
-                          <button type="button" onClick={async () => { if (!confirm(`Delete "${f.name}"?`)) return; try { const res = await fetch("/api/admin/scraper/flows", { method: "DELETE", headers: authHeaders(), body: JSON.stringify({ id: f.id }) }); if (!res.ok) throw new Error(); setSavedConfigsList((list) => list.filter((x) => x.id !== f.id)) } catch { setSaveError("Delete failed") } }} style={{ ...btnSecondary, padding: "var(--space-xs)", minHeight: 32, color: "var(--accent-gold)" }} title="Delete">✕</button>
+                          <button type="button" onClick={() => handleDeleteFlow(f.id, f.name, setSavedConfigsList, savedConfigsList)} style={{ ...btnSecondary, padding: "var(--space-xs)", minHeight: 32, color: "var(--accent-gold)" }} title="Delete">✕</button>
                         </li>
                       )
                     })}
@@ -1172,11 +1193,12 @@ export default function AdminSupersetPage() {
           </div>
         )}
         {loadResultConfigModalOpen && (
-          <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", padding: "var(--space-md)" }} onClick={() => setLoadResultConfigModalOpen(false)}>
+          <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", padding: "var(--space-md)" }} onClick={() => { setLoadResultConfigModalOpen(false); setSaveError(null) }}>
             <div style={{ background: "var(--bg-card)", borderRadius: 12, border: "1px solid var(--border)", maxWidth: 480, width: "100%", maxHeight: "80vh", overflow: "hidden", display: "flex", flexDirection: "column" }} onClick={(e) => e.stopPropagation()}>
               <div style={{ padding: "var(--space-md)", borderBottom: "1px solid var(--border)" }}>
                 <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "var(--space-sm)" }}>Load result config (table + filters + search loop)</h3>
                 <input type="text" value={resultConfigSearch} onChange={(e) => setResultConfigSearch(e.target.value)} placeholder="Search by name…" style={inputStyle} />
+                {saveError && <p style={{ fontSize: "0.875rem", color: "var(--accent-gold)", marginTop: "var(--space-sm)" }}>{saveError}</p>}
               </div>
               <div style={{ overflow: "auto", flex: 1, padding: "var(--space-sm)" }}>
                 {savedResultConfigsLoading ? <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>Loading…</p> : filteredSavedResultConfigs.length === 0 ? <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>No saved result configs</p> : (
@@ -1191,7 +1213,7 @@ export default function AdminSupersetPage() {
                             {f.description && <span style={{ display: "block", fontSize: "0.75rem", color: "var(--text-muted)" }}>{f.description}</span>}
                           </button>
                           <button type="button" onClick={() => downloadJson(`${(f.name || "result-config").replace(/\s+/g, "-")}.json`, f.flow_json)} style={{ ...btnSecondary, padding: "var(--space-xs)", minHeight: 32 }} title="Download">↓</button>
-                          <button type="button" onClick={async () => { if (!confirm(`Delete "${f.name}"?`)) return; try { const res = await fetch("/api/admin/scraper/flows", { method: "DELETE", headers: authHeaders(), body: JSON.stringify({ id: f.id }) }); if (!res.ok) throw new Error(); setSavedResultConfigsList((list) => list.filter((x) => x.id !== f.id)) } catch { setSaveError("Delete failed") } }} style={{ ...btnSecondary, padding: "var(--space-xs)", minHeight: 32, color: "var(--accent-gold)" }} title="Delete">✕</button>
+                          <button type="button" onClick={() => handleDeleteFlow(f.id, f.name, setSavedResultConfigsList, savedResultConfigsList)} style={{ ...btnSecondary, padding: "var(--space-xs)", minHeight: 32, color: "var(--accent-gold)" }} title="Delete">✕</button>
                         </li>
                       )
                     })}
