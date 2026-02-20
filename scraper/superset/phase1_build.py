@@ -10,7 +10,45 @@ Usage:
   python phase1_build.py --flow flow.json --site-config site-config.json [--output superset.json]
 
 Config file (combined) shape: { "flow": { "name": "...", "steps": [...] }, "siteConfig": { ... } }
-Site config must include resultTable (tableSelector, rowSelector, primaryId, threshold, optional rowFilter, nestedRowFilters, extractColumns).
+Site config must include resultTable (tableSelector, rowSelector, primaryId, threshold, optional rowFilter, nestedRowFilters, nestedTableChecks, extractColumns).
+
+--- Nested tables: include/exclude rows and output exists/values ---
+
+1) Include or exclude PARENT ROWS based on nested content (exists / not exists)
+   Use nestedRowFilters. Each entry:
+   - selectorWithinRow: CSS selector evaluated INSIDE each result row (e.g. "td:nth-child(5) table#EventGrid tbody tr").
+   - condition: "exists" = keep parent if at least one match; "not_exists" = keep parent if zero matches.
+   - includeParentWhen: true = keep parent when condition holds; false = drop parent when condition holds.
+
+   Example: only keep result rows that contain a nested table with at least one row:
+     "nestedRowFilters": [
+       { "selectorWithinRow": "td:nth-child(5) table#EventGrid tbody tr", "condition": "exists", "includeParentWhen": true }
+     ]
+   Example: exclude result rows that have any nested "ORDER FINAL" row (if you had a selector for that cell):
+     "nestedRowFilters": [
+       { "selectorWithinRow": "td:nth-child(5) table#EventGrid tbody tr:has(td:has-text('ORDER FINAL'))", "condition": "exists", "includeParentWhen": false }
+     ]
+
+2) Output per-row data from nested tables (exists, or value in column)
+   Use nestedTableChecks. Each entry:
+   - name: label in output (e.g. "HasEventGrid").
+   - tableSelector: CSS for the nested table/container (e.g. "table#EventGrid").
+   - scope: "row" = look inside the current result row; "page" = look from page/frame root.
+   - rowSelector: optional CSS for rows inside the table (e.g. "tbody tr"). Omit to check the table element itself.
+   - operator: "exists" = at least one element/row; "equals" = cell text equals value; "in" = cell text in value list.
+   - value: for equals/in, the string or list of strings to match in the column.
+   - columnIndex: 0-based column (for equals/in only).
+   - outputInRow: true = add { name: { "exists": bool, "rowIndex"?: number } } to each row in the output.
+
+   Example: record whether a nested table exists (no column check):
+     "nestedTableChecks": [
+       { "name": "HasEventGrid", "tableSelector": "table#EventGrid", "scope": "row", "operator": "exists", "outputInRow": true }
+     ]
+   Example: record whether any row in the nested table has column 0 equal to "ORDER FINAL":
+     "nestedTableChecks": [
+       { "name": "HasOrderFinal", "tableSelector": "table#EventGrid", "scope": "row", "rowSelector": "tbody tr", "columnIndex": 0, "operator": "equals", "value": "ORDER FINAL", "outputInRow": true }
+     ]
+   Note: rowSelector must be a CSS selector (e.g. "tbody tr"), not plain text. Use "equals" with value "ORDER FINAL" to match cell text.
 """
 
 import argparse
@@ -229,7 +267,7 @@ def nested_filter_passes(row_locator, nested_filters):
         cond = nf.get("condition", "exists")
         include_when = nf.get("includeParentWhen", True)
         try:
-            count = row_locator.locator(sel).count
+            count = row_locator.locator(sel).count()
             exists = count > 0
         except Exception:
             exists = False
@@ -242,6 +280,64 @@ def nested_filter_passes(row_locator, nested_filters):
         if not include_when and matches:
             return False
     return True
+
+
+def run_nested_table_checks(row_locator, root, nested_checks):
+    """
+    Run nestedTableChecks: for each check, resolve scope (row vs page), then either
+    - operator 'exists': element/table (and optional rowSelector) has at least one match.
+    - operator 'equals' / 'in': at least one row in the table has cell text matching value(s).
+    Returns a dict to merge into the row's extracted data (only checks with outputInRow: true).
+    """
+    if not nested_checks:
+        return {}
+    out = {}
+    for nc in nested_checks:
+        if not nc.get("outputInRow"):
+            continue
+        name = (nc.get("name") or "nested").strip() or "nested"
+        scope = nc.get("scope", "row")
+        base = row_locator if scope == "row" else root
+        table_sel = (nc.get("tableSelector") or "").strip()
+        if not table_sel:
+            out[name] = {"exists": False}
+            continue
+        row_sel = (nc.get("rowSelector") or "").strip() or None
+        operator = nc.get("operator", "exists")
+        value = nc.get("value")
+        col_idx = max(0, int(nc.get("columnIndex", 0)))
+        cell_sel = f"td:nth-child({col_idx + 1}), th:nth-child({col_idx + 1})"
+        exists = False
+        row_index = None
+        try:
+            table_loc = base.locator(table_sel)
+            if operator == "exists":
+                loc = table_loc.locator(row_sel) if row_sel else table_loc
+                exists = loc.count() > 0
+            else:
+                rows_loc = table_loc.locator(row_sel or "tr")
+                n = rows_loc.count()
+                vals = value if operator == "in" and isinstance(value, list) else [value]
+                vals = [str(v).strip() for v in vals if v is not None]
+                for r in range(n):
+                    cell = rows_loc.nth(r).locator(cell_sel).first
+                    cell_text = (cell.inner_text() or "").strip()
+                    if operator == "equals":
+                        if vals and cell_text == (str(vals[0]) if vals else ""):
+                            exists = True
+                            row_index = r
+                            break
+                    else:  # in
+                        if cell_text in vals:
+                            exists = True
+                            row_index = r
+                            break
+        except Exception:
+            exists = False
+        out[name] = {"exists": exists}
+        if row_index is not None:
+            out[name]["rowIndex"] = row_index
+    return out
 
 
 def extract_row_id_and_data(row_locator, result_table, rt):
@@ -320,22 +416,34 @@ def main():
             sys.exit(1)
 
         rows_loc = table.locator(row_selector)
-        n_rows = rows_loc.count
+        n_rows = rows_loc.count()
         log(f"Found {n_rows} rows")
 
         ids = []
         rows_data = []
-        for i in range(n_rows):
-            row_loc = rows_loc.nth(i)
-            if not row_matches_filter(row_loc, row_filter, row_filter_logic, table_selector, row_selector):
-                continue
-            if not nested_filter_passes(row_loc, nested_row_filters):
-                continue
-            id_val, extracted = extract_row_id_and_data(row_loc, site_config, rt)
-            if id_val:
-                ids.append(id_val)
-                rows_data.append({"id": id_val, **extracted})
+        row_timeout_ms = 8000  # per-row locator timeout to avoid long hangs
+        page.set_default_timeout(row_timeout_ms)
+        try:
+            for i in range(n_rows):
+                log(f"Processing row {i + 1}/{n_rows} ...")
+                row_loc = rows_loc.nth(i)
+                if not row_matches_filter(row_loc, row_filter, row_filter_logic, table_selector, row_selector):
+                    continue
+                if not nested_filter_passes(row_loc, nested_row_filters):
+                    continue
+                id_val, extracted = extract_row_id_and_data(row_loc, site_config, rt)
+                nested_checks_result = run_nested_table_checks(
+                    row_loc, root, rt.get("nestedTableChecks") or []
+                )
+                extracted = {**extracted, **nested_checks_result}
+                if id_val:
+                    ids.append(id_val)
+                    rows_data.append({"id": id_val, **extracted})
+                    log(f"  -> id={id_val}")
+        finally:
+            page.set_default_timeout(30000)  # restore default
 
+        log(f"Finished processing {n_rows} rows; {len(ids)} matched.")
         browser.close()
 
     if len(ids) < threshold:
@@ -360,7 +468,14 @@ def main():
     out_str = json.dumps(out, indent=2)
     if args.output:
         Path(args.output).write_text(out_str, encoding="utf-8")
-        log(f"Wrote {len(ids)} ids to {args.output}")
+        n_ids = len(ids)
+        n_rows = len(rows_data)
+        log(f"Wrote {n_ids} ids to {args.output}")
+        log(f"Output count: {n_ids} primary ids, {n_rows} rows (extracted values)")
+        if rows_data:
+            last_record = rows_data[-1]
+            log(f"Last record: primary_id={last_record.get('id', '')} | {json.dumps({k: v for k, v in last_record.items() if k != 'id'})}")
+        log("Output file written. You can end the process (e.g. Ctrl+C) when ready.")
     else:
         print(out_str)
 

@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "scraper:headed": "tsx scripts/run-scraper-headed.ts"
+    "scraper:headed": "tsx scripts/run-scraper-headed.ts",
+    "phase1-build": "python scraper/superset/phase1_build.py"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.77.0",
