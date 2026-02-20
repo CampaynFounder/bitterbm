@@ -89,9 +89,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
-  const { id, name, description, flow_json, kind } = body
-  if (!name?.trim() || !flow_json || typeof flow_json !== "object") {
-    return NextResponse.json({ error: "name and flow_json required" }, { status: 400 })
+  let { id, name, description, flow_json, kind } = body
+  if (!name?.trim()) {
+    return NextResponse.json({ error: "name is required" }, { status: 400 })
+  }
+  if (flow_json == null) {
+    return NextResponse.json({ error: "flow_json is required" }, { status: 400 })
+  }
+  if (typeof flow_json === "string") {
+    try {
+      flow_json = JSON.parse(flow_json) as object
+    } catch {
+      return NextResponse.json({ error: "flow_json must be valid JSON when sent as string" }, { status: 400 })
+    }
+  }
+  if (typeof flow_json !== "object" || Array.isArray(flow_json)) {
+    return NextResponse.json({ error: "flow_json must be an object" }, { status: 400 })
   }
 
   const flowKind = (kind && ["scraper", "superset_flow", "superset_site_config", "superset_result_config", "superset_e2e", "retrieval_flow", "autoscrape_flow"].includes(kind))

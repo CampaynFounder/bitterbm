@@ -131,8 +131,8 @@ export type SiteConfigState = {
       rowSelector?: string
       /** 0-based column index (nth child) to check. */
       columnIndex?: number
-      /** "equals" or "in" for value check. */
-      operator?: "equals" | "in"
+      /** "exists" = element/table exists (no column value check); "equals" or "in" for value check. */
+      operator?: "exists" | "equals" | "in"
       /** Value(s) to match in that column. */
       value?: string | string[]
       /** If set, output includes: name, exists (boolean), tableSelector, columnIndex, rowIndex (nth row match). */
@@ -599,16 +599,21 @@ function SiteConfigForm({ config, onChange, onlySections }: { config: SiteConfig
                 </div>
                 <div style={{ display: "flex", gap: "var(--space-sm)", flexWrap: "wrap", alignItems: "center", marginBottom: "var(--space-xs)" }}>
                   <input value={nc.rowSelector ?? ""} onChange={(e) => { const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], rowSelector: e.target.value.trim() || undefined }; update("resultTable.nestedTableChecks", arr) }} placeholder="Row selector (e.g. tbody tr)" style={{ ...inputStyle, width: 120 }} />
-                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Column (nth):</span>
-                  <input type="number" value={nc.columnIndex ?? 0} onChange={(e) => { const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], columnIndex: parseInt(e.target.value, 10) || 0 }; update("resultTable.nestedTableChecks", arr) }} style={{ ...inputStyle, width: 56 }} />
-                  <select value={nc.operator ?? "equals"} onChange={(e) => { const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], operator: e.target.value as "equals" | "in" }; update("resultTable.nestedTableChecks", arr) }} style={{ ...inputStyle, width: 80 }}><option value="equals">equals</option><option value="in">in</option></select>
-                  <input value={Array.isArray(nc.value) ? (nc.value as string[]).join(", ") : String(nc.value ?? "")} onChange={(e) => { const v = e.target.value; const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], value: (nc.operator ?? "equals") === "in" ? v.split(",").map((s) => s.trim()).filter(Boolean) : v }; update("resultTable.nestedTableChecks", arr) }} placeholder="Value(s)" style={{ ...inputStyle, width: 100 }} />
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Check:</span>
+                  <select value={nc.operator ?? "equals"} onChange={(e) => { const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], operator: e.target.value as "exists" | "equals" | "in" }; update("resultTable.nestedTableChecks", arr) }} style={{ ...inputStyle, width: 88 }}><option value="exists">exists</option><option value="equals">equals</option><option value="in">in</option></select>
+                  {(nc.operator ?? "equals") !== "exists" && (
+                    <>
+                      <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Column (nth):</span>
+                      <input type="number" min={0} value={Math.max(0, nc.columnIndex ?? 0)} onChange={(e) => { const v = Math.max(0, parseInt(e.target.value, 10) || 0); const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], columnIndex: v }; update("resultTable.nestedTableChecks", arr) }} style={{ ...inputStyle, width: 56 }} />
+                      <input value={Array.isArray(nc.value) ? (nc.value as string[]).join(", ") : String(nc.value ?? "")} onChange={(e) => { const v = e.target.value; const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], value: (nc.operator ?? "equals") === "in" ? v.split(",").map((s) => s.trim()).filter(Boolean) : v }; update("resultTable.nestedTableChecks", arr) }} placeholder="Value(s)" style={{ ...inputStyle, width: 100 }} />
+                    </>
+                  )}
                   <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.8125rem" }}><input type="checkbox" checked={nc.outputInRow ?? false} onChange={(e) => { const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], outputInRow: e.target.checked }; update("resultTable.nestedTableChecks", arr) }} />Output in row</label>
                 </div>
                 <button type="button" onClick={() => update("resultTable.nestedTableChecks", (rt.nestedTableChecks ?? []).filter((_, j) => j !== i))} style={btnSecondary}>Remove</button>
               </div>
             ))}
-            <button type="button" onClick={() => update("resultTable.nestedTableChecks", [...(rt.nestedTableChecks ?? []), { name: "Nested table 1", tableSelector: "table.nested", scope: "row", columnIndex: 0, operator: "equals" as const, value: "", outputInRow: true }])} style={{ ...btnSecondary, marginTop: "var(--space-xs)" }}>+ Add nested table check</button>
+            <button type="button" onClick={() => update("resultTable.nestedTableChecks", [...(rt.nestedTableChecks ?? []), { name: "Nested table 1", tableSelector: "table.nested", scope: "page", operator: "exists" as const, outputInRow: true }])} style={{ ...btnSecondary, marginTop: "var(--space-xs)" }}>+ Add nested table check</button>
           </div>
         </>
         )
