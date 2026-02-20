@@ -1240,7 +1240,7 @@ export default function AdminScrapePage() {
   useEffect(() => {
     if (loadModalOpen && (adminSecret || session?.access_token)) {
       setFlowsLoading(true)
-      fetch(`/api/admin/scraper/flows`, { headers: authHeaders() })
+      fetch(`/api/admin/scraper/flows?kind=scraper`, { headers: authHeaders() })
         .then((res) => res.json())
         .then((data) => setFlowsList(data.flows ?? []))
         .catch(() => setFlowsList([]))
@@ -1293,6 +1293,7 @@ export default function AdminScrapePage() {
           name: flowName.trim(),
           description: flowDescription.trim() || undefined,
           flow_json: flowJson,
+          kind: "scraper",
         }),
       })
       const data = await res.json()
@@ -1592,12 +1593,12 @@ export default function AdminScrapePage() {
                 ) : (
                   <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                     {filteredFlows.map((f) => (
-                      <li key={f.id}>
+                      <li key={f.id} style={{ display: "flex", alignItems: "center", gap: "var(--space-xs)", marginBottom: "var(--space-xs)" }}>
                         <button
                           type="button"
                           onClick={() => handleSelectFlow(f)}
                           style={{
-                            width: "100%",
+                            flex: 1,
                             padding: "var(--space-sm)",
                             textAlign: "left",
                             background: "none",
@@ -1611,6 +1612,22 @@ export default function AdminScrapePage() {
                         >
                           <span style={{ fontWeight: 500 }}>{f.name}</span>
                           {f.description && <span style={{ display: "block", fontSize: "0.75rem", color: "var(--text-muted)" }}>{f.description}</span>}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); const blob = new Blob([JSON.stringify(f.flow_json, null, 2)], { type: "application/json" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${(f.name || "flow").replace(/\s+/g, "-")}.json`; a.click(); URL.revokeObjectURL(a.href); }}
+                          style={{ ...btnSecondary, padding: "var(--space-xs)", minHeight: 32 }}
+                          title="Download"
+                        >
+                          ↓
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async (e) => { e.stopPropagation(); if (!confirm(`Delete "${f.name}"?`)) return; try { const res = await fetch("/api/admin/scraper/flows", { method: "DELETE", headers: authHeaders(), body: JSON.stringify({ id: f.id }) }); if (!res.ok) throw new Error((await res.json()).error); setFlowsList((list) => list.filter((x) => x.id !== f.id)); } catch (err) { setSaveError(err instanceof Error ? err.message : "Delete failed"); } }}
+                          style={{ ...btnSecondary, padding: "var(--space-xs)", minHeight: 32, color: "var(--accent-gold)" }}
+                          title="Delete"
+                        >
+                          ✕
                         </button>
                       </li>
                     ))}

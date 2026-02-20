@@ -564,6 +564,92 @@ export default function AdminSupersetPage() {
   const [retrievalLoading, setRetrievalLoading] = useState(false)
   const [retrievalResult, setRetrievalResult] = useState<{ jobId?: string; rowsStored?: number; pdfDocumentsStored?: number; error?: string; logs?: string[] } | null>(null)
 
+  const [savedFlowsList, setSavedFlowsList] = useState<{ id: string; name: string; description?: string; flow_json: unknown }[]>([])
+  const [savedConfigsList, setSavedConfigsList] = useState<{ id: string; name: string; description?: string; flow_json: unknown }[]>([])
+  const [loadFlowModalOpen, setLoadFlowModalOpen] = useState(false)
+  const [loadConfigModalOpen, setLoadConfigModalOpen] = useState(false)
+  const [saveFlowModalOpen, setSaveFlowModalOpen] = useState(false)
+  const [saveConfigModalOpen, setSaveConfigModalOpen] = useState(false)
+  const [saveName, setSaveName] = useState("")
+  const [saveDescription, setSaveDescription] = useState("")
+  const [flowSearch, setFlowSearch] = useState("")
+  const [configSearch, setConfigSearch] = useState("")
+  const [savedFlowsLoading, setSavedFlowsLoading] = useState(false)
+  const [savedConfigsLoading, setSavedConfigsLoading] = useState(false)
+  const [saveLoading, setSaveLoading] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (loadFlowModalOpen && (adminSecret || session?.access_token)) {
+      setSavedFlowsLoading(true)
+      fetch(`/api/admin/scraper/flows?kind=superset_flow`, { headers: authHeaders() })
+        .then((res) => res.json())
+        .then((data) => setSavedFlowsList(data.flows ?? []))
+        .catch(() => setSavedFlowsList([]))
+        .finally(() => setSavedFlowsLoading(false))
+    }
+  }, [loadFlowModalOpen, adminSecret, session?.access_token])
+  useEffect(() => {
+    if (loadConfigModalOpen && (adminSecret || session?.access_token)) {
+      setSavedConfigsLoading(true)
+      fetch(`/api/admin/scraper/flows?kind=superset_site_config`, { headers: authHeaders() })
+        .then((res) => res.json())
+        .then((data) => setSavedConfigsList(data.flows ?? []))
+        .catch(() => setSavedConfigsList([]))
+        .finally(() => setSavedConfigsLoading(false))
+    }
+  }, [loadConfigModalOpen, adminSecret, session?.access_token])
+
+  const filteredSavedFlows = flowSearch.trim()
+    ? savedFlowsList.filter((f) => (f.name ?? "").toLowerCase().includes(flowSearch.trim().toLowerCase()) || (f.description ?? "").toLowerCase().includes(flowSearch.trim().toLowerCase()))
+    : savedFlowsList
+  const filteredSavedConfigs = configSearch.trim()
+    ? savedConfigsList.filter((f) => (f.name ?? "").toLowerCase().includes(configSearch.trim().toLowerCase()) || (f.description ?? "").toLowerCase().includes(configSearch.trim().toLowerCase()))
+    : savedConfigsList
+
+  async function handleSaveFlow() {
+    if (!saveName.trim()) { setSaveError("Name required"); return }
+    setSaveLoading(true)
+    setSaveError(null)
+    try {
+      const res = await fetch("/api/admin/scraper/flows", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ name: saveName.trim(), description: saveDescription.trim() || undefined, flow_json: { name: flowName, steps }, kind: "superset_flow" }),
+      })
+      const data = (await res.json()) as { error?: string }
+      if (!res.ok) throw new Error(data.error ?? "Save failed")
+      setSaveFlowModalOpen(false)
+      setSaveName("")
+      setSaveDescription("")
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Save failed")
+    } finally {
+      setSaveLoading(false)
+    }
+  }
+  async function handleSaveConfig() {
+    if (!saveName.trim()) { setSaveError("Name required"); return }
+    setSaveLoading(true)
+    setSaveError(null)
+    try {
+      const res = await fetch("/api/admin/scraper/flows", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ name: saveName.trim(), description: saveDescription.trim() || undefined, flow_json: siteConfig, kind: "superset_site_config" }),
+      })
+      const data = (await res.json()) as { error?: string }
+      if (!res.ok) throw new Error(data.error ?? "Save failed")
+      setSaveConfigModalOpen(false)
+      setSaveName("")
+      setSaveDescription("")
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Save failed")
+    } finally {
+      setSaveLoading(false)
+    }
+  }
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       if (!s) {
@@ -714,9 +800,15 @@ export default function AdminSupersetPage() {
           ) : (
             <SupersetFlowEditor flowName={flowName} steps={steps} onFlowNameChange={setFlowName} onStepsChange={setSteps} onError={(msg) => setRetrievalResult((r) => ({ ...r, error: msg }))} />
           )}
-          <div style={{ display: "flex", gap: "var(--space-sm)", marginTop: "var(--space-md)" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-sm)", marginTop: "var(--space-md)" }}>
             <button type="button" onClick={() => { try { downloadJson("superset-flow.json", flowJsonMode ? JSON.parse(flowJsonText) : { name: flowName, steps }) } catch { setRetrievalResult((r) => ({ ...r, error: "Invalid flow JSON" })) } }} style={btnSecondary}>
               Download flow.json
+            </button>
+            <button type="button" onClick={() => { setSaveName(flowName); setSaveDescription(""); setSaveError(null); setSaveFlowModalOpen(true) }} style={btnSecondary}>
+              Save flow
+            </button>
+            <button type="button" onClick={() => setLoadFlowModalOpen(true)} style={btnSecondary}>
+              Load flow
             </button>
           </div>
 
@@ -734,12 +826,109 @@ export default function AdminSupersetPage() {
           ) : (
             <SiteConfigForm config={siteConfig} onChange={setSiteConfig} />
           )}
-          <div style={{ display: "flex", gap: "var(--space-sm)", marginTop: "var(--space-md)" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-sm)", marginTop: "var(--space-md)" }}>
             <button type="button" onClick={() => { try { downloadJson("site-config.json", siteConfigJsonMode ? JSON.parse(siteConfigJsonText) : siteConfig) } catch { setRetrievalResult((r) => ({ ...r, error: "Invalid config JSON" })) } }} style={btnSecondary}>
               Download site-config.json
             </button>
+            <button type="button" onClick={() => { setSaveName(siteConfig.siteId); setSaveDescription(""); setSaveError(null); setSaveConfigModalOpen(true) }} style={btnSecondary}>
+              Save site config
+            </button>
+            <button type="button" onClick={() => setLoadConfigModalOpen(true)} style={btnSecondary}>
+              Load site config
+            </button>
           </div>
         </section>
+
+        {saveFlowModalOpen && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", padding: "var(--space-md)" }} onClick={() => setSaveFlowModalOpen(false)}>
+            <div style={{ background: "var(--bg-card)", borderRadius: 12, border: "1px solid var(--border)", padding: "var(--space-md)", maxWidth: 400, width: "100%" }} onClick={(e) => e.stopPropagation()}>
+              <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "var(--space-sm)" }}>Save superset flow</h3>
+              <label style={labelStyle}>Name</label>
+              <input value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder="e.g. cobb-search" style={{ ...inputStyle, marginBottom: "var(--space-sm)" }} />
+              <label style={labelStyle}>Description (optional)</label>
+              <input value={saveDescription} onChange={(e) => setSaveDescription(e.target.value)} style={{ ...inputStyle, marginBottom: "var(--space-sm)" }} />
+              {saveError && <p style={{ fontSize: "0.875rem", color: "var(--accent-gold)", marginBottom: "var(--space-sm)" }}>{saveError}</p>}
+              <div style={{ display: "flex", gap: "var(--space-sm)" }}>
+                <button type="button" onClick={handleSaveFlow} disabled={saveLoading} className="btn-primary" style={{ padding: "var(--space-xs) var(--space-sm)" }}>{saveLoading ? "Saving…" : "Save"}</button>
+                <button type="button" onClick={() => { setSaveFlowModalOpen(false); setSaveError(null) }} style={btnSecondary}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        )}
+        {saveConfigModalOpen && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", padding: "var(--space-md)" }} onClick={() => setSaveConfigModalOpen(false)}>
+            <div style={{ background: "var(--bg-card)", borderRadius: 12, border: "1px solid var(--border)", padding: "var(--space-md)", maxWidth: 400, width: "100%" }} onClick={(e) => e.stopPropagation()}>
+              <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "var(--space-sm)" }}>Save site config</h3>
+              <label style={labelStyle}>Name</label>
+              <input value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder="e.g. cobb-superior" style={{ ...inputStyle, marginBottom: "var(--space-sm)" }} />
+              <label style={labelStyle}>Description (optional)</label>
+              <input value={saveDescription} onChange={(e) => setSaveDescription(e.target.value)} style={{ ...inputStyle, marginBottom: "var(--space-sm)" }} />
+              {saveError && <p style={{ fontSize: "0.875rem", color: "var(--accent-gold)", marginBottom: "var(--space-sm)" }}>{saveError}</p>}
+              <div style={{ display: "flex", gap: "var(--space-sm)" }}>
+                <button type="button" onClick={handleSaveConfig} disabled={saveLoading} className="btn-primary" style={{ padding: "var(--space-xs) var(--space-sm)" }}>{saveLoading ? "Saving…" : "Save"}</button>
+                <button type="button" onClick={() => { setSaveConfigModalOpen(false); setSaveError(null) }} style={btnSecondary}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        )}
+        {loadFlowModalOpen && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", padding: "var(--space-md)" }} onClick={() => setLoadFlowModalOpen(false)}>
+            <div style={{ background: "var(--bg-card)", borderRadius: 12, border: "1px solid var(--border)", maxWidth: 480, width: "100%", maxHeight: "80vh", overflow: "hidden", display: "flex", flexDirection: "column" }} onClick={(e) => e.stopPropagation()}>
+              <div style={{ padding: "var(--space-md)", borderBottom: "1px solid var(--border)" }}>
+                <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "var(--space-sm)" }}>Load superset flow</h3>
+                <input type="text" value={flowSearch} onChange={(e) => setFlowSearch(e.target.value)} placeholder="Search by name…" style={inputStyle} />
+              </div>
+              <div style={{ overflow: "auto", flex: 1, padding: "var(--space-sm)" }}>
+                {savedFlowsLoading ? <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>Loading…</p> : filteredSavedFlows.length === 0 ? <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>No saved flows</p> : (
+                  <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                    {filteredSavedFlows.map((f) => {
+                      const fj = f.flow_json as { name?: string; steps?: ScraperStep[] }
+                      return (
+                        <li key={f.id} style={{ display: "flex", alignItems: "center", gap: "var(--space-xs)", marginBottom: "var(--space-xs)" }}>
+                          <button type="button" onClick={() => { if (fj?.steps?.length) { setFlowName(fj.name ?? f.name); setSteps(fj.steps); setLoadFlowModalOpen(false); setFlowSearch("") } }} style={{ flex: 1, padding: "var(--space-sm)", textAlign: "left", background: "none", border: "none", borderRadius: 8, cursor: "pointer", fontSize: "0.875rem", color: "var(--text-primary)" }} className="hover:bg-[var(--bg-elevated)]">
+                            <span style={{ fontWeight: 500 }}>{f.name}</span>
+                            {f.description && <span style={{ display: "block", fontSize: "0.75rem", color: "var(--text-muted)" }}>{f.description}</span>}
+                          </button>
+                          <button type="button" onClick={() => { downloadJson(`${(f.name || "flow").replace(/\s+/g, "-")}.json`, f.flow_json) }} style={{ ...btnSecondary, padding: "var(--space-xs)", minHeight: 32 }} title="Download">↓</button>
+                          <button type="button" onClick={async () => { if (!confirm(`Delete "${f.name}"?`)) return; try { const res = await fetch("/api/admin/scraper/flows", { method: "DELETE", headers: authHeaders(), body: JSON.stringify({ id: f.id }) }); if (!res.ok) throw new Error(); setSavedFlowsList((list) => list.filter((x) => x.id !== f.id)) } catch { setSaveError("Delete failed") } }} style={{ ...btnSecondary, padding: "var(--space-xs)", minHeight: 32, color: "var(--accent-gold)" }} title="Delete">✕</button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        {loadConfigModalOpen && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", padding: "var(--space-md)" }} onClick={() => setLoadConfigModalOpen(false)}>
+            <div style={{ background: "var(--bg-card)", borderRadius: 12, border: "1px solid var(--border)", maxWidth: 480, width: "100%", maxHeight: "80vh", overflow: "hidden", display: "flex", flexDirection: "column" }} onClick={(e) => e.stopPropagation()}>
+              <div style={{ padding: "var(--space-md)", borderBottom: "1px solid var(--border)" }}>
+                <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "var(--space-sm)" }}>Load site config</h3>
+                <input type="text" value={configSearch} onChange={(e) => setConfigSearch(e.target.value)} placeholder="Search by name…" style={inputStyle} />
+              </div>
+              <div style={{ overflow: "auto", flex: 1, padding: "var(--space-sm)" }}>
+                {savedConfigsLoading ? <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>Loading…</p> : filteredSavedConfigs.length === 0 ? <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>No saved configs</p> : (
+                  <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                    {filteredSavedConfigs.map((f) => {
+                      const cfg = f.flow_json as SiteConfigState
+                      return (
+                        <li key={f.id} style={{ display: "flex", alignItems: "center", gap: "var(--space-xs)", marginBottom: "var(--space-xs)" }}>
+                          <button type="button" onClick={() => { if (cfg) { setSiteConfig(cfg); setLoadConfigModalOpen(false); setConfigSearch("") } }} style={{ flex: 1, padding: "var(--space-sm)", textAlign: "left", background: "none", border: "none", borderRadius: 8, cursor: "pointer", fontSize: "0.875rem", color: "var(--text-primary)" }} className="hover:bg-[var(--bg-elevated)]">
+                            <span style={{ fontWeight: 500 }}>{f.name}</span>
+                            {f.description && <span style={{ display: "block", fontSize: "0.75rem", color: "var(--text-muted)" }}>{f.description}</span>}
+                          </button>
+                          <button type="button" onClick={() => { downloadJson(`${(f.name || "site-config").replace(/\s+/g, "-")}.json`, f.flow_json) }} style={{ ...btnSecondary, padding: "var(--space-xs)", minHeight: 32 }} title="Download">↓</button>
+                          <button type="button" onClick={async () => { if (!confirm(`Delete "${f.name}"?`)) return; try { const res = await fetch("/api/admin/scraper/flows", { method: "DELETE", headers: authHeaders(), body: JSON.stringify({ id: f.id }) }); if (!res.ok) throw new Error(); setSavedConfigsList((list) => list.filter((x) => x.id !== f.id)) } catch { setSaveError("Delete failed") } }} style={{ ...btnSecondary, padding: "var(--space-xs)", minHeight: 32, color: "var(--accent-gold)" }} title="Delete">✕</button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         <section style={{ padding: "var(--space-md)", borderRadius: "12px", background: "var(--bg-card)", border: "1px solid var(--border)", marginBottom: "var(--space-lg)" }}>
           <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "var(--space-md)" }}>2. Retrieval with ids (Phase 2)</h2>

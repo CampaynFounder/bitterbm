@@ -66,6 +66,54 @@ export default function AdminAutoscrapePage() {
     error?: string
   } | null>(null)
 
+  const [savedFlowsList, setSavedFlowsList] = useState<{ id: string; name: string; description?: string; flow_json: unknown }[]>([])
+  const [loadModalOpen, setLoadModalOpen] = useState(false)
+  const [saveModalOpen, setSaveModalOpen] = useState(false)
+  const [saveFlowName, setSaveFlowName] = useState("")
+  const [saveFlowDescription, setSaveFlowDescription] = useState("")
+  const [flowSearch, setFlowSearch] = useState("")
+  const [savedFlowsLoading, setSavedFlowsLoading] = useState(false)
+  const [saveFlowLoading, setSaveFlowLoading] = useState(false)
+  const [saveFlowError, setSaveFlowError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (loadModalOpen && (adminSecret || session?.access_token)) {
+      setSavedFlowsLoading(true)
+      fetch(`/api/admin/scraper/flows?kind=autoscrape_flow`, { headers: authHeaders() })
+        .then((res) => res.json())
+        .then((data) => setSavedFlowsList(data.flows ?? []))
+        .catch(() => setSavedFlowsList([]))
+        .finally(() => setSavedFlowsLoading(false))
+    }
+  }, [loadModalOpen, adminSecret, session?.access_token])
+
+  const filteredSavedFlows = flowSearch.trim()
+    ? savedFlowsList.filter((f) => (f.name ?? "").toLowerCase().includes(flowSearch.trim().toLowerCase()) || (f.description ?? "").toLowerCase().includes(flowSearch.trim().toLowerCase()))
+    : savedFlowsList
+
+  async function handleSaveCompiledFlow() {
+    if (!compileResult?.schema) { setSaveFlowError("Compile first"); return }
+    if (!saveFlowName.trim()) { setSaveFlowError("Name required"); return }
+    setSaveFlowLoading(true)
+    setSaveFlowError(null)
+    try {
+      const res = await fetch("/api/admin/scraper/flows", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ name: saveFlowName.trim(), description: saveFlowDescription.trim() || undefined, flow_json: compileResult.schema, kind: "autoscrape_flow" }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? "Save failed")
+      setSaveModalOpen(false)
+      setSaveFlowName("")
+      setSaveFlowDescription("")
+    } catch (err) {
+      setSaveFlowError(err instanceof Error ? err.message : "Save failed")
+    } finally {
+      setSaveFlowLoading(false)
+    }
+  }
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       if (!s) {
@@ -384,6 +432,12 @@ export default function AdminAutoscrapePage() {
                 >
                   Download {compileDownloadName.trim() ? `${compileDownloadName.trim().replace(/\.json$/i, "")}.json` : "flow.json"}
                 </button>
+                <button type="button" onClick={() => { setSaveFlowName(compileDownloadName.trim() || "autoscrape-flow"); setSaveFlowDescription(""); setSaveFlowError(null); setSaveModalOpen(true) }} disabled={!compileResult?.schema} style={{ ...btnSecondary, fontSize: "0.8125rem" }}>
+                  Save
+                </button>
+                <button type="button" onClick={() => setLoadModalOpen(true)} style={{ ...btnSecondary, fontSize: "0.8125rem" }}>
+                  Load
+                </button>
                 <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Compiled schema for headed/Modal run</span>
               </div>
               <details>
@@ -395,6 +449,49 @@ export default function AdminAutoscrapePage() {
             </div>
           ) : null}
         </section>
+
+        {saveModalOpen && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", padding: "var(--space-md)" }} onClick={() => setSaveModalOpen(false)}>
+            <div style={{ background: "var(--bg-card)", borderRadius: 12, border: "1px solid var(--border)", padding: "var(--space-md)", maxWidth: 400, width: "100%" }} onClick={(e) => e.stopPropagation()}>
+              <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "var(--space-sm)" }}>Save compiled flow</h3>
+              <label style={labelStyle}>Name</label>
+              <input value={saveFlowName} onChange={(e) => setSaveFlowName(e.target.value)} placeholder="e.g. cobb-civil" style={{ ...inputStyle, marginBottom: "var(--space-sm)" }} />
+              <label style={labelStyle}>Description (optional)</label>
+              <input value={saveFlowDescription} onChange={(e) => setSaveFlowDescription(e.target.value)} style={{ ...inputStyle, marginBottom: "var(--space-sm)" }} />
+              {saveFlowError && <p style={{ fontSize: "0.875rem", color: "var(--accent-gold)", marginBottom: "var(--space-sm)" }}>{saveFlowError}</p>}
+              <div style={{ display: "flex", gap: "var(--space-sm)" }}>
+                <button type="button" onClick={handleSaveCompiledFlow} disabled={saveFlowLoading} className="btn-primary" style={{ padding: "var(--space-xs) var(--space-sm)" }}>{saveFlowLoading ? "Saving…" : "Save"}</button>
+                <button type="button" onClick={() => { setSaveModalOpen(false); setSaveFlowError(null) }} style={btnSecondary}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        )}
+        {loadModalOpen && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", padding: "var(--space-md)" }} onClick={() => setLoadModalOpen(false)}>
+            <div style={{ background: "var(--bg-card)", borderRadius: 12, border: "1px solid var(--border)", maxWidth: 480, width: "100%", maxHeight: "80vh", overflow: "hidden", display: "flex", flexDirection: "column" }} onClick={(e) => e.stopPropagation()}>
+              <div style={{ padding: "var(--space-md)", borderBottom: "1px solid var(--border)" }}>
+                <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "var(--space-sm)" }}>Load compiled flow</h3>
+                <input type="text" value={flowSearch} onChange={(e) => setFlowSearch(e.target.value)} placeholder="Search by name…" style={inputStyle} />
+              </div>
+              <div style={{ overflow: "auto", flex: 1, padding: "var(--space-sm)" }}>
+                {savedFlowsLoading ? <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>Loading…</p> : filteredSavedFlows.length === 0 ? <p style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>No saved flows</p> : (
+                  <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                    {filteredSavedFlows.map((f) => (
+                      <li key={f.id} style={{ display: "flex", alignItems: "center", gap: "var(--space-xs)", marginBottom: "var(--space-xs)" }}>
+                        <button type="button" onClick={() => { setCompileResult({ schema: f.flow_json }); setLoadModalOpen(false); setFlowSearch("") }} style={{ flex: 1, padding: "var(--space-sm)", textAlign: "left", background: "none", border: "none", borderRadius: 8, cursor: "pointer", fontSize: "0.875rem", color: "var(--text-primary)" }} className="hover:bg-[var(--bg-elevated)]">
+                          <span style={{ fontWeight: 500 }}>{f.name}</span>
+                          {f.description && <span style={{ display: "block", fontSize: "0.75rem", color: "var(--text-muted)" }}>{f.description}</span>}
+                        </button>
+                        <button type="button" onClick={() => { const blob = new Blob([JSON.stringify(f.flow_json, null, 2)], { type: "application/json" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${(f.name || "flow").replace(/\s+/g, "-")}.json`; a.click(); URL.revokeObjectURL(a.href) }} style={{ ...btnSecondary, padding: "var(--space-xs)", minHeight: 32 }} title="Download">↓</button>
+                        <button type="button" onClick={async () => { if (!confirm(`Delete "${f.name}"?`)) return; try { const res = await fetch("/api/admin/scraper/flows", { method: "DELETE", headers: authHeaders(), body: JSON.stringify({ id: f.id }) }); if (!res.ok) throw new Error(); setSavedFlowsList((list) => list.filter((x) => x.id !== f.id)) } catch { setSaveFlowError("Delete failed") } }} style={{ ...btnSecondary, padding: "var(--space-xs)", minHeight: 32, color: "var(--accent-gold)" }} title="Delete">✕</button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         <section style={{ padding: "var(--space-md)", borderRadius: "12px", background: "var(--bg-card)", border: "1px solid var(--border)", marginBottom: "var(--space-lg)" }}>
           <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "var(--space-md)" }}>4. Run on Modal</h2>
