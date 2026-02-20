@@ -253,6 +253,14 @@ Config is JSON (one per site/campaign). Structure below is backward-compatible s
     "extractColumns": [
       { "columnIndex": 0, "outputKey": "caseNumber" },
       { "columnIndex": 1, "outputKey": "status" }
+    ],
+    "nestedRowFilters": [
+      {
+        "selectorWithinRow": "td:nth-child(3) table tbody tr",
+        "condition": "exists",
+        "includeParentWhen": true,
+        "description": "Has nested table rows (e.g. filings)"
+      }
     ]
   },
   "pagination": {

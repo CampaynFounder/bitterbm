@@ -108,6 +108,17 @@ export type SiteConfigState = {
     rowFilter?: Array<{ columnIndex: number; operator: "equals" | "in"; value: string | string[]; not?: boolean }>
     /** Column indices (and optional output keys) to extract per matching row; primaryId is always extracted as id. */
     extractColumns?: Array<{ columnIndex: number; outputKey?: string }>
+    /** Within each parent row, check nested tables/elements; include or exclude parent based on exists/not_exists. */
+    nestedRowFilters?: Array<{
+      /** CSS selector evaluated within the parent row (e.g. td:nth-child(3) table tbody tr = 3rd cell’s nested table rows). */
+      selectorWithinRow: string
+      /** "exists" = at least one element matches; "not_exists" = zero elements match. */
+      condition: "exists" | "not_exists"
+      /** true = include parent row when condition holds; false = exclude parent row when condition holds. */
+      includeParentWhen: boolean
+      /** Optional label for UI (e.g. "Has filings in nested table"). */
+      description?: string
+    }>
   }
   pagination: { mode: string }
 }
@@ -485,37 +496,6 @@ function SiteConfigForm({ config, onChange }: { config: SiteConfigState; onChang
   )
   return (
     <div>
-      {section("Site", (
-        <>
-          <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Site ID</label><input value={config.siteId} onChange={(e) => update("siteId", e.target.value)} style={inputStyle} /></div>
-          <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Base URL</label><input value={config.baseUrl} onChange={(e) => update("baseUrl", e.target.value)} placeholder="https://..." style={inputStyle} /></div>
-          <div><label style={labelStyle}>Description (optional)</label><input value={config.description ?? ""} onChange={(e) => update("description", e.target.value)} style={inputStyle} /></div>
-        </>
-      ))}
-      {section("Iframe", (
-        <>
-          <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Selector</label><input value={config.iframe.selector ?? ""} onChange={(e) => update("iframe.selector", e.target.value)} placeholder="iframe#content" style={inputStyle} /></div>
-          <div><label style={labelStyle}>URL contains (optional)</label><input value={config.iframe.urlContains ?? ""} onChange={(e) => update("iframe.urlContains", e.target.value)} style={inputStyle} /></div>
-        </>
-      ))}
-      {section("Search form", (
-        <>
-          <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Pattern field selector</label><input value={config.searchForm.patternField.selector} onChange={(e) => update("searchForm.patternField.selector", e.target.value)} placeholder="#tbPersonSearch" style={inputStyle} /></div>
-          <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Pattern field type</label><select value={config.searchForm.patternField.type} onChange={(e) => update("searchForm.patternField.type", e.target.value)} style={inputStyle}><option value="text">text</option></select></div>
-          <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Wildcard character</label><input value={config.searchForm.wildcard} onChange={(e) => update("searchForm.wildcard", e.target.value)} placeholder="%" style={{ ...inputStyle, maxWidth: 80 }} /></div>
-          <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Min non-wildcard chars</label><input type="number" value={config.searchForm.minNonWildcardChars} onChange={(e) => update("searchForm.minNonWildcardChars", parseInt(e.target.value, 10) || 0)} style={{ ...inputStyle, maxWidth: 100 }} /></div>
-          <label style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)", marginBottom: "var(--space-sm)" }}><input type="checkbox" checked={config.searchForm.caseSensitive} onChange={(e) => update("searchForm.caseSensitive", e.target.checked)} />Case sensitive</label>
-          <div><label style={labelStyle}>Submit button selector</label><input value={config.searchForm.submitSelector} onChange={(e) => update("searchForm.submitSelector", e.target.value)} placeholder="#btnSearch" style={inputStyle} /></div>
-        </>
-      ))}
-      {section("Pattern generation", (
-        <>
-          <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Alphabet</label><input value={config.patternGeneration.alphabet} onChange={(e) => update("patternGeneration.alphabet", e.target.value)} style={inputStyle} /></div>
-          <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Length</label><input type="number" value={config.patternGeneration.length} onChange={(e) => update("patternGeneration.length", parseInt(e.target.value, 10) || 3)} style={{ ...inputStyle, maxWidth: 80 }} /></div>
-          <label style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)", marginBottom: "var(--space-sm)" }}><input type="checkbox" checked={config.patternGeneration.useWildcard} onChange={(e) => update("patternGeneration.useWildcard", e.target.checked)} />Use wildcard</label>
-          <div><label style={labelStyle}>Wildcard character</label><input value={config.patternGeneration.wildcardChar} onChange={(e) => update("patternGeneration.wildcardChar", e.target.value)} style={{ ...inputStyle, maxWidth: 80 }} /></div>
-        </>
-      ))}
       {section("Result table", (() => {
         const rt = config.resultTable
         const columnNames = rt.columnNames ?? []
@@ -565,9 +545,59 @@ function SiteConfigForm({ config, onChange }: { config: SiteConfigState; onChang
             ))}
             <button type="button" onClick={() => update("resultTable.extractColumns", [...(rt.extractColumns ?? []), { columnIndex: 0, outputKey: undefined }])} style={{ ...btnSecondary, marginTop: "var(--space-sm)" }}>+ Add extract column</button>
           </div>
+          <div style={{ marginTop: "var(--space-lg)" }}>
+            <label style={labelStyle}>Nested table filters (exists / not exists)</label>
+            <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "var(--space-sm)" }}>Within each result row, Playwright checks the selector (e.g. <code>td:nth-child(3) table tbody tr</code> for 3rd cell’s nested table rows). Use to include or exclude parent rows based on whether nested content exists.</p>
+            {(rt.nestedRowFilters ?? []).map((nf, i) => (
+              <div key={i} style={{ marginBottom: "var(--space-sm)", padding: "var(--space-sm)", background: "var(--bg-elevated)", borderRadius: 8, border: "1px solid var(--border)" }}>
+                <div style={{ marginBottom: "var(--space-xs)" }}><input value={nf.description ?? ""} onChange={(e) => { const arr = [...(rt.nestedRowFilters ?? [])]; arr[i] = { ...arr[i], description: e.target.value.trim() || undefined }; update("resultTable.nestedRowFilters", arr) }} placeholder="Label (optional)" style={{ ...inputStyle, maxWidth: 240 }} /></div>
+                <div style={{ display: "flex", gap: "var(--space-sm)", flexWrap: "wrap", alignItems: "center", marginBottom: "var(--space-xs)" }}>
+                  <span style={{ fontSize: "0.8125rem" }}>Within row:</span>
+                  <input value={nf.selectorWithinRow} onChange={(e) => { const arr = [...(rt.nestedRowFilters ?? [])]; arr[i] = { ...arr[i], selectorWithinRow: e.target.value }; update("resultTable.nestedRowFilters", arr) }} placeholder="td:nth-child(3) table tbody tr" style={{ ...inputStyle, flex: 1, minWidth: 200 }} title="CSS selector relative to parent row" />
+                </div>
+                <div style={{ display: "flex", gap: "var(--space-sm)", flexWrap: "wrap", alignItems: "center" }}>
+                  <select value={nf.condition} onChange={(e) => { const arr = [...(rt.nestedRowFilters ?? [])]; arr[i] = { ...arr[i], condition: e.target.value as "exists" | "not_exists" }; update("resultTable.nestedRowFilters", arr) }} style={{ ...inputStyle, width: 120 }}><option value="exists">exists</option><option value="not_exists">not exists</option></select>
+                  <select value={nf.includeParentWhen ? "include" : "exclude"} onChange={(e) => { const arr = [...(rt.nestedRowFilters ?? [])]; arr[i] = { ...arr[i], includeParentWhen: e.target.value === "include" }; update("resultTable.nestedRowFilters", arr) }} style={{ ...inputStyle, width: 160 }}><option value="include">Include parent when</option><option value="exclude">Exclude parent when</option></select>
+                  <button type="button" onClick={() => update("resultTable.nestedRowFilters", (rt.nestedRowFilters ?? []).filter((_, j) => j !== i))} style={btnSecondary}>Remove</button>
+                </div>
+              </div>
+            ))}
+            <button type="button" onClick={() => update("resultTable.nestedRowFilters", [...(rt.nestedRowFilters ?? []), { selectorWithinRow: "td:nth-child(1) table tr", condition: "exists" as const, includeParentWhen: true }])} style={{ ...btnSecondary, marginTop: "var(--space-xs)" }}>+ Add nested filter</button>
+          </div>
         </>
         )
       })())}
+      {section("Pattern generation (AAB, AAC … loop)", (
+        <>
+          <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Alphabet</label><input value={config.patternGeneration.alphabet} onChange={(e) => update("patternGeneration.alphabet", e.target.value)} style={inputStyle} /></div>
+          <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Length</label><input type="number" value={config.patternGeneration.length} onChange={(e) => update("patternGeneration.length", parseInt(e.target.value, 10) || 3)} style={{ ...inputStyle, maxWidth: 80 }} /></div>
+          <label style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)", marginBottom: "var(--space-sm)" }}><input type="checkbox" checked={config.patternGeneration.useWildcard} onChange={(e) => update("patternGeneration.useWildcard", e.target.checked)} />Use wildcard</label>
+          <div><label style={labelStyle}>Wildcard character</label><input value={config.patternGeneration.wildcardChar} onChange={(e) => update("patternGeneration.wildcardChar", e.target.value)} style={{ ...inputStyle, maxWidth: 80 }} /></div>
+        </>
+      ))}
+      {section("Site", (
+        <>
+          <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Site ID</label><input value={config.siteId} onChange={(e) => update("siteId", e.target.value)} style={inputStyle} /></div>
+          <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Base URL</label><input value={config.baseUrl} onChange={(e) => update("baseUrl", e.target.value)} placeholder="https://..." style={inputStyle} /></div>
+          <div><label style={labelStyle}>Description (optional)</label><input value={config.description ?? ""} onChange={(e) => update("description", e.target.value)} style={inputStyle} /></div>
+        </>
+      ))}
+      {section("Iframe", (
+        <>
+          <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Selector</label><input value={config.iframe.selector ?? ""} onChange={(e) => update("iframe.selector", e.target.value)} placeholder="iframe#content" style={inputStyle} /></div>
+          <div><label style={labelStyle}>URL contains (optional)</label><input value={config.iframe.urlContains ?? ""} onChange={(e) => update("iframe.urlContains", e.target.value)} style={inputStyle} /></div>
+        </>
+      ))}
+      {section("Search form", (
+        <>
+          <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Pattern field selector</label><input value={config.searchForm.patternField.selector} onChange={(e) => update("searchForm.patternField.selector", e.target.value)} placeholder="#tbPersonSearch" style={inputStyle} /></div>
+          <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Pattern field type</label><select value={config.searchForm.patternField.type} onChange={(e) => update("searchForm.patternField.type", e.target.value)} style={inputStyle}><option value="text">text</option></select></div>
+          <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Wildcard character</label><input value={config.searchForm.wildcard} onChange={(e) => update("searchForm.wildcard", e.target.value)} placeholder="%" style={{ ...inputStyle, maxWidth: 80 }} /></div>
+          <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Min non-wildcard chars</label><input type="number" value={config.searchForm.minNonWildcardChars} onChange={(e) => update("searchForm.minNonWildcardChars", parseInt(e.target.value, 10) || 0)} style={{ ...inputStyle, maxWidth: 100 }} /></div>
+          <label style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)", marginBottom: "var(--space-sm)" }}><input type="checkbox" checked={config.searchForm.caseSensitive} onChange={(e) => update("searchForm.caseSensitive", e.target.checked)} />Case sensitive</label>
+          <div><label style={labelStyle}>Submit button selector</label><input value={config.searchForm.submitSelector} onChange={(e) => update("searchForm.submitSelector", e.target.value)} placeholder="#btnSearch" style={inputStyle} /></div>
+        </>
+      ))}
       {section("Pagination", (
         <div><label style={labelStyle}>Mode</label><select value={config.pagination.mode} onChange={(e) => update("pagination.mode", e.target.value)} style={inputStyle}><option value="all_in_dom">all_in_dom</option></select></div>
       ))}
@@ -868,8 +898,8 @@ export default function AdminSupersetPage() {
               <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "var(--space-sm)" }}>Full config schema and table/row filter logic: <code>docs/SCRAPER_SUPERSET_ARCHITECTURE.md</code> (§6.2, resultTable.rowFilter and unique ID).</p>
               <p style={{ marginBottom: "var(--space-sm)" }}><strong>Phase 1 (build superset file):</strong></p>
               <ol style={{ marginBottom: "var(--space-md)", paddingLeft: "1.25rem" }}>
-                <li>Download the superset flow (Download flow.json) and site config (Download site-config.json).</li>
-                <li>Run the Phase 1 builder script when available (e.g. <code>python scraper/superset/phase1_build.py --flow flow.json --config site-config.json</code>). It will use the flow to perform one search, then use the site config (table selector, row selector, row filter, primary ID) to find rows and extract unique IDs. Output: search criteria + list of unique IDs (and optionally other values) saved to a superset file.</li>
+                <li>Download <strong>combined (flow + site config)</strong> as one file, or download flow and site-config separately.</li>
+                <li>Run Phase 1: <code>python scraper/superset/phase1_build.py --config superset-phase1.json</code> (or <code>--flow flow.json --site-config site-config.json</code>). The script runs the flow (one search), then uses the result table config (table/row selectors, row filter, nested exists/not exists, primary ID, extract columns) to filter rows and extract IDs. Output: superset file (search criteria + ids + extracted values).</li>
               </ol>
               <p style={{ marginBottom: "var(--space-sm)" }}><strong>Phase 2 (retrieval by IDs):</strong></p>
               <ol style={{ marginBottom: 0, paddingLeft: "1.25rem" }}>
@@ -923,6 +953,9 @@ export default function AdminSupersetPage() {
           <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-sm)", marginTop: "var(--space-md)" }}>
             <button type="button" onClick={() => { try { downloadJson("site-config.json", siteConfigJsonMode ? JSON.parse(siteConfigJsonText) : siteConfig) } catch { setRetrievalResult((r) => ({ ...r, error: "Invalid config JSON" })) } }} style={btnSecondary}>
               Download site-config.json
+            </button>
+            <button type="button" onClick={() => { try { downloadJson("superset-phase1.json", { flow: flowJsonMode ? JSON.parse(flowJsonText) : { name: flowName, steps }, siteConfig: siteConfigJsonMode ? JSON.parse(siteConfigJsonText) : siteConfig }) } catch { setRetrievalResult((r) => ({ ...r, error: "Invalid flow or config JSON" })) } }} style={btnSecondary} title="Single file for phase1_build.py --config superset-phase1.json">
+              Download combined (flow + site config)
             </button>
             <button type="button" onClick={() => { setSaveName(siteConfig.siteId); setSaveDescription(""); setSaveError(null); setSaveConfigModalOpen(true) }} style={btnSecondary}>
               Save site config
