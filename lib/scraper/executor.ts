@@ -20,6 +20,7 @@ import type {
   ClickStep,
   ForEachOptionStep,
   ForEachResultStep,
+  ForEachIdStep,
   ConditionGroupStep,
   ExtractFieldStep,
   ExtractLinkStep,
@@ -50,10 +51,10 @@ const RESULT_NESTED_TYPES = new Set([
 function getNestedStepRange(
   steps: ScraperStep[],
   startIndex: number,
-  loopType: "for_each_result" | "for_each_option"
+  loopType: "for_each_result" | "for_each_option" | "for_each_id"
 ): number {
   let j = startIndex + 1
-  if (loopType === "for_each_result") {
+  if (loopType === "for_each_result" || loopType === "for_each_id") {
     while (j < steps.length && RESULT_NESTED_TYPES.has(steps[j].type)) {
       j++
     }
@@ -65,19 +66,40 @@ function getNestedStepRange(
   return j
 }
 
+/** Find the first frame (main or iframe) that contains the selector. Used when element is in an iframe. */
+async function findFrameWithSelector(
+  page: Page,
+  selector: string,
+  timeoutMs: number
+): Promise<Frame | null> {
+  const frames = page.frames()
+  for (const frame of frames) {
+    try {
+      await frame.locator(selector).first().waitFor({ state: "attached", timeout: timeoutMs })
+      return frame
+    } catch {
+      continue
+    }
+  }
+  return null
+}
+
 export type StoreRowFn = (row: Record<string, unknown>, ctx: ExecutionContext) => Promise<void>
 
 export type StorePdfDocumentFn = (data: {
   pdfUrl: string
   row: Record<string, unknown>
   ctx: ExecutionContext
-  /** Optional screenshot buffer (from extract_pdf with screenshot: true) */
+  /** Single screenshot (extract_pdf screenshot: true) */
   screenshotBuffer?: Buffer
+  /** Per-page screenshots (extract_pdf screenshotAllPages: true); each saved to DB */
+  screenshotBuffers?: Buffer[]
 }) => Promise<void>
 
 export interface ExecutorOptions {
   flow: ScraperFlow
-  vars: Record<string, string | number>
+  /** Vars for interpolation; ids (string[]) used by for_each_id when running retrieval with superset list */
+  vars: Record<string, string | number | string[]>
   jobId: string
   flowId?: string
   sourceSite?: string
@@ -183,10 +205,40 @@ async function executeStep(
       current_option_text: ctx.currentOption.text,
     }),
   }
-  const cfg = interpolateObject(
-    (step as { config?: Record<string, unknown> }).config ?? {},
-    vars
-  ) as Record<string, unknown>
+  const rawStep = step as unknown as Record<string, unknown>
+  const stepConfig = (rawStep.config ?? {}) as Record<string, unknown>
+  const stepType = rawStep.type as string
+  // Backwards compatibility: compiled/LLM flows often put step props at top level (e.g. url, selector)
+  if (stepType === "navigate") {
+    if (stepConfig.url == null && rawStep.url != null) stepConfig.url = rawStep.url
+    if (stepConfig.waitUntil == null && rawStep.waitUntil != null) stepConfig.waitUntil = rawStep.waitUntil
+  }
+  if (stepType === "click") {
+    if (stepConfig.selector == null && rawStep.selector != null) stepConfig.selector = rawStep.selector
+    if (stepConfig.scrollIntoView == null && rawStep.scrollIntoView != null) stepConfig.scrollIntoView = rawStep.scrollIntoView
+    if (stepConfig.force == null && rawStep.force != null) stepConfig.force = rawStep.force
+    if (stepConfig.waitAfter == null && rawStep.waitAfter != null) stepConfig.waitAfter = rawStep.waitAfter
+    if (stepConfig.waitForSelector == null && rawStep.waitForSelector != null) stepConfig.waitForSelector = rawStep.waitForSelector
+  }
+  if (stepType === "form_fill") {
+    if (stepConfig.fields == null && rawStep.fields != null) stepConfig.fields = rawStep.fields
+    if (stepConfig.submit == null && rawStep.submit != null) stepConfig.submit = rawStep.submit
+  }
+  if (stepType === "checkbox_group") {
+    if (stepConfig.checkboxes == null && rawStep.checkboxes != null) stepConfig.checkboxes = rawStep.checkboxes
+  }
+  if (stepType === "row_crawler") {
+    if (stepConfig.rowSelector == null && rawStep.rowSelector != null) stepConfig.rowSelector = rawStep.rowSelector
+    if (stepConfig.capture == null && rawStep.capture != null) stepConfig.capture = rawStep.capture
+    if (stepConfig.pagination == null && rawStep.pagination != null) stepConfig.pagination = rawStep.pagination
+    if (stepConfig.expand == null && rawStep.expand != null) stepConfig.expand = rawStep.expand
+  }
+  if (stepType === "for_each_id") {
+    if (stepConfig.ids == null && rawStep.ids != null) stepConfig.ids = rawStep.ids
+    if (stepConfig.idsVar == null && rawStep.idsVar != null) stepConfig.idsVar = rawStep.idsVar
+    if (stepConfig.limit == null && rawStep.limit != null) stepConfig.limit = rawStep.limit
+  }
+  const cfg = interpolateObject(stepConfig, vars) as Record<string, unknown>
 
   const scope = ctx.currentRow as Locator | null
   const root = (ctx.currentFrame ?? page) as Page | Frame | FrameLocator
@@ -198,12 +250,12 @@ async function executeStep(
 
   switch (step.type) {
     case "navigate": {
-      const s = step as NavigateStep
-      const url = interpolate(s.config.url, ctx.vars)
+      const url = interpolate(String(cfg.url ?? ""), ctx.vars)
+      if (url == null || url === "") throw new Error("navigate step missing url")
       opts.log(`Navigate: ${url}`)
-      await page.goto(url, {
+      await page.goto(String(url), {
         waitUntil:
-          (s.config.waitUntil as "load" | "domcontentloaded" | "networkidle") ??
+          (cfg.waitUntil as "load" | "domcontentloaded" | "networkidle") ??
           "domcontentloaded",
         timeout: 60000,
       })
@@ -316,13 +368,36 @@ async function executeStep(
     }
 
     case "click": {
-      const s = step as ClickStep
-      const target = loc(String(cfg.selector))
-      if (s.config.scrollIntoView !== false) await target.scrollIntoViewIfNeeded()
-      await target.click({ force: s.config.force === true })
-      if (s.config.waitAfter) await page.waitForTimeout(s.config.waitAfter)
-      if (s.config.waitForSelector) {
-        await root.locator(String(s.config.waitForSelector)).first().waitFor({ timeout: 15000 })
+      const selector = cfg.selector != null ? String(cfg.selector) : undefined
+      if (selector == null || selector === "" || selector === "undefined") throw new Error("click step missing selector")
+
+      let target: Locator
+      const effectiveRoot = (ctx.currentFrame ?? page) as Page | Frame | FrameLocator
+      if (ctx.currentFrame !== undefined) {
+        target = effectiveRoot.locator(selector).first()
+      } else {
+        const mainTimeout = 4000
+        try {
+          await page.locator(selector).first().waitFor({ state: "attached", timeout: mainTimeout })
+          target = page.locator(selector).first()
+        } catch {
+          const frame = await findFrameWithSelector(page, selector, 8000)
+          if (frame) {
+            ctx.currentFrame = frame
+            target = frame.locator(selector).first()
+            opts.log(`Switched to iframe (element found): ${frame.url().slice(0, 60)}…`)
+          } else {
+            throw new Error(`Selector "${selector}" not found in main page or any iframe`)
+          }
+        }
+      }
+
+      if (cfg.scrollIntoView !== false) await target.scrollIntoViewIfNeeded()
+      await target.click({ force: cfg.force === true })
+      if (cfg.waitAfter) await page.waitForTimeout(Number(cfg.waitAfter))
+      const rootForWait = (ctx.currentFrame ?? page) as Page | Frame | FrameLocator
+      if (cfg.waitForSelector) {
+        await rootForWait.locator(String(cfg.waitForSelector)).first().waitFor({ timeout: 15000 })
       }
       break
     }
@@ -376,6 +451,28 @@ async function executeStep(
         }
       }
       ctx.currentRow = null
+      return { nextIndex: endIdx }
+    }
+
+    case "for_each_id": {
+      const s = step as ForEachIdStep
+      const rawIds = (cfg.ids as string[] | undefined) ?? (s.config.idsVar ? (ctx.vars[s.config.idsVar] as string[]) : undefined)
+      const ids = Array.isArray(rawIds) ? rawIds : []
+      const limit = s.config.limit && s.config.limit > 0 ? Math.min(ids.length, s.config.limit) : ids.length
+      opts.log(`for_each_id: ${ids.length} ids (processing ${limit})`)
+      const endIdx = getNestedStepRange(steps, stepIndex, "for_each_id")
+
+      for (let idx = 0; idx < limit; idx++) {
+        const id = ids[idx]
+        ctx.vars.current_id = id
+        ctx.vars.current_index = idx
+        ctx.row = { id, case_number: id }
+
+        for (let j = stepIndex + 1; j < endIdx; j++) {
+          const res = await executeStep(page, steps[j], steps, j, ctx, opts)
+          if (res?.breakLoop) break
+        }
+      }
       return { nextIndex: endIdx }
     }
 
@@ -455,11 +552,39 @@ async function executeStep(
         break
       }
       let screenshotBuffer: Buffer | undefined
-      if (s.config.screenshot) {
+      let screenshotBuffers: Buffer[] | undefined
+      const takeAllPages = s.config.screenshotAllPages === true
+      const takeOne = s.config.screenshot === true || takeAllPages
+      if (takeOne) {
         try {
           await page.goto(pdfUrl, { waitUntil: "domcontentloaded", timeout: 15000 })
-          const buf = await page.screenshot({ type: "png" })
-          screenshotBuffer = Buffer.isBuffer(buf) ? buf : Buffer.from(buf)
+          if (takeAllPages) {
+            const maxPages = 100
+            const buffers: Buffer[] = []
+            let lastLen = 0
+            let sameCount = 0
+            for (let p = 0; p < maxPages; p++) {
+              const buf = await page.screenshot({ type: "png" })
+              const b = Buffer.isBuffer(buf) ? buf : Buffer.from(buf)
+              buffers.push(b)
+              if (b.length === lastLen) {
+                sameCount++
+                if (sameCount >= 2) break
+              } else {
+                sameCount = 0
+              }
+              lastLen = b.length
+              if (p < maxPages - 1) {
+                await page.keyboard.press("PageDown")
+                await page.waitForTimeout(500)
+              }
+            }
+            screenshotBuffers = buffers
+            opts.log(`  extract_pdf: ${screenshotBuffers.length} page screenshot(s)`)
+          } else {
+            const buf = await page.screenshot({ type: "png" })
+            screenshotBuffer = Buffer.isBuffer(buf) ? buf : Buffer.from(buf)
+          }
         } catch (e) {
           opts.log(`  extract_pdf: screenshot failed: ${e instanceof Error ? e.message : String(e)}`)
         }
@@ -470,6 +595,7 @@ async function executeStep(
         row: rowWithGeo,
         ctx,
         screenshotBuffer,
+        screenshotBuffers,
       })
       opts.log(`  extract_pdf: stored ${pdfUrl}`)
       break
@@ -588,6 +714,94 @@ async function executeStep(
     case "delay": {
       const s = step as DelayStep
       await page.waitForTimeout(s.config.ms)
+      break
+    }
+
+    case "form_fill": {
+      const fields = (cfg.fields ?? []) as Array<{ selector?: string; value?: string; name?: string }>
+      for (const f of fields) {
+        const sel = f.selector ?? (f.name ? `[name="${f.name}"]` : null)
+        if (!sel) continue
+        const value = interpolate(f.value ?? "", ctx.vars)
+        const target = root.locator(sel).first()
+        await target.fill(String(value))
+        opts.log(`  form_fill: ${sel} = ${String(value).slice(0, 40)}`)
+      }
+      const submitSel = cfg.submit != null ? String(cfg.submit) : null
+      if (submitSel) {
+        await root.locator(submitSel).first().click()
+        opts.log(`  form_fill: submit ${submitSel}`)
+      }
+      break
+    }
+
+    case "checkbox_group": {
+      const checkboxes = (cfg.checkboxes ?? []) as Array<{ selector?: string; checked?: boolean }>
+      for (const c of checkboxes) {
+        if (!c.selector) continue
+        const target = root.locator(c.selector).first()
+        const checked = (c.checked ?? true) as boolean
+        if (checked) await target.check().catch(() => target.click())
+        else await target.uncheck().catch(() => target.click())
+        opts.log(`  checkbox_group: ${c.selector} = ${checked}`)
+      }
+      break
+    }
+
+    case "row_crawler": {
+      const rowSelector = cfg.rowSelector != null ? String(cfg.rowSelector) : null
+      if (!rowSelector) throw new Error("row_crawler missing rowSelector")
+      const captureList = (cfg.capture ?? []) as Array<{ field: string; selector?: string; attr?: string }>
+      const paginationCfg = cfg.pagination as { selector?: string; maxPages?: number } | undefined
+      const maxPages = paginationCfg?.maxPages ?? 50
+      let pageNum = 0
+      let totalStored = 0
+
+      const processPage = async (): Promise<boolean> => {
+        const rows = await root.locator(rowSelector).all()
+        opts.log(`row_crawler: page ${pageNum + 1}, ${rows.length} rows`)
+        for (const rowLoc of rows) {
+          ctx.row = {}
+          ctx.currentRow = rowLoc as unknown as Locator
+          for (const cap of captureList) {
+            const sel = cap.selector ?? `td`
+            const attr = (cap.attr ?? "text") as string
+            const cell = rowLoc.locator(sel).first()
+            const count = await cell.count()
+            if (count > 0) {
+              let value: string
+              if (attr === "text") value = (await cell.textContent()) ?? ""
+              else if (attr === "html") value = (await cell.evaluate((el) => (el as HTMLElement).innerHTML)) ?? ""
+              else value = (await cell.getAttribute(attr)) ?? ""
+              ctx.row[cap.field] = (value ?? "").trim()
+            }
+          }
+          if (Object.keys(ctx.row).length > 0) {
+            const merged = { ...ctx.memory, ...ctx.row }
+            await opts.onStoreRow(merged as Record<string, unknown>, ctx)
+            totalStored++
+          }
+        }
+        ctx.currentRow = null
+
+        const nextSel = paginationCfg?.selector
+        if (!nextSel || pageNum >= maxPages - 1) return false
+        const nextBtn = root.locator(nextSel).first()
+        const count = await nextBtn.count()
+        if (count === 0) return false
+        const disabled = await nextBtn.isDisabled().catch(() => true)
+        if (disabled) return false
+        await nextBtn.click()
+        pageNum++
+        await page.waitForTimeout(500)
+        return true
+      }
+
+      let hasMore = true
+      while (hasMore) {
+        hasMore = await processPage()
+      }
+      opts.log(`row_crawler done: ${totalStored} rows stored`)
       break
     }
 

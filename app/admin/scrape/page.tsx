@@ -19,6 +19,7 @@ const STEP_TYPES: { value: string; label: string }[] = [
   { value: "click", label: "Click" },
   { value: "for_each_option", label: "For each filter option" },
   { value: "for_each_result", label: "For each result row" },
+  { value: "for_each_id", label: "For each id (superset list)" },
   { value: "condition_group", label: "Filter row (condition group)" },
   { value: "extract_field", label: "Extract field" },
   { value: "extract_link", label: "Extract link" },
@@ -59,6 +60,8 @@ function createBlankStep(type: string): ScraperStep {
       return { ...base, type: "for_each_option", config: { selector: "", skipFirst: true } }
     case "for_each_result":
       return { ...base, type: "for_each_result", config: { selector: "", limit: 0 } }
+    case "for_each_id":
+      return { ...base, type: "for_each_id", config: { idsVar: "ids", limit: 0 } }
     case "condition_group":
       return { ...base, type: "condition_group", config: { fieldId: "", operator: "not_empty" } }
     case "extract_to_memory":
@@ -650,6 +653,32 @@ function StepCard({
                 placeholder="tbody tr, .result-card"
                 style={inputStyle}
               />
+            </div>
+            <div>
+              <label style={labelStyle}>Limit (0 = all)</label>
+              <input
+                type="number"
+                value={Number(cfg.limit ?? 0)}
+                onChange={(e) => update("limit", parseInt(e.target.value, 10) || 0)}
+                min={0}
+                style={inputStyle}
+              />
+            </div>
+          </>
+        )}
+        {step.type === "for_each_id" && (
+          <>
+            <div>
+              <label style={labelStyle}>Ids var name</label>
+              <input
+                value={String(cfg.idsVar ?? "ids")}
+                onChange={(e) => update("idsVar", e.target.value)}
+                placeholder="ids"
+                style={inputStyle}
+              />
+              <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "var(--space-2xs)" }}>
+                Runner passes vars.ids = [id1, id2, ...]. Use {`{{current_id}}`} in steps.
+              </p>
             </div>
             <div>
               <label style={labelStyle}>Limit (0 = all)</label>
@@ -1419,9 +1448,8 @@ export default function AdminScrapePage() {
             >
               Collapse all
             </button>
-            <Link href="/admin/autoscrape" style={{ color: "var(--accent-cyan)", fontSize: "0.875rem" }}>
-              Autoscrape
-            </Link>
+            <Link href="/admin/autoscrape" style={{ color: "var(--accent-cyan)", fontSize: "0.875rem" }}>Autoscrape</Link>
+            <Link href="/admin/superset" style={{ color: "var(--accent-cyan)", fontSize: "0.875rem" }}>Superset</Link>
             <Link href="/admin/dashboard" style={{ color: "var(--accent-muted)", fontSize: "0.875rem" }}>
               ← Dashboard
             </Link>

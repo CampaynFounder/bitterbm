@@ -38,7 +38,7 @@ type DashboardState = {
   lastJudgeChunk: PipelineRun | null
 }
 
-type TabId = "case-law" | "judge" | "expert" | "attorney" | "filing" | "state-coverage" | "tools" | "scraper"
+type TabId = "case-law" | "judge" | "expert" | "attorney" | "filing" | "state-coverage" | "tools" | "scraper" | "superset"
 
 const TABS: { id: TabId; label: string; href?: string }[] = [
   { id: "case-law", label: "Case Law RAG" },
@@ -49,6 +49,7 @@ const TABS: { id: TabId; label: string; href?: string }[] = [
   { id: "state-coverage", label: "State Coverage" },
   { id: "tools", label: "Tools" },
   { id: "scraper", label: "Scraper", href: "/admin/scrape" },
+  { id: "superset", label: "Superset", href: "/admin/superset" },
 ]
 
 function StepCard({

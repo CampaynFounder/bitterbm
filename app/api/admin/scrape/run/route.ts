@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  let body: { flow: ScraperFlow; vars?: Record<string, string | number>; flowId?: string; dryRun?: boolean; stopAtStep?: number }
+  let body: { flow: ScraperFlow; vars?: Record<string, string | number | string[]>; ids?: string[]; flowId?: string; dryRun?: boolean; stopAtStep?: number }
   try {
     body = await req.json()
   } catch {
@@ -49,7 +49,8 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const { flow, vars = {}, flowId, dryRun, stopAtStep } = body
+  const { flow, flowId, dryRun, stopAtStep } = body
+  const vars = { ...body.vars, ...(Array.isArray(body.ids) && body.ids.length > 0 ? { ids: body.ids } : {}) }
   if (!flow?.steps?.length) {
     return NextResponse.json(
       { error: "flow.steps required" },
@@ -68,6 +69,7 @@ export async function POST(req: NextRequest) {
     row: Record<string, unknown>
     ctx: { jobId: string; flowId?: string; sourceSite?: string }
     screenshotBuffer?: Buffer
+    screenshotBuffers?: Buffer[]
   }) => {
     if (dryRun) return
     const attorneysRaw = data.row.attorneys ?? data.row.attorney
@@ -84,6 +86,7 @@ export async function POST(req: NextRequest) {
     const pdfPath = `${stateDir}/${county || "unknown"}/${pdfId}.pdf`
     let storagePath: string | null = null
     let screenshotPath: string | null = null
+    const screenshotPaths: string[] = []
 
     try {
       const res = await fetch(data.pdfUrl, { headers: { "User-Agent": "Mozilla/5.0" } })
@@ -95,12 +98,18 @@ export async function POST(req: NextRequest) {
       if (uploadErr) throw new Error(`Upload PDF failed: ${uploadErr.message}`)
       storagePath = pdfPath
 
-      if (data.screenshotBuffer?.length) {
-        const shotPath = `${stateDir}/${county || "unknown"}/${pdfId}.png`
+      const buffers = (data.screenshotBuffers?.length ? data.screenshotBuffers : data.screenshotBuffer ? [data.screenshotBuffer] : []) as Buffer[]
+      for (let i = 0; i < buffers.length; i++) {
+        const shotPath = buffers.length > 1
+          ? `${stateDir}/${county || "unknown"}/${pdfId}_page${i}.png`
+          : `${stateDir}/${county || "unknown"}/${pdfId}.png`
         const { error: shotErr } = await supabase.storage
           .from(SCREENSHOT_BUCKET)
-          .upload(shotPath, data.screenshotBuffer, { contentType: "image/png", upsert: true })
-        if (!shotErr) screenshotPath = shotPath
+          .upload(shotPath, buffers[i], { contentType: "image/png", upsert: true })
+        if (!shotErr) {
+          screenshotPaths.push(shotPath)
+          if (screenshotPath == null) screenshotPath = shotPath
+        }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -116,6 +125,7 @@ export async function POST(req: NextRequest) {
       pdf_url: data.pdfUrl,
       pdf_storage_path: storagePath,
       screenshot_path: screenshotPath,
+      screenshot_paths: screenshotPaths.length ? screenshotPaths : null,
       state: state ?? null,
       county: county ?? null,
       case_number: (data.row.case_number ?? data.row.caseNumber) as string | null,

@@ -42,6 +42,7 @@ export default function AdminAutoscrapePage() {
     if (typeof window === "undefined") return ""
     return sessionStorage.getItem("scraper_admin_secret") ?? ""
   })
+  const [compileDownloadName, setCompileDownloadName] = useState("")
 
   const [sessionJson, setSessionJson] = useState("")
   const [contextText, setContextText] = useState("")
@@ -203,6 +204,17 @@ export default function AdminAutoscrapePage() {
     e.target.value = ""
   }
 
+  function downloadJson(filename: string, data: unknown) {
+    const str = typeof data === "string" ? data : JSON.stringify(data, null, 2)
+    const blob = new Blob([str], { type: "application/json" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg-primary)" }}>
       <header
@@ -214,27 +226,59 @@ export default function AdminAutoscrapePage() {
       >
         <div style={{ maxWidth: 900, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--space-sm)" }}>
           <h1 style={{ fontSize: "1.125rem", fontWeight: 700 }}>Autoscrape</h1>
-          <Link href="/admin/scrape" style={{ color: "var(--accent-muted)", fontSize: "0.875rem" }}>
-            ← Scraper
-          </Link>
+          <Link href="/admin/scrape" style={{ color: "var(--accent-muted)", fontSize: "0.875rem" }}>← Scraper</Link>
+          <Link href="/admin/superset" style={{ color: "var(--accent-muted)", fontSize: "0.875rem" }}>Superset</Link>
         </div>
       </header>
 
       <main style={{ maxWidth: 900, margin: "0 auto", padding: "var(--space-md)", paddingBottom: "var(--space-2xl)" }}>
-        <div style={{ marginBottom: "var(--space-md)" }}>
-          <label style={labelStyle}>Admin secret (optional if your email is in ADMIN_EMAILS)</label>
-          <input
-            type="password"
-            value={adminSecret}
-            onChange={(e) => setAdminSecret(e.target.value)}
-            placeholder="ADMIN_SECRET"
-            style={{ ...inputStyle, maxWidth: 280 }}
-          />
+        <div style={{ marginBottom: "var(--space-md)", display: "flex", flexWrap: "wrap", gap: "var(--space-md)", alignItems: "flex-end" }}>
+          <div>
+            <label style={labelStyle}>Admin secret (optional if your email is in ADMIN_EMAILS)</label>
+            <input
+              type="password"
+              value={adminSecret}
+              onChange={(e) => setAdminSecret(e.target.value)}
+              placeholder="ADMIN_SECRET"
+              style={{ ...inputStyle, maxWidth: 280 }}
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>Compiled flow filename (for download)</label>
+            <input
+              type="text"
+              value={compileDownloadName}
+              onChange={(e) => setCompileDownloadName(e.target.value)}
+              placeholder="e.g. cobb-civil"
+              style={{ ...inputStyle, maxWidth: 220 }}
+              title="Name for the downloaded compiled JSON (e.g. cobb-civil → cobb-civil.json)"
+            />
+            <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "var(--space-2xs)", display: "block" }}>
+              → {compileDownloadName.trim() ? `${compileDownloadName.trim().replace(/\.json$/i, "")}.json` : "flow.json"}
+            </span>
+          </div>
         </div>
 
         <section style={{ padding: "var(--space-md)", borderRadius: "12px", background: "var(--bg-card)", border: "1px solid var(--border)", marginBottom: "var(--space-lg)" }}>
           <h2 style={{ fontSize: "0.9375rem", fontWeight: 600, marginBottom: "var(--space-md)" }}>1. Session</h2>
-          <input type="file" accept=".json,application/json" onChange={handleSessionFile} style={{ marginBottom: "var(--space-sm)" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)", flexWrap: "wrap", marginBottom: "var(--space-sm)" }}>
+            <input type="file" accept=".json,application/json" onChange={handleSessionFile} />
+            <button
+              type="button"
+              onClick={() => {
+                try {
+                  const parsed = JSON.parse(sessionJson)
+                  downloadJson("session.json", parsed)
+                } catch {
+                  setCompileResult({ error: "Invalid JSON — fix session before downloading" })
+                }
+              }}
+              disabled={!sessionJson.trim()}
+              style={{ ...btnSecondary }}
+            >
+              Download session.json
+            </button>
+          </div>
           <label style={labelStyle}>Or paste session JSON</label>
           <textarea
             value={sessionJson}
@@ -254,6 +298,35 @@ export default function AdminAutoscrapePage() {
             style={{ ...inputStyle, minHeight: 60 }}
           />
           <label style={{ ...labelStyle, marginTop: "var(--space-md)" }}>Capture rules JSON (array, optional)</label>
+          <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "var(--space-xs)" }}>
+            During recording, use <kbd style={{ background: "var(--bg-elevated)", padding: "2px 6px", borderRadius: 4 }}>Ctrl+Shift+C</kbd> then click elements to tag them; session.json will include capture hints.
+          </p>
+          <div style={{ display: "flex", gap: "var(--space-sm)", marginBottom: "var(--space-xs)" }}>
+            <button
+              type="button"
+              onClick={() => {
+                try {
+                  const session = JSON.parse(sessionJson) as { snapshots?: Array<{ session?: { captureHints?: Array<{ field: string; selector?: string; attr?: string; condition?: string; role?: string }> } }> }
+                  const hints = (session.snapshots ?? []).flatMap((s) => s.session?.captureHints ?? [])
+                  const byField = new Map(hints.map((h) => [h.field, h]))
+                  const rules = Array.from(byField.values()).map((h) => ({
+                    field: h.field,
+                    ...(h.selector && { selector: h.selector }),
+                    ...(h.attr && { attr: h.attr }),
+                    ...(h.condition && { condition: h.condition }),
+                    ...(h.role && { role: h.role }),
+                  }))
+                  setCaptureRulesJson(JSON.stringify(rules, null, 2))
+                } catch {
+                  setCaptureRulesJson("")
+                }
+              }}
+              disabled={!sessionJson.trim()}
+              style={{ ...btnSecondary, fontSize: "0.75rem" }}
+            >
+              Use capture hints from session
+            </button>
+          </div>
           <textarea
             value={captureRulesJson}
             onChange={(e) => setCaptureRulesJson(e.target.value)}
@@ -299,12 +372,27 @@ export default function AdminAutoscrapePage() {
             </ul>
           ) : null}
           {compileResult?.schema != null ? (
-            <details style={{ marginTop: "var(--space-md)" }}>
-              <summary style={{ cursor: "pointer", fontSize: "0.875rem" }}>Schema (JSON)</summary>
-              <pre style={{ marginTop: "var(--space-sm)", padding: "var(--space-md)", background: "var(--bg-elevated)", borderRadius: "8px", fontSize: "0.75rem", overflow: "auto", maxHeight: 320 }}>
-                {JSON.stringify(compileResult.schema, null, 2)}
-              </pre>
-            </details>
+            <div style={{ marginTop: "var(--space-md)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)", marginBottom: "var(--space-xs)", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const base = compileDownloadName.trim().replace(/\.json$/i, "") || "flow"
+                    downloadJson(`${base}.json`, compileResult!.schema)
+                  }}
+                  style={{ ...btnSecondary, fontSize: "0.8125rem" }}
+                >
+                  Download {compileDownloadName.trim() ? `${compileDownloadName.trim().replace(/\.json$/i, "")}.json` : "flow.json"}
+                </button>
+                <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Compiled schema for headed/Modal run</span>
+              </div>
+              <details>
+                <summary style={{ cursor: "pointer", fontSize: "0.875rem" }}>Schema (JSON)</summary>
+                <pre style={{ marginTop: "var(--space-sm)", padding: "var(--space-md)", background: "var(--bg-elevated)", borderRadius: "8px", fontSize: "0.75rem", overflow: "auto", maxHeight: 320 }}>
+                  {JSON.stringify(compileResult.schema, null, 2)}
+                </pre>
+              </details>
+            </div>
           ) : null}
         </section>
 

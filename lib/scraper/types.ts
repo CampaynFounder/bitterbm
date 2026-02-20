@@ -36,6 +36,7 @@ export type ScraperStep =
   | ClickStep
   | ForEachOptionStep
   | ForEachResultStep
+  | ForEachIdStep
   | ConditionGroupStep
   | ExtractFieldStep
   | ExtractLinkStep
@@ -47,6 +48,9 @@ export type ScraperStep =
   | StoreRowStep
   | StoreMemoryStep
   | DelayStep
+  | FormFillStep
+  | CheckboxGroupStep
+  | RowCrawlerStep
 
 export interface BaseStep {
   type: string
@@ -140,6 +144,31 @@ export interface CheckboxStep extends BaseStep {
   }
 }
 
+export interface FormFillStep extends BaseStep {
+  type: "form_fill"
+  config: {
+    fields?: Array<{ selector?: string; value?: string; name?: string }>
+    submit?: string
+  }
+}
+
+export interface CheckboxGroupStep extends BaseStep {
+  type: "checkbox_group"
+  config: {
+    checkboxes?: Array<{ selector?: string; checked?: boolean }>
+  }
+}
+
+export interface RowCrawlerStep extends BaseStep {
+  type: "row_crawler"
+  config: {
+    rowSelector?: string
+    capture?: Array<{ field: string; selector?: string; attr?: string }>
+    pagination?: { selector?: string; maxPages?: number }
+    expand?: { trigger?: string; subTable?: string }
+  }
+}
+
 export interface ClickStep extends BaseStep {
   type: "click"
   config: {
@@ -169,6 +198,18 @@ export interface ForEachResultStep extends BaseStep {
     limit?: number
     mode?: "dom" | "navigate"
     clickTarget?: string
+  }
+}
+
+/** Iterate over a list of ids (e.g. from superset file); use {{current_id}} in steps. */
+export interface ForEachIdStep extends BaseStep {
+  type: "for_each_id"
+  config: {
+    /** Inline array of ids (or use idsVar) */
+    ids?: string[]
+    /** Var key that holds the ids array (e.g. "ids" when runner passes vars.ids) */
+    idsVar?: string
+    limit?: number
   }
 }
 
@@ -246,8 +287,10 @@ export interface ExtractPdfStep extends BaseStep {
     fieldId?: string
     /** Upload to Supabase storage (scraped-pdfs bucket) */
     uploadToStorage?: boolean
-    /** Take screenshot of PDF first page */
+    /** Take one screenshot of PDF (first page / viewport) */
     screenshot?: boolean
+    /** Take one screenshot per PDF page (navigates through browser PDF viewer); each saved to DB */
+    screenshotAllPages?: boolean
     /** doc_type for pdf_documents */
     docType?: string
   }
@@ -311,7 +354,8 @@ export interface ScraperFlow {
 }
 
 export interface ExecutionContext {
-  vars: Record<string, string | number>
+  /** Vars for interpolation; ids (string[]) is used by for_each_id when running retrieval with superset list */
+  vars: Record<string, string | number | string[]>
   row: Record<string, unknown>
   /** Persistent memory for state, county, etc. (propagated across nested loops) */
   memory: Record<string, string | number>
