@@ -6,6 +6,25 @@ After each step: run `npm run build`, commit, deploy and test as needed.
 
 ## Done
 - **LLM client** — `lib/autoscrape/llm-client.ts` (OpenAI default, Claude fallback); `docs/AUTOSCRAPE_LLM.md`
+- **Capture roles** — In the recorder, when you tag an element you choose **Use for**: `filter` (store in memory for candidate criteria), `target` (store in Supabase for the target record), or `pdf` (link/action to retrieve PDF or final text). The form closes after Add so you can keep selecting. Compile API merges `role` into schema capture entries.
+
+---
+
+## Capture flow (recorded in session)
+1. **Load URL** — Navigate to the portal.
+2. **Filter (superset → subset)** — Identify record types; filter so the subset of interest is displayed.
+3. **Candidates** — Rows that meet stored criteria (e.g. `case_status` = "Active"); values for comparison are stored in memory.
+4. **Targets** — Records that have met the candidate criteria; we store **target data** (fields for Supabase) and record the **process to retrieve PDFs or final text** for each target. Tag elements as **Target data** or **PDF/Resource** accordingly.
+
+---
+
+## Session snapshot vs PDF screenshots
+- **Enter / snapshot (recorder)** — Saves **session state** (events, capture hints, DOM) as JSON. It is **not** a screenshot. Use it to save progress or to compile later.
+- **PDF screenshots** — Taken **when the flow runs**, at the step that handles the PDF (the **extract_pdf** step). Playwright knows “where” from the flow: the step that has the PDF link/selector (from your tagged “PDF/Resource” element) runs `page.goto(pdfUrl)` and then takes screenshot(s).
+- **How many screenshots** — In the flow schema, set **screenshot: true** for one screenshot (first page/viewport), or **screenshotAllPages: true** to take one screenshot per PDF page (Playwright advances through the browser PDF viewer with Page Down and stops when the view repeats).
+- **Saving to the DB** — Each screenshot is uploaded to the `scraped-screenshots` bucket and the path(s) are stored in **pdf_documents** (`screenshot_path` for the first, `screenshot_paths` for all). This happens when you run the flow with storage wired:
+  - **Headed script** — Set `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`; the script now passes `onStorePdfDocument` and PDFs + screenshots are saved to `pdf_documents`.
+  - **API run** — `POST /api/admin/scrape/run` already saves PDFs and screenshots to the DB.
 
 ---
 
@@ -27,7 +46,7 @@ scraper/autoscrape/
     ├── executor.py
     └── modal_runner.py
 ```
-- Move files from flat `scraper/autoscrape/` into subdirs; fix imports (e.g. `from .analyzer.session_recorder`).
+- Move files from flat `scraper/autoscrape/` into subdirs; fix imports (e.g. `from .an`alyzer.session_recorder`).
 - Update `analyze.py` (or CLI entry) to use new paths. No change to Next.js build.
 
 ---

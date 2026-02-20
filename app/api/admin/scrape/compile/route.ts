@@ -95,7 +95,14 @@ export async function POST(req: NextRequest) {
           if (!capture) continue
           for (const cap of capture) {
             if (cap.field === field) {
-              Object.assign(cap, { condition: rule.condition, ifFalse: rule.ifFalse, pdfHandling: rule.pdfHandling })
+              Object.assign(cap, {
+                ...(rule.condition != null && { condition: rule.condition }),
+                ...(rule.ifFalse != null && { ifFalse: rule.ifFalse }),
+                ...(rule.pdfHandling != null && { pdfHandling: rule.pdfHandling }),
+                ...(rule.selector != null && { selector: rule.selector }),
+                ...(rule.attr != null && { attr: rule.attr }),
+                ...(rule.role != null && { role: rule.role }),
+              })
               merged = true
               break
             }
