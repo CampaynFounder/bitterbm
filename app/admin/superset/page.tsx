@@ -100,6 +100,8 @@ export type SiteConfigState = {
     primaryId: { source: "column" | "link"; columnIndex?: number; linkSelector?: string; linkAttribute?: string }
     signatureColumns?: number[]
     threshold: number
+    /** Optional: only include rows where cell at columnIndex matches. Column index is 0-based (nth child). */
+    rowFilter?: Array<{ columnIndex: number; operator: "equals" | "in"; value: string | string[] }>
   }
   pagination: { mode: string }
 }
@@ -184,7 +186,7 @@ function SupersetFlowEditor({
   onStepsChange: (steps: ScraperStep[]) => void
   onError: (msg: string) => void
 }) {
-  const [expandedIndex, setExpandedIndex] = useState<number | null>(0)
+  const [expandedSet, setExpandedSet] = useState<Set<number>>(() => new Set([0]))
   const [insertAt, setInsertAt] = useState<number | null>(null)
 
   const updateStep = (index: number, step: ScraperStep) => {
@@ -206,14 +208,14 @@ function SupersetFlowEditor({
     const next = [...steps]
     next.splice(at, 0, createBlankSupersetStep(type))
     onStepsChange(next)
-    setExpandedIndex(at)
+    setExpandedSet((s) => new Set(s).add(at))
     setInsertAt(null)
   }
 
   const removeStep = (index: number) => {
     const next = steps.filter((_, i) => i !== index)
     onStepsChange(next)
-    if (expandedIndex !== null && expandedIndex >= next.length) setExpandedIndex(Math.max(0, next.length - 1))
+    setExpandedSet((s) => new Set([...s].filter((i) => i !== index).map((i) => (i >= index ? i - 1 : i))))
   }
 
   const moveStep = (index: number, dir: "up" | "down") => {
@@ -222,14 +224,20 @@ function SupersetFlowEditor({
     if (j < 0 || j >= next.length) return
     ;[next[index], next[j]] = [next[j], next[index]]
     onStepsChange(next)
-    setExpandedIndex(j)
+    setExpandedSet((s) => {
+      const out = new Set(s)
+      out.delete(index)
+      out.delete(j)
+      out.add(j)
+      return out
+    })
   }
 
   const duplicateStep = (index: number) => {
     const next = [...steps]
     next.splice(index + 1, 0, { ...steps[index] })
     onStepsChange(next)
-    setExpandedIndex(index + 1)
+    setExpandedSet((s) => new Set(s).add(index + 1))
   }
 
   return (
@@ -238,7 +246,13 @@ function SupersetFlowEditor({
         <label style={labelStyle}>Flow name</label>
         <input value={flowName} onChange={(e) => onFlowNameChange(e.target.value)} placeholder="superset-search" style={{ ...inputStyle, maxWidth: 320 }} />
       </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-sm)", marginBottom: "var(--space-md)" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-sm)", marginBottom: "var(--space-md)", alignItems: "center" }}>
+        <button type="button" onClick={() => setExpandedSet(new Set(steps.map((_, i) => i)))} style={btnSecondary}>
+          Expand all
+        </button>
+        <button type="button" onClick={() => setExpandedSet(new Set())} style={btnSecondary}>
+          Collapse all
+        </button>
         <select
           value=""
           onChange={(e) => {
@@ -274,8 +288,8 @@ function SupersetFlowEditor({
             step={step}
             index={index}
             total={steps.length}
-            expanded={expandedIndex === index}
-            onToggle={() => setExpandedIndex((i) => (i === index ? null : index))}
+            expanded={expandedSet.has(index)}
+            onToggle={() => setExpandedSet((s) => { const n = new Set(s); if (n.has(index)) n.delete(index); else n.add(index); return n })}
             onChange={(s) => updateStep(index, s)}
             onTypeChange={(newType) => changeStepType(index, newType)}
             onRemove={() => removeStep(index)}
@@ -325,6 +339,7 @@ function SupersetStepCard({
     onChange({ ...step, config: { ...cfg, [key]: value } } as ScraperStep)
   }
   const typeLabel = SUPERSET_STEP_TYPES.find((t) => t.value === step.type)?.label ?? step.type
+  const stepLabel = (step as { label?: string }).label ?? ""
 
   return (
     <div style={{ borderRadius: 12, background: "var(--bg-elevated)", border: "1px solid var(--border)", marginBottom: "var(--space-md)", overflow: "hidden" }}>
@@ -332,6 +347,7 @@ function SupersetStepCard({
         <div style={{ display: "flex", alignItems: "center", gap: "var(--space-sm)", flex: 1, minWidth: 0 }}>
           <span style={{ transform: expanded ? "rotate(90deg)" : "rotate(0deg)", display: "inline-block" }}>▶</span>
           <span style={{ fontWeight: 600, fontSize: "0.9375rem" }}>{index + 1}. {typeLabel}</span>
+          {stepLabel && <span style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>— {stepLabel}</span>}
         </div>
         <div style={{ display: "flex", gap: "var(--space-xs)", flexWrap: "wrap", alignItems: "center" }} onClick={(e) => e.stopPropagation()}>
           <button type="button" onClick={onInsertAbove} style={{ ...btnSecondary, borderColor: "var(--accent-cyan)", color: "var(--accent-cyan)" }}>+ above</button>
@@ -344,6 +360,10 @@ function SupersetStepCard({
       </div>
       {expanded && (
         <div style={{ padding: "0 var(--space-md) var(--space-md)", borderTop: "1px solid var(--border)" }}>
+          <div style={{ marginBottom: "var(--space-md)" }}>
+            <label style={labelStyle}>Step label (optional)</label>
+            <input value={stepLabel} onChange={(e) => onChange({ ...step, label: e.target.value } as ScraperStep)} placeholder="e.g. Go to search page" style={{ ...inputStyle, maxWidth: 320 }} onClick={(e) => e.stopPropagation()} />
+          </div>
           <div style={{ marginBottom: "var(--space-md)" }}>
             <label style={labelStyle}>Step type</label>
             <select value={step.type} onChange={(e) => onTypeChange(e.target.value)} style={{ ...inputStyle, maxWidth: 280 }}>
@@ -495,9 +515,25 @@ function SiteConfigForm({ config, onChange }: { config: SiteConfigState; onChang
           <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Table selector</label><input value={config.resultTable.tableSelector} onChange={(e) => update("resultTable.tableSelector", e.target.value)} placeholder="table#gvResults" style={inputStyle} /></div>
           <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Row selector</label><input value={config.resultTable.rowSelector} onChange={(e) => update("resultTable.rowSelector", e.target.value)} placeholder="tbody tr" style={inputStyle} /></div>
           <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Primary ID source</label><select value={config.resultTable.primaryId.source} onChange={(e) => update("resultTable.primaryId.source", e.target.value as "column" | "link")} style={inputStyle}><option value="column">column</option><option value="link">link</option></select></div>
-          {config.resultTable.primaryId.source === "column" && <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Column index (0-based)</label><input type="number" value={config.resultTable.primaryId.columnIndex ?? 0} onChange={(e) => update("resultTable.primaryId.columnIndex", parseInt(e.target.value, 10) || 0)} style={{ ...inputStyle, maxWidth: 100 }} /></div>}
+          {config.resultTable.primaryId.source === "column" && <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Column index (0-based)</label><input type="number" value={config.resultTable.primaryId.columnIndex ?? 0} onChange={(e) => update("resultTable.primaryId.columnIndex", parseInt(e.target.value, 10) || 0)} style={{ ...inputStyle, maxWidth: 100 }} /><span style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginLeft: "var(--space-xs)" }}>0 = first column, 1 = second, etc.</span></div>}
           {config.resultTable.primaryId.source === "link" && (<><div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Link selector</label><input value={config.resultTable.primaryId.linkSelector ?? ""} onChange={(e) => update("resultTable.primaryId.linkSelector", e.target.value)} style={inputStyle} /></div><div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Link attribute</label><input value={config.resultTable.primaryId.linkAttribute ?? "href"} onChange={(e) => update("resultTable.primaryId.linkAttribute", e.target.value)} style={inputStyle} /></div></>)}
           <div style={{ marginBottom: "var(--space-sm)" }}><label style={labelStyle}>Threshold (min rows)</label><input type="number" value={config.resultTable.threshold} onChange={(e) => update("resultTable.threshold", parseInt(e.target.value, 10) || 5)} style={{ ...inputStyle, maxWidth: 100 }} /></div>
+          <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "var(--space-sm)" }}>Unique IDs are taken from the primary ID column/link per row. Phase 1 script uses tableSelector + rowSelector to find rows, then applies row filter (if any) and extracts IDs; search criteria + ids are stored in the superset output.</p>
+          {(config.resultTable.rowFilter ?? []).length > 0 && (
+            <div style={{ marginTop: "var(--space-md)" }}>
+              <label style={labelStyle}>Row filter (only include rows where…)</label>
+              {(config.resultTable.rowFilter ?? []).map((f, i) => (
+                <div key={i} style={{ display: "flex", gap: "var(--space-sm)", marginBottom: "var(--space-xs)", flexWrap: "wrap", alignItems: "center" }}>
+                  <span style={{ fontSize: "0.8125rem" }}>Column</span>
+                  <input type="number" value={f.columnIndex} onChange={(e) => { const arr = [...(config.resultTable.rowFilter ?? [])]; arr[i] = { ...arr[i], columnIndex: parseInt(e.target.value, 10) || 0 }; update("resultTable.rowFilter", arr) }} style={{ ...inputStyle, width: 60 }} />
+                  <select value={f.operator} onChange={(e) => { const arr = [...(config.resultTable.rowFilter ?? [])]; arr[i] = { ...arr[i], operator: e.target.value as "equals" | "in" }; update("resultTable.rowFilter", arr) }} style={{ ...inputStyle, width: 100 }}><option value="equals">equals</option><option value="in">in</option></select>
+                  <input value={Array.isArray(f.value) ? f.value.join(", ") : String(f.value ?? "")} onChange={(e) => { const v = e.target.value; const arr = [...(config.resultTable.rowFilter ?? [])]; arr[i] = { ...arr[i], value: f.operator === "in" ? v.split(",").map((s) => s.trim()).filter(Boolean) : v }; update("resultTable.rowFilter", arr) }} placeholder={f.operator === "in" ? "A, B, C" : "value"} style={{ ...inputStyle, flex: 1, minWidth: 100 }} />
+                  <button type="button" onClick={() => update("resultTable.rowFilter", (config.resultTable.rowFilter ?? []).filter((_, j) => j !== i))} style={btnSecondary}>Remove</button>
+                </div>
+              ))}
+            </div>
+          )}
+          <button type="button" onClick={() => update("resultTable.rowFilter", [...(config.resultTable.rowFilter ?? []), { columnIndex: 0, operator: "equals" as const, value: "" }])} style={{ ...btnSecondary, marginTop: "var(--space-sm)" }}>+ Add row filter</button>
         </>
       ))}
       {section("Pagination", (
@@ -794,6 +830,23 @@ export default function AdminSupersetPage() {
             Configure the Playwright flow that runs one search (navigate, switch frame, form fill, submit) and the site config (selectors, threshold). Use with the Phase 1 script to build superset files locally. See{" "}
             <code style={{ background: "var(--bg-elevated)", padding: "2px 6px", borderRadius: 4 }}>docs/SCRAPER_SUPERSET_ARCHITECTURE.md</code>.
           </p>
+          <details style={{ marginBottom: "var(--space-md)", fontSize: "0.8125rem" }}>
+            <summary style={{ cursor: "pointer", fontWeight: 600, color: "var(--accent-muted)" }}>How to run superset (Phase 1 &amp; 2)</summary>
+            <div style={{ marginTop: "var(--space-sm)", paddingLeft: "var(--space-sm)", borderLeft: "2px solid var(--border)" }}>
+              <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "var(--space-sm)" }}>Full config schema and table/row filter logic: <code>docs/SCRAPER_SUPERSET_ARCHITECTURE.md</code> (§6.2, resultTable.rowFilter and unique ID).</p>
+              <p style={{ marginBottom: "var(--space-sm)" }}><strong>Phase 1 (build superset file):</strong></p>
+              <ol style={{ marginBottom: "var(--space-md)", paddingLeft: "1.25rem" }}>
+                <li>Download the superset flow (Download flow.json) and site config (Download site-config.json).</li>
+                <li>Run the Phase 1 builder script when available (e.g. <code>python scraper/superset/phase1_build.py --flow flow.json --config site-config.json</code>). It will use the flow to perform one search, then use the site config (table selector, row selector, row filter, primary ID) to find rows and extract unique IDs. Output: search criteria + list of unique IDs (and optionally other values) saved to a superset file.</li>
+              </ol>
+              <p style={{ marginBottom: "var(--space-sm)" }}><strong>Phase 2 (retrieval by IDs):</strong></p>
+              <ol style={{ marginBottom: 0, paddingLeft: "1.25rem" }}>
+                <li>Upload or paste a superset file (or a JSON array of IDs) in the retrieval section below.</li>
+                <li>Configure the retrieval flow (steps that use each ID, e.g. navigate to detail page).</li>
+                <li>Run retrieval via the &quot;Run retrieval&quot; button (API) or run the headed script with <code>--ids-file</code> when available.</li>
+              </ol>
+            </div>
+          </details>
 
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-md)", marginBottom: "var(--space-sm)" }}>
             <label style={labelStyle}>Superset flow (one search)</label>

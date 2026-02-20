@@ -19,17 +19,24 @@ export async function GET(req: NextRequest) {
   const q = searchParams.get("q")?.trim().toLowerCase() || ""
   const kind = searchParams.get("kind")?.trim() || ""
 
+  const allowedKinds = ["scraper", "superset_flow", "superset_site_config", "retrieval_flow", "autoscrape_flow"]
+  if (!kind || !allowedKinds.includes(kind)) {
+    return NextResponse.json(
+      { error: "Query param 'kind' required. Use one of: " + allowedKinds.join(", ") },
+      { status: 400 }
+    )
+  }
+
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  let query = supabase
+  const { data, error } = await supabase
     .from("scraper_flows")
     .select("id, name, description, flow_json, kind, created_at, updated_at")
+    .eq("kind", kind)
     .order("updated_at", { ascending: false })
-  if (kind) query = query.eq("kind", kind)
-  const { data, error } = await query
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })

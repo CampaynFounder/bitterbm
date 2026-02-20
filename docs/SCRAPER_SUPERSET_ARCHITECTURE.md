@@ -243,7 +243,11 @@ Config is JSON (one per site/campaign). Structure below is backward-compatible s
       "textSelector": null
     },
     "signatureColumns": [0, 1, 2],
-    "threshold": 5
+    "threshold": 5,
+    "rowFilter": [
+      { "columnIndex": 1, "operator": "equals", "value": "Active" },
+      { "columnIndex": 2, "operator": "in", "value": ["CV", "CR"] }
+    ]
   },
   "pagination": {
     "mode": "all_in_dom",
@@ -254,6 +258,8 @@ Config is JSON (one per site/campaign). Structure below is backward-compatible s
 
 - **pagination.mode:** `"all_in_dom"` for current behavior. Later: e.g. `"postback"` with `nextLinkPattern: "Page$N"` or `"click_next"` with `nextButtonSelector` so we can add multi-page aggregation without breaking existing configs.
 - **primaryId:** If `source` is `"link"`, use `linkSelector` + `linkAttribute` inside the cell; else use cell text. Dedupe by this id across all supersets for this site.
+- **resultTable.rowFilter (optional):** Array of filters. Only rows that satisfy **all** filters are included. Each filter: `columnIndex` (0-based: 0 = first column, 1 = second, etc.), `operator` `"equals"` (cell text equals `value`) or `"in"` (cell text is one of the strings in `value` array). Phase 1 applies: find table → query rows by `rowSelector` → for each row, check each filter on the nth child/cell → keep row only if all match → extract primary id (and optionally other values) from kept rows. Stored output = search criteria + list of unique ids (and optionally other column values).
+- **Table and unique ID logic (summary):** The **table** is located by `tableSelector`; **rows** are all elements matching `rowSelector` (e.g. `tbody tr`). Optionally **rowFilter** restricts to “rows where nth column equals X” or “nth column in [A, B, C]”. **Unique ID** per row comes from `primaryId`: either the text (or link attribute) of the cell at `columnIndex`, or the attribute of the link matching `linkSelector` in that cell. Phase 1 stores **search criteria** (pattern, dates, etc.) and the **list of unique ids** (and optionally other values) from the filtered rows.
 - Pattern generation: build combinations from `alphabet` with `length`; if `useWildcard` then insert `wildcardChar` per config (e.g. A%A%A). Respect `caseSensitive` when comparing.
 
 ### 6.3 Superset output format (Phase 1 → Phase 2)
