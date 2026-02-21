@@ -370,9 +370,15 @@ def run_nested_table_checks(row_locator, root, nested_checks, log):
                                         row_locator.locator(expand_sel).first.click()
                                         # Wait for expansion and content load
                                         import time
-                                        time.sleep(0.8)
+                                        time.sleep(1.5)
                                         expanded = True
                                         log(f"    [nestedCheck '{name}'] ✓ expanded row")
+                                        # Debug: check if sibling now has content
+                                        try:
+                                            sibling_html_after = next_row.first.evaluate("el => el.innerHTML")
+                                            log(f"    [nestedCheck '{name}'] sibling HTML after expand (first 800 chars): {sibling_html_after[:800]}")
+                                        except Exception:
+                                            pass
                                     except Exception as click_err:
                                         log(f"    [nestedCheck '{name}'] expand click failed: {click_err}")
                                 else:
