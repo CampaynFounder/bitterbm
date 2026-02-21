@@ -49,6 +49,12 @@ Site config must include resultTable (tableSelector, rowSelector, primaryId, thr
        { "name": "HasOrderFinal", "tableSelector": "table#EventGrid", "scope": "row", "rowSelector": "tbody tr", "columnIndex": 0, "operator": "equals", "value": "ORDER FINAL", "outputInRow": true }
      ]
    Note: rowSelector must be a CSS selector (e.g. "tbody tr"), not plain text. Use "equals" with value "ORDER FINAL" to match cell text.
+
+--- Troubleshooting "0 matched" ---
+
+If you see "Finished processing N rows; 0 matched", the main-table row filter is excluding every row. Run with --debug-row-filter to log the actual cell values for the filter columns on the first 5 rows, e.g.:
+  python phase1_build.py --config superset-phase1.json --output out.json --debug-row-filter
+Then compare "col0=... col4=... col8=..." to your expected values. Fix columnIndex (0-based from left) or value (exact string match, trim/case) in resultTable.rowFilter.
 """
 
 import argparse
@@ -228,6 +234,16 @@ def get_cell_text(locator, primary_id_config):
     return (locator.inner_text() or "").strip()
 
 
+def get_cell_text_for_column(row_locator, col_idx):
+    """Return trimmed text of the cell at 0-based col_idx in the row."""
+    cell_sel = f"td:nth-child({col_idx + 1}), th:nth-child({col_idx + 1})"
+    try:
+        cell = row_locator.locator(cell_sel).first
+        return (cell.inner_text() or "").strip()
+    except Exception:
+        return ""
+
+
 def row_matches_filter(row_locator, row_filter_list, logic, table_selector, row_selector):
     """Evaluate rowFilter conditions (AND/OR + NOT) on a row. Row locator is for one <tr>."""
     if not row_filter_list:
@@ -238,13 +254,7 @@ def row_matches_filter(row_locator, row_filter_list, logic, table_selector, row_
         op = f.get("operator", "equals")
         val = f.get("value")
         not_flag = f.get("not", False)
-        # nth-child is 1-based in CSS; columns are often td:nth-child(1), td:nth-child(2)...
-        cell_sel = f"td:nth-child({col_idx + 1}), th:nth-child({col_idx + 1})"
-        try:
-            cell = row_locator.locator(cell_sel).first
-            cell_text = (cell.inner_text() or "").strip()
-        except Exception:
-            cell_text = ""
+        cell_text = get_cell_text_for_column(row_locator, col_idx)
         if op == "equals":
             match = cell_text == (val if isinstance(val, str) else str(val))
         else:  # in
@@ -304,6 +314,9 @@ def run_nested_table_checks(row_locator, root, nested_checks):
             continue
         row_sel = (nc.get("rowSelector") or "").strip() or None
         operator = nc.get("operator", "exists")
+        # rowSelector must be valid CSS (e.g. "tbody tr"). If it looks like plain text (e.g. "ORDER FINAL"), ignore it for "exists"
+        if operator == "exists" and row_sel and " " in row_sel and not any(c in row_sel for c in "#.[]:>"):
+            row_sel = None
         value = nc.get("value")
         col_idx = max(0, int(nc.get("columnIndex", 0)))
         cell_sel = f"td:nth-child({col_idx + 1}), th:nth-child({col_idx + 1})"
@@ -314,6 +327,16 @@ def run_nested_table_checks(row_locator, root, nested_checks):
             if operator == "exists":
                 loc = table_loc.locator(row_sel) if row_sel else table_loc
                 exists = loc.count() > 0
+                # If scope=row and table not found, try next sibling row (expandable detail row pattern)
+                if not exists and scope == "row" and base == row_locator:
+                    try:
+                        next_row = row_locator.locator("xpath=following-sibling::tr[1]")
+                        if next_row.count() > 0:
+                            table_in_next = next_row.locator(table_sel)
+                            if table_in_next.count() > 0:
+                                exists = True
+                    except Exception:
+                        pass
             else:
                 rows_loc = table_loc.locator(row_sel or "tr")
                 n = rows_loc.count()
@@ -371,6 +394,7 @@ def main():
     ap.add_argument("--output", "-o", default="", help="Output JSON path (default: stdout)")
     ap.add_argument("--pattern", default="%", help="Pattern var for {{pattern}} (default: %)")
     ap.add_argument("--headless", action="store_true", help="Run browser headless")
+    ap.add_argument("--debug-row-filter", action="store_true", help="Log main-table cell values for row filter columns on first few rows to troubleshoot 0 matched")
     args = ap.parse_args()
 
     flow, site_config = load_config(
@@ -423,11 +447,44 @@ def main():
         rows_data = []
         row_timeout_ms = 8000  # per-row locator timeout to avoid long hangs
         page.set_default_timeout(row_timeout_ms)
+        debug_row_filter = getattr(args, "debug_row_filter", False)
+        # Skip non-data rows: if primary ID column is empty, treat as header/detail row
+        primary_id = rt.get("primaryId") or {}
+        primary_col = int(primary_id.get("columnIndex", 0)) if primary_id.get("source") == "column" else None
+
+        data_row_num = 0  # 1-based count of data rows (matches visible row number, excludes header/detail)
         try:
             for i in range(n_rows):
-                log(f"Processing row {i + 1}/{n_rows} ...")
                 row_loc = rows_loc.nth(i)
-                if not row_matches_filter(row_loc, row_filter, row_filter_logic, table_selector, row_selector):
+                if primary_col is not None:
+                    id_cell_text = get_cell_text_for_column(row_loc, primary_col)
+                    if not (id_cell_text or "").strip():
+                        if debug_row_filter and i < 5:
+                            log(f"  [debug] row {i+1} skipped (empty primary ID column {primary_col})")
+                        log(f"Processing table row {i + 1}/{n_rows} (skipped, no ID) ...")
+                        continue
+                data_row_num += 1
+                log(f"Processing table row {i + 1}/{n_rows} (data row {data_row_num}) ...")
+                passes_filter = row_matches_filter(row_loc, row_filter, row_filter_logic, table_selector, row_selector)
+                if debug_row_filter and i < 5:
+                    # Log all columns 0..maxCol so user can see DOM order and fix columnIndex in config
+                    max_debug_col = 16
+                    all_vals = []
+                    for c in range(max_debug_col):
+                        t = get_cell_text_for_column(row_loc, c)
+                        if t or c < 12:  # always show first 12, then only non-empty
+                            all_vals.append(f"col{c}={repr(t)}")
+                    all_str = " | ".join(all_vals)
+                    log(f"  [debug] row {i+1} all columns: {all_str}")
+                    col_vals = []
+                    for f in row_filter:
+                        c = int(f.get("columnIndex", 0))
+                        t = get_cell_text_for_column(row_loc, c)
+                        col_vals.append(f"col{c}={repr(t)}")
+                    expected = " | ".join(f"col{f.get('columnIndex',0)}={repr(f.get('value'))}" for f in row_filter)
+                    actual_str = " | ".join(col_vals)
+                    log(f"  [debug] row {i+1} filter cols: {actual_str} | expected: {expected} | passed={passes_filter}")
+                if not passes_filter:
                     continue
                 if not nested_filter_passes(row_loc, nested_row_filters):
                     continue
