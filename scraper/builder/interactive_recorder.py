@@ -234,11 +234,13 @@ class InteractiveRecorder:
             print("🎬 INTERACTIVE RECORDING MODE")
             print("="*60)
             print("\n📋 Instructions:")
+            print("  ⚠️  FOCUS THE BROWSER WINDOW (not this terminal!)")
             print("  1. Interact with the page (fill forms, click buttons)")
-            print("  2. Press 'E' to enter Extract Mode")
+            print("  2. Press 'E' key IN THE BROWSER to enter Extract Mode")
             print("  3. Click on elements you want to capture")
-            print("  4. Press 'S' to take a screenshot")
-            print("  5. Press 'Q' when finished")
+            print("  4. Press 'S' key IN THE BROWSER to take screenshot")
+            print("  5. Press 'Q' key IN THE BROWSER when finished")
+            print("\n  💡 The overlay in the top-right shows your current mode")
             print("\n" + "="*60 + "\n")
             
             screenshot_count = 0
