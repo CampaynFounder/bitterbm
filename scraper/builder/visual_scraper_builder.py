@@ -50,21 +50,49 @@ except ImportError:
 
 def analyze_page(url, auth_pause_seconds=0):
     """Capture page structure, screenshot, and element metadata"""
+    from urllib.parse import urlparse
+    
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=False if auth_pause_seconds else True)
         page = browser.new_page()
         
         print(f"🌐 Navigating to {url}...")
-        page.goto(url, wait_until="domcontentloaded", timeout=60000)
+        
+        # Navigate with multiple wait strategies
+        try:
+            page.goto(url, wait_until="domcontentloaded", timeout=60000)
+            print("   ✓ Initial page load complete")
+            
+            # Wait for network to be idle (most reliable for dynamic content)
+            print("   ⏳ Waiting for network idle...")
+            page.wait_for_load_state("networkidle", timeout=30000)
+            print("   ✓ Network idle")
+            
+            # Give any JS time to render
+            page.wait_for_timeout(2000)
+            print("   ✓ Additional 2s render time")
+            
+        except Exception as e:
+            print(f"   ⚠️  Load warning: {e}")
+            print("   Continuing with partial page load...")
         
         if auth_pause_seconds:
             print(f"⏸️  Paused for {auth_pause_seconds}s - log in manually if needed")
             page.wait_for_timeout(auth_pause_seconds * 1000)
         
+        # Extract domain for folder organization
+        parsed = urlparse(url)
+        domain = parsed.netloc.replace("www.", "")
+        if not domain:
+            domain = "unknown"
+        
+        # Create output directory for this domain
+        output_dir = Path(f"scraper/builder/sites/{domain}")
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
         # Capture screenshot
-        screenshot_path = Path("scraper/builder/page_screenshot.png")
-        screenshot_path.parent.mkdir(parents=True, exist_ok=True)
-        page.screenshot(path=screenshot_path, full_page=False)  # Viewport only for speed
+        screenshot_path = output_dir / "page_screenshot.png"
+        page.screenshot(path=screenshot_path, full_page=False)
         print(f"📸 Screenshot saved: {screenshot_path}")
         
         # Extract page structure
@@ -171,6 +199,7 @@ def analyze_page(url, auth_pause_seconds=0):
         
         return {
             "url": url,
+            "domain": domain,
             "screenshot": str(screenshot_path),
             "structure": structure,
             "html_sample": html_sample
@@ -488,7 +517,7 @@ def main():
     parser.add_argument("--state", help="State code (e.g. GA)")
     parser.add_argument("--county", help="County name (e.g. Cobb)")
     parser.add_argument("--provider", choices=["openai", "claude", "huggingface"], help="AI provider (default: openai, or set SCRAPER_AI_PROVIDER)")
-    parser.add_argument("--output", default="scraper/builder/generated_scraper.json", help="Output file")
+    parser.add_argument("--output", help="Output file (default: scraper/builder/sites/{domain}/config.json)")
     args = parser.parse_args()
     
     print("=" * 60)
@@ -497,6 +526,7 @@ def main():
     
     # Step 1: Analyze page
     page_data = analyze_page(args.url, args.auth_pause)
+    domain = page_data["domain"]
     
     print(f"\n📊 Found {len(page_data['structure'])} elements:")
     element_counts = {}
@@ -514,7 +544,11 @@ def main():
     scraper_text = generate_scraper_with_ai(page_data, args.describe, args.state, args.county, args.provider)
     
     # Step 3: Save output
-    output_path = Path(args.output)
+    if args.output:
+        output_path = Path(args.output)
+    else:
+        output_path = Path(f"scraper/builder/sites/{domain}/config.json")
+    
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
     try:
@@ -538,6 +572,7 @@ def main():
     
     print(f"💾 Saved to: {output_path}")
     print(f"📸 Screenshot: {page_data['screenshot']}")
+    print(f"📁 All files in: scraper/builder/sites/{domain}/")
     print("\n" + "=" * 60)
 
 
