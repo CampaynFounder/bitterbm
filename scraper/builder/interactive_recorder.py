@@ -223,8 +223,10 @@ class InteractiveRecorder:
                             const label = input.value.trim();
                             console.log('User entered label:', label);
                             
+                            // Remove modal FIRST
+                            modal.remove();
+                            
                             if (!label) {
-                                modal.remove();
                                 return;
                             }
                             
@@ -280,8 +282,6 @@ class InteractiveRecorder:
                             if (counterSpan) {
                                 counterSpan.textContent = window.extractedElements.length;
                             }
-                            
-                            modal.remove();
                         };
                         
                         document.getElementById('modal-submit').addEventListener('click', submitHandler);
