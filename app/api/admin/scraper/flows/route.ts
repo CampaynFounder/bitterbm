@@ -76,15 +76,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  let body: { id?: string; name?: string; description?: string; flow_json?: object; kind?: string; action?: string }
+  const { searchParams } = new URL(req.url)
+  const queryAction = searchParams.get("action")
+  const queryId = searchParams.get("id")?.trim() ?? ""
+
+  let body: { id?: string; name?: string; description?: string; flow_json?: object; kind?: string; action?: string } = {}
   try {
     body = await req.json()
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
+    // Body may be empty or invalid; use query params for delete if present
   }
 
-  if (body.action === "delete") {
-    const deleteId = typeof body.id === "string" ? body.id.trim() : ""
+  const deleteAction = body.action === "delete" || queryAction === "delete"
+  const deleteId = (typeof body.id === "string" ? body.id.trim() : "") || queryId
+
+  if (deleteAction) {
     if (!deleteId) {
       return NextResponse.json({ error: "id required for delete" }, { status: 400 })
     }

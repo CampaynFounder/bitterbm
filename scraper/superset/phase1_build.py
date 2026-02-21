@@ -338,20 +338,28 @@ def run_nested_table_checks(row_locator, root, nested_checks):
                     except Exception:
                         pass
             else:
+                def _norm(s):
+                    s = str(s).strip()
+                    if len(s) >= 2 and s.startswith('\\"') and s.endswith('\\"'):
+                        s = s[2:-2]
+                    elif len(s) >= 2 and s[0] == '"' and s[-1] == '"':
+                        s = s[1:-1]
+                    return s.strip()
+
                 rows_loc = table_loc.locator(row_sel or "tr")
                 n = rows_loc.count()
                 vals = value if operator == "in" and isinstance(value, list) else [value]
-                vals = [str(v).strip() for v in vals if v is not None and str(v).strip()]
+                vals = [_norm(v) for v in vals if v is not None and str(v).strip()]
                 for r in range(n):
                     cell = rows_loc.nth(r).locator(cell_sel).first
                     cell_text = (cell.inner_text() or "").strip()
                     if operator == "equals":
-                        if vals and cell_text == (str(vals[0]) if vals else ""):
+                        if vals and _norm(cell_text) == _norm(vals[0]):
                             exists = True
                             row_index = r
                             break
                     else:  # in
-                        if cell_text in vals:
+                        if _norm(cell_text) in vals:
                             exists = True
                             row_index = r
                             break
