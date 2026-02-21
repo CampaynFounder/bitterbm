@@ -1253,6 +1253,12 @@ export default function AdminSupersetPage() {
               <div style={{ padding: "var(--space-md)", borderBottom: "1px solid var(--border)" }}>
                 <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "var(--space-sm)" }}>Load superset flow</h3>
                 <input type="text" value={flowSearch} onChange={(e) => setFlowSearch(e.target.value)} placeholder="Search by name…" style={inputStyle} />
+                {filteredSavedFlows.length > 0 && (
+                  <label style={{ display: "flex", alignItems: "center", gap: "var(--space-xs)", marginTop: "var(--space-sm)", fontSize: "0.875rem", cursor: "pointer" }}>
+                    <input type="checkbox" checked={selectedFlowIds.size === filteredSavedFlows.length && filteredSavedFlows.length > 0} onChange={(e) => { if (e.target.checked) setSelectedFlowIds(new Set(filteredSavedFlows.map(f => f.id))); else setSelectedFlowIds(new Set()); }} style={{ cursor: "pointer" }} />
+                    Select all ({filteredSavedFlows.length})
+                  </label>
+                )}
                 {selectedFlowIds.size > 0 && (
                   <button type="button" onClick={() => handleBulkDelete(selectedFlowIds, setSavedFlowsList, savedFlowsList, setSelectedFlowIds)} style={{ ...btnSecondary, marginTop: "var(--space-sm)", color: "var(--accent-gold)" }}>
                     Delete {selectedFlowIds.size} selected

@@ -35,17 +35,19 @@
             {
               "value": "Lowther",
               "selector": "input#tbPersonSearch.TextBox"
-            },
-            {
-              "value": "01012022",
-              "selector": "input#tbFiledFrom.DatePicker.hasDatepicker"
-            },
-            {
-              "value": "01012026",
-              "selector": "input#tbFiledTo.DatePicker.hasDatepicker"
             }
           ],
           "submit": ""
+        }
+      },
+      {
+        "type": "date_range",
+        "label": "pick date",
+        "config": {
+          "toValue": "02/02/2026",
+          "fromValue": "02/02/2022",
+          "toSelector": "input#tbFiledTo.DatePicker.hasDatepicker",
+          "fromSelector": "input#tbFiledFrom.DatePicker.hasDatepicker"
         }
       },
       {
