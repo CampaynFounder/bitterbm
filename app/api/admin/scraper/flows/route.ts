@@ -83,8 +83,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
   }
 
-  if (body.action === "delete" && body.id?.trim()) {
-    const { error } = await supabase.from("scraper_flows").delete().eq("id", body.id.trim())
+  if (body.action === "delete") {
+    const deleteId = typeof body.id === "string" ? body.id.trim() : ""
+    if (!deleteId) {
+      return NextResponse.json({ error: "id required for delete" }, { status: 400 })
+    }
+    const { error } = await supabase.from("scraper_flows").delete().eq("id", deleteId)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ ok: true })
   }

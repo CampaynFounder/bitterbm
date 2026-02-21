@@ -341,7 +341,7 @@ def run_nested_table_checks(row_locator, root, nested_checks):
                 rows_loc = table_loc.locator(row_sel or "tr")
                 n = rows_loc.count()
                 vals = value if operator == "in" and isinstance(value, list) else [value]
-                vals = [str(v).strip() for v in vals if v is not None]
+                vals = [str(v).strip() for v in vals if v is not None and str(v).strip()]
                 for r in range(n):
                     cell = rows_loc.nth(r).locator(cell_sel).first
                     cell_text = (cell.inner_text() or "").strip()

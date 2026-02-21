@@ -606,7 +606,7 @@ function SiteConfigForm({ config, onChange, onlySections }: { config: SiteConfig
                   <select value={nc.operator ?? "equals"} onChange={(e) => { const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], operator: e.target.value as "exists" | "equals" | "in" }; update("resultTable.nestedTableChecks", arr) }} style={{ ...inputStyle, width: 88 }}><option value="exists">exists</option><option value="equals">equals</option><option value="in">in</option></select>
                   <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Column index (0-based):</span>
                   <input type="number" min={0} value={Math.max(0, nc.columnIndex ?? 0)} onChange={(e) => { const v = Math.max(0, parseInt(e.target.value, 10) || 0); const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], columnIndex: v }; update("resultTable.nestedTableChecks", arr) }} style={{ ...inputStyle, width: 56 }} title="Column in the nested table to check (0 = first)" />
-                  <input value={Array.isArray(nc.value) ? (nc.value as string[]).join(", ") : String(nc.value ?? "")} onChange={(e) => { const v = e.target.value; const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], value: (nc.operator ?? "equals") === "in" ? v.split(",").map((s) => s.trim()).filter(Boolean) : v }; update("resultTable.nestedTableChecks", arr) }} placeholder={(nc.operator ?? "equals") === "in" ? "A, B, C" : "Value"} style={{ ...inputStyle, width: 140 }} title="One value for equals; comma-separated for in" />
+                  <input value={Array.isArray(nc.value) ? (nc.value as string[]).join(", ") : String(nc.value ?? "")} onChange={(e) => { const v = e.target.value; const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], value: (nc.operator ?? "equals") === "in" ? v.split(",").map((s) => s.trim()) : v }; update("resultTable.nestedTableChecks", arr) }} placeholder={(nc.operator ?? "equals") === "in" ? "A, B, C (comma-separated)" : "Value"} style={{ ...inputStyle, width: 200 }} title="One value for equals; for 'in', type several values separated by commas" />
                   <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.8125rem" }}><input type="checkbox" checked={nc.outputInRow ?? false} onChange={(e) => { const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], outputInRow: e.target.checked }; update("resultTable.nestedTableChecks", arr) }} />Output in row</label>
                 </div>
                 <button type="button" onClick={() => update("resultTable.nestedTableChecks", (rt.nestedTableChecks ?? []).filter((_, j) => j !== i))} style={btnSecondary}>Remove</button>
@@ -923,11 +923,16 @@ export default function AdminSupersetPage() {
 
   async function handleDeleteFlow(id: string, name: string, setList: React.Dispatch<React.SetStateAction<SavedFlowRow[]>>, list: SavedFlowRow[]) {
     if (!confirm(`Delete "${name}"?`)) return
+    const deleteId = id != null ? String(id).trim() : ""
+    if (!deleteId) {
+      setSaveError("Cannot delete: missing id")
+      return
+    }
     const prev = list
     setList((l) => l.filter((x) => x.id !== id))
     setSaveError(null)
     try {
-      const res = await fetch("/api/admin/scraper/flows", { method: "POST", headers: authHeaders(), body: JSON.stringify({ action: "delete", id }) })
+      const res = await fetch("/api/admin/scraper/flows", { method: "POST", headers: authHeaders(), body: JSON.stringify({ action: "delete", id: deleteId }) })
       const data = (await res.json()) as { error?: string }
       if (!res.ok) {
         setList(prev)
