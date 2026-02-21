@@ -13,6 +13,28 @@
         "config": {
           "timeout": 2000
         }
+      },
+      {
+        "type": "extract_data",
+        "config": {
+          "fields": {
+            "case_number": {
+              "selector": "#case-number",
+              "type": "text",
+              "element": "div"
+            },
+            "party_names": {
+              "selector": "#party-names",
+              "type": "text",
+              "element": "div"
+            },
+            "pdf": {
+              "selector": ".field",
+              "type": "href",
+              "element": "a"
+            }
+          }
+        }
       }
     ]
   },
@@ -21,14 +43,45 @@
     "state": "Test",
     "county": "Demo",
     "baseUrl": "file:///Users/pharrenlowther/projects/bitterbm/test-recorder.html",
-    "description": "Interactive recording from 2026-02-21T13:16:57.594214",
     "metadata": {
-      "recordedAt": "2026-02-21T13:16:57.594224",
-      "extractionFields": [],
+      "recordedAt": "2026-02-21T13:56:36.391825",
+      "extractionFields": [
+        "case_number",
+        "party_names",
+        "pdf"
+      ],
       "screenshots": [
         "scraper/builder/sites/unknown/final_screenshot.png"
       ]
     },
-    "extractedFields": []
+    "extractedFields": [
+      {
+        "label": "case_number",
+        "selector": "#case-number",
+        "extractType": "text",
+        "tag": "div",
+        "text": "Case Number: 2023-CV-12345",
+        "value": "",
+        "element": "ref: <Node>"
+      },
+      {
+        "label": "party_names",
+        "selector": "#party-names",
+        "extractType": "text",
+        "tag": "div",
+        "text": "Parties: John Doe vs Jane Smith",
+        "value": "",
+        "element": "ref: <Node>"
+      },
+      {
+        "label": "pdf",
+        "selector": ".field",
+        "extractType": "href",
+        "tag": "a",
+        "text": "PDF Link: Download Case Document",
+        "value": "file:///case/12345/document.pdf",
+        "element": "ref: <Node>"
+      }
+    ]
   }
 }
