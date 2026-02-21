@@ -63,7 +63,7 @@ class InteractiveRecorder:
                     color: white;
                     padding: 20px;
                     border-radius: 8px;
-                    z-index: 999999;
+                    z-index: 99999999;
                     font-family: monospace;
                     font-size: 14px;
                     max-width: 320px;
