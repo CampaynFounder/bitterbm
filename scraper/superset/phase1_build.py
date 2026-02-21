@@ -376,15 +376,21 @@ def run_nested_table_checks(row_locator, root, nested_checks):
                 for r in range(n):
                     cell = rows_loc.nth(r).locator(cell_sel).first
                     cell_text = (cell.inner_text() or "").strip()
+                    cell_text_norm = _norm(cell_text)
+                    # DEBUG: log first 3 rows
+                    if r < 3:
+                        log(f"    [nestedCheck '{name}'] row {r} col {col_idx}: '{cell_text}' (norm: '{cell_text_norm}')")
                     if operator == "equals":
-                        if vals and _norm(cell_text) == _norm(vals[0]):
+                        if vals and cell_text_norm == _norm(vals[0]):
                             exists = True
                             row_index = r
+                            log(f"    [nestedCheck '{name}'] MATCH at row {r}")
                             break
                     else:  # in
-                        if _norm(cell_text) in vals:
+                        if cell_text_norm in vals:
                             exists = True
                             row_index = r
+                            log(f"    [nestedCheck '{name}'] MATCH at row {r}: '{cell_text_norm}' in {vals}")
                             break
         except Exception:
             exists = False

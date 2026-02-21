@@ -44,8 +44,8 @@
         "type": "date_range",
         "label": "pick date",
         "config": {
-          "toValue": "02/02/2026",
-          "fromValue": "02/02/2022",
+          "toValue": "02/02/2022",
+          "fromValue": "01/02/2018",
           "toSelector": "input#tbFiledTo.DatePicker.hasDatepicker",
           "fromSelector": "input#tbFiledFrom.DatePicker.hasDatepicker"
         }
