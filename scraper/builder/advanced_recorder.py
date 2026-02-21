@@ -87,36 +87,64 @@ class AdvancedRecorder:
                     
                     <!-- Table Config Form -->
                     <div id="table-form" style="display: none; padding: 10px; background: rgba(59, 130, 246, 0.2); border-radius: 4px; margin-bottom: 10px;">
-                        <div style="font-size: 11px; font-weight: bold; margin-bottom: 8px;">Table Configuration</div>
-                        <input id="table-selector" type="text" style="width: 100%; padding: 5px; margin-bottom: 5px; border: none; border-radius: 3px; font-size: 11px; box-sizing: border-box;" placeholder="Table selector (e.g., table#results)" />
-                        <input id="row-selector" type="text" style="width: 100%; padding: 5px; margin-bottom: 5px; border: none; border-radius: 3px; font-size: 11px; box-sizing: border-box;" placeholder="Row selector (e.g., tbody tr)" />
+                        <div style="font-size: 11px; font-weight: bold; margin-bottom: 8px;">📊 Table Configuration</div>
                         
-                        <div style="font-size: 10px; margin: 8px 0 3px 0;">Filter Conditions:</div>
-                        <textarea id="table-filters" style="width: 100%; padding: 5px; border: none; border-radius: 3px; font-size: 10px; box-sizing: border-box; font-family: monospace;" rows="3" placeholder='[{"column": 2, "operator": "equals", "value": "Active"}]'></textarea>
+                        <div style="font-size: 10px; margin-bottom: 3px;">Click on the table to select it</div>
+                        <input id="table-selector" type="text" readonly style="width: 100%; padding: 5px; margin-bottom: 5px; background: #333; color: #fff; border: none; border-radius: 3px; font-size: 11px; box-sizing: border-box;" placeholder="Click a table on the page..." />
                         
-                        <div style="font-size: 10px; margin: 8px 0 3px 0;">Extract Columns:</div>
-                        <input id="extract-columns" type="text" style="width: 100%; padding: 5px; margin-bottom: 5px; border: none; border-radius: 3px; font-size: 11px; box-sizing: border-box;" placeholder="e.g., 1,3,5 or case_number:1,date:3" />
+                        <div style="font-size: 10px; margin: 8px 0 3px 0;">Add Filter (optional):</div>
+                        <div style="display: flex; gap: 3px; margin-bottom: 5px;">
+                            <input id="filter-column" type="number" min="1" placeholder="Col #" style="width: 20%; padding: 5px; border: none; border-radius: 3px; font-size: 11px;" />
+                            <select id="filter-operator" style="width: 35%; padding: 5px; border: none; border-radius: 3px; font-size: 11px;">
+                                <option value="equals">Equals</option>
+                                <option value="contains">Contains</option>
+                                <option value="in">In list</option>
+                                <option value="not_equals">Not equals</option>
+                                <option value="exists">Exists</option>
+                            </select>
+                            <input id="filter-value" type="text" placeholder="Value" style="width: 35%; padding: 5px; border: none; border-radius: 3px; font-size: 11px;" />
+                            <button id="add-filter" style="width: 10%; padding: 5px; background: #22c55e; border: none; border-radius: 3px; color: white; font-weight: bold; cursor: pointer; font-size: 11px;">+</button>
+                        </div>
+                        <div id="filter-list" style="font-size: 10px; margin-bottom: 8px; max-height: 60px; overflow-y: auto;"></div>
                         
-                        <button id="table-submit" style="width: 48%; padding: 6px; background: #3b82f6; border: none; border-radius: 3px; color: white; font-weight: bold; cursor: pointer; font-size: 11px;">Save</button>
+                        <div style="font-size: 10px; margin: 8px 0 3px 0;">Extract columns (comma-separated):</div>
+                        <input id="extract-columns" type="text" style="width: 100%; padding: 5px; margin-bottom: 8px; border: none; border-radius: 3px; font-size: 11px; box-sizing: border-box;" placeholder="e.g., 1,2,4 or name:1,date:2,status:4" />
+                        
+                        <button id="table-submit" style="width: 48%; padding: 6px; background: #3b82f6; border: none; border-radius: 3px; color: white; font-weight: bold; cursor: pointer; font-size: 11px;">Save Table</button>
                         <button id="table-cancel" style="width: 48%; padding: 6px; background: #666; border: none; border-radius: 3px; color: white; cursor: pointer; font-size: 11px; margin-left: 4%;">Cancel</button>
                     </div>
                     
                     <!-- Conditional Action Form -->
                     <div id="condition-form" style="display: none; padding: 10px; background: rgba(168, 85, 247, 0.2); border-radius: 4px; margin-bottom: 10px;">
-                        <div style="font-size: 11px; font-weight: bold; margin-bottom: 8px;">Conditional Action</div>
+                        <div style="font-size: 11px; font-weight: bold; margin-bottom: 8px;">⚡ Conditional Action</div>
                         
+                        <div style="font-size: 10px; margin-bottom: 3px;">What action to perform:</div>
                         <select id="action-type" style="width: 100%; padding: 5px; margin-bottom: 5px; border: none; border-radius: 3px; font-size: 11px;">
-                            <option value="click">Click Element</option>
-                            <option value="extract_pdf">Extract PDF</option>
-                            <option value="expand_row">Expand Row</option>
+                            <option value="click">Click element</option>
+                            <option value="extract_pdf">Extract/download PDF</option>
+                            <option value="expand_row">Expand table row</option>
+                            <option value="extract_field">Extract field value</option>
                         </select>
                         
-                        <input id="action-selector" type="text" style="width: 100%; padding: 5px; margin-bottom: 5px; border: none; border-radius: 3px; font-size: 11px; box-sizing: border-box;" placeholder="Element selector" />
+                        <div style="font-size: 10px; margin-bottom: 3px;">Click the element to select it:</div>
+                        <input id="action-selector" type="text" readonly style="width: 100%; padding: 5px; margin-bottom: 5px; background: #333; color: #fff; border: none; border-radius: 3px; font-size: 11px; box-sizing: border-box;" placeholder="Click element on page..." />
                         
-                        <div style="font-size: 10px; margin: 8px 0 3px 0;">Conditions (JSON):</div>
-                        <textarea id="action-conditions" style="width: 100%; padding: 5px; border: none; border-radius: 3px; font-size: 10px; box-sizing: border-box; font-family: monospace;" rows="4" placeholder='[{"type": "cell_equals", "column": 2, "value": "N"}]'></textarea>
+                        <div style="font-size: 10px; margin: 8px 0 3px 0;">Add Condition (when to perform action):</div>
+                        <div style="display: flex; gap: 3px; margin-bottom: 5px;">
+                            <input id="cond-column" type="number" min="1" placeholder="Col" style="width: 15%; padding: 5px; border: none; border-radius: 3px; font-size: 11px;" />
+                            <select id="cond-type" style="width: 35%; padding: 5px; border: none; border-radius: 3px; font-size: 11px;">
+                                <option value="cell_equals">Equals</option>
+                                <option value="cell_contains">Contains</option>
+                                <option value="cell_in">In list</option>
+                                <option value="cell_exists">Exists</option>
+                                <option value="cell_not_exists">Not exists</option>
+                            </select>
+                            <input id="cond-value" type="text" placeholder="Value" style="width: 40%; padding: 5px; border: none; border-radius: 3px; font-size: 11px;" />
+                            <button id="add-condition" style="width: 10%; padding: 5px; background: #22c55e; border: none; border-radius: 3px; color: white; font-weight: bold; cursor: pointer; font-size: 11px;">+</button>
+                        </div>
+                        <div id="condition-list" style="font-size: 10px; margin-bottom: 8px; max-height: 60px; overflow-y: auto;"></div>
                         
-                        <button id="condition-submit" style="width: 48%; padding: 6px; background: #a855f7; border: none; border-radius: 3px; color: white; font-weight: bold; cursor: pointer; font-size: 11px;">Save</button>
+                        <button id="condition-submit" style="width: 48%; padding: 6px; background: #a855f7; border: none; border-radius: 3px; color: white; font-weight: bold; cursor: pointer; font-size: 11px;">Save Action</button>
                         <button id="condition-cancel" style="width: 48%; padding: 6px; background: #666; border: none; border-radius: 3px; color: white; cursor: pointer; font-size: 11px; margin-left: 4%;">Cancel</button>
                     </div>
                     
@@ -141,10 +169,14 @@ class AdvancedRecorder:
                     fields: [],
                     tables: [],
                     conditions: [],
-                    pendingElement: null
+                    pendingElement: null,
+                    currentTableFilters: [],
+                    currentConditions: []
                 };
                 window.shouldFinish = false;
                 window.shouldScreenshot = false;
+                window.tableClickMode = false;
+                window.conditionClickMode = false;
                 
                 const updateCounts = () => {
                     document.getElementById('field-count').textContent = window.scraperData.fields.length;
@@ -163,9 +195,23 @@ class AdvancedRecorder:
                 const showForm = (mode) => {
                     Object.values(forms).forEach(f => f.style.display = 'none');
                     if (forms[mode]) forms[mode].style.display = 'block';
+                    
+                    window.tableClickMode = (mode === 'table');
+                    window.conditionClickMode = (mode === 'condition');
                 };
                 
-                modeSelect.onchange = () => showForm(modeSelect.value);
+                modeSelect.onchange = () => {
+                    showForm(modeSelect.value);
+                    if (modeSelect.value === 'table') {
+                        document.getElementById('table-selector').value = '';
+                        window.scraperData.currentTableFilters = [];
+                        updateFilterList();
+                    } else if (modeSelect.value === 'condition') {
+                        document.getElementById('action-selector').value = '';
+                        window.scraperData.currentConditions = [];
+                        updateConditionList();
+                    }
+                };
                 
                 // Extract field handlers
                 document.getElementById('field-submit').onclick = () => {
@@ -193,38 +239,60 @@ class AdvancedRecorder:
                 };
                 
                 // Table config handlers
-                document.getElementById('table-submit').onclick = () => {
-                    try {
-                        const tableSelector = document.getElementById('table-selector').value.trim();
-                        const rowSelector = document.getElementById('row-selector').value.trim();
-                        const filtersText = document.getElementById('table-filters').value.trim();
-                        const extractCols = document.getElementById('extract-columns').value.trim();
-                        
-                        if (!tableSelector || !rowSelector) {
-                            alert('Table and row selectors are required');
-                            return;
-                        }
-                        
-                        const filters = filtersText ? JSON.parse(filtersText) : [];
-                        
-                        window.scraperData.tables.push({
-                            tableSelector,
-                            rowSelector,
-                            filters,
-                            extractColumns: extractCols
-                        });
-                        
-                        updateCounts();
-                        forms.table.style.display = 'none';
-                        
-                        // Clear form
-                        document.getElementById('table-selector').value = '';
-                        document.getElementById('row-selector').value = '';
-                        document.getElementById('table-filters').value = '';
-                        document.getElementById('extract-columns').value = '';
-                    } catch (e) {
-                        alert('Invalid JSON in filters: ' + e.message);
+                const updateFilterList = () => {
+                    const list = document.getElementById('filter-list');
+                    if (window.scraperData.currentTableFilters.length === 0) {
+                        list.innerHTML = '<div style="color: #999;">No filters yet</div>';
+                    } else {
+                        list.innerHTML = window.scraperData.currentTableFilters.map((f, i) => 
+                            `<div style="background: #333; padding: 3px 5px; border-radius: 2px; margin-bottom: 2px;">
+                                Col ${f.column} ${f.operator} "${f.value}"
+                                <span onclick="window.scraperData.currentTableFilters.splice(${i}, 1); updateFilterList();" style="cursor: pointer; color: #ef4444; float: right;">✕</span>
+                            </div>`
+                        ).join('');
                     }
+                };
+                
+                document.getElementById('add-filter').onclick = () => {
+                    const column = parseInt(document.getElementById('filter-column').value);
+                    const operator = document.getElementById('filter-operator').value;
+                    const value = document.getElementById('filter-value').value.trim();
+                    
+                    if (!column || !value) {
+                        alert('Column number and value are required');
+                        return;
+                    }
+                    
+                    window.scraperData.currentTableFilters.push({column, operator, value});
+                    updateFilterList();
+                    
+                    document.getElementById('filter-column').value = '';
+                    document.getElementById('filter-value').value = '';
+                };
+                
+                updateFilterList();
+                
+                document.getElementById('table-submit').onclick = () => {
+                    const tableSelector = document.getElementById('table-selector').value.trim();
+                    const extractCols = document.getElementById('extract-columns').value.trim();
+                    
+                    if (!tableSelector) {
+                        alert('Please click on a table to select it first');
+                        return;
+                    }
+                    
+                    window.scraperData.tables.push({
+                        tableSelector,
+                        rowSelector: 'tbody tr',
+                        filters: [...window.scraperData.currentTableFilters],
+                        extractColumns: extractCols
+                    });
+                    
+                    updateCounts();
+                    forms.table.style.display = 'none';
+                    window.scraperData.currentTableFilters = [];
+                    
+                    alert('Table config saved! ' + window.scraperData.tables.length + ' total');
                 };
                 
                 document.getElementById('table-cancel').onclick = () => {
@@ -232,34 +300,59 @@ class AdvancedRecorder:
                 };
                 
                 // Conditional action handlers
-                document.getElementById('condition-submit').onclick = () => {
-                    try {
-                        const actionType = document.getElementById('action-type').value;
-                        const selector = document.getElementById('action-selector').value.trim();
-                        const conditionsText = document.getElementById('action-conditions').value.trim();
-                        
-                        if (!selector) {
-                            alert('Element selector is required');
-                            return;
-                        }
-                        
-                        const conditions = conditionsText ? JSON.parse(conditionsText) : [];
-                        
-                        window.scraperData.conditions.push({
-                            action: actionType,
-                            selector,
-                            conditions
-                        });
-                        
-                        updateCounts();
-                        forms.condition.style.display = 'none';
-                        
-                        // Clear form
-                        document.getElementById('action-selector').value = '';
-                        document.getElementById('action-conditions').value = '';
-                    } catch (e) {
-                        alert('Invalid JSON in conditions: ' + e.message);
+                const updateConditionList = () => {
+                    const list = document.getElementById('condition-list');
+                    if (window.scraperData.currentConditions.length === 0) {
+                        list.innerHTML = '<div style="color: #999;">No conditions yet</div>';
+                    } else {
+                        list.innerHTML = window.scraperData.currentConditions.map((c, i) => 
+                            `<div style="background: #333; padding: 3px 5px; border-radius: 2px; margin-bottom: 2px;">
+                                Col ${c.column || '?'} ${c.type} "${c.value}"
+                                <span onclick="window.scraperData.currentConditions.splice(${i}, 1); updateConditionList();" style="cursor: pointer; color: #ef4444; float: right;">✕</span>
+                            </div>`
+                        ).join('');
                     }
+                };
+                
+                document.getElementById('add-condition').onclick = () => {
+                    const column = parseInt(document.getElementById('cond-column').value);
+                    const type = document.getElementById('cond-type').value;
+                    const value = document.getElementById('cond-value').value.trim();
+                    
+                    if (type !== 'cell_exists' && type !== 'cell_not_exists' && (!column || !value)) {
+                        alert('Column and value are required for this condition type');
+                        return;
+                    }
+                    
+                    window.scraperData.currentConditions.push({type, column, value});
+                    updateConditionList();
+                    
+                    document.getElementById('cond-column').value = '';
+                    document.getElementById('cond-value').value = '';
+                };
+                
+                updateConditionList();
+                
+                document.getElementById('condition-submit').onclick = () => {
+                    const actionType = document.getElementById('action-type').value;
+                    const selector = document.getElementById('action-selector').value.trim();
+                    
+                    if (!selector) {
+                        alert('Please click on an element to select it first');
+                        return;
+                    }
+                    
+                    window.scraperData.conditions.push({
+                        action: actionType,
+                        selector,
+                        conditions: [...window.scraperData.currentConditions]
+                    });
+                    
+                    updateCounts();
+                    forms.condition.style.display = 'none';
+                    window.scraperData.currentConditions = [];
+                    
+                    alert('Conditional action saved! ' + window.scraperData.conditions.length + ' total');
                 };
                 
                 document.getElementById('condition-cancel').onclick = () => {
@@ -270,47 +363,91 @@ class AdvancedRecorder:
                 document.getElementById('btn-screenshot').onclick = () => window.shouldScreenshot = true;
                 document.getElementById('btn-finish').onclick = () => window.shouldFinish = true;
                 
-                // Click handler for extract mode
+                // Click handler for different modes
                 document.addEventListener('click', (e) => {
-                    if (modeSelect.value !== 'extract') return;
                     if (e.target.closest('#scraper-overlay')) return;
                     
-                    e.preventDefault();
-                    e.stopPropagation();
+                    const mode = modeSelect.value;
                     
-                    const el = e.target;
-                    let selector = '';
-                    if (el.id) selector = `#${el.id}`;
-                    else if (el.name) selector = `[name="${el.name}"]`;
-                    else if (el.className && typeof el.className === 'string') {
-                        const classes = el.className.split(' ').filter(c => c);
-                        if (classes.length) selector = `.${classes[0]}`;
+                    // Table mode - click to select table
+                    if (mode === 'table' && !e.target.closest('input, select, button, textarea')) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        let table = e.target.closest('table');
+                        if (table) {
+                            let selector = '';
+                            if (table.id) selector = `table#${table.id}`;
+                            else if (table.className) selector = `table.${table.className.split(' ')[0]}`;
+                            else selector = 'table';
+                            
+                            document.getElementById('table-selector').value = selector;
+                            table.style.outline = '2px solid #3b82f6';
+                            setTimeout(() => table.style.outline = '', 2000);
+                        }
+                        return;
                     }
-                    if (!selector) selector = el.tagName.toLowerCase();
                     
-                    const text = el.textContent?.trim().slice(0, 100) || '';
-                    const value = el.value || el.href || '';
+                    // Condition mode - click to select element
+                    if (mode === 'condition' && !e.target.closest('input, select, button, textarea')) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        const el = e.target;
+                        let selector = '';
+                        if (el.id) selector = `#${el.id}`;
+                        else if (el.name) selector = `[name="${el.name}"]`;
+                        else if (el.className && typeof el.className === 'string') {
+                            const classes = el.className.split(' ').filter(c => c);
+                            if (classes.length) selector = `.${classes[0]}`;
+                        }
+                        if (!selector) selector = el.tagName.toLowerCase();
+                        
+                        document.getElementById('action-selector').value = selector;
+                        el.style.outline = '2px solid #a855f7';
+                        setTimeout(() => el.style.outline = '', 2000);
+                        return;
+                    }
                     
-                    let extractType = 'text';
-                    if (el.tagName === 'A') extractType = 'href';
-                    else if (el.tagName === 'IMG') extractType = 'src';
-                    else if (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') extractType = 'value';
-                    
-                    const suggestedLabel = (el.id || el.name || text.split(' ')[0] || 'field').replace(/[^a-z0-9]/gi, '_').toLowerCase();
-                    
-                    window.scraperData.pendingElement = {
-                        selector,
-                        extractType,
-                        tag: el.tagName.toLowerCase(),
-                        text,
-                        value,
-                        element: el
-                    };
-                    
-                    document.getElementById('field-label').value = suggestedLabel;
-                    forms.extract.style.display = 'block';
-                    document.getElementById('field-label').focus();
-                    document.getElementById('field-label').select();
+                    // Extract mode - click to extract field
+                    if (mode === 'extract') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        const el = e.target;
+                        let selector = '';
+                        if (el.id) selector = `#${el.id}`;
+                        else if (el.name) selector = `[name="${el.name}"]`;
+                        else if (el.className && typeof el.className === 'string') {
+                            const classes = el.className.split(' ').filter(c => c);
+                            if (classes.length) selector = `.${classes[0]}`;
+                        }
+                        if (!selector) selector = el.tagName.toLowerCase();
+                        
+                        const text = el.textContent?.trim().slice(0, 100) || '';
+                        const value = el.value || el.href || '';
+                        
+                        let extractType = 'text';
+                        if (el.tagName === 'A') extractType = 'href';
+                        else if (el.tagName === 'IMG') extractType = 'src';
+                        else if (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') extractType = 'value';
+                        
+                        const suggestedLabel = (el.id || el.name || text.split(' ')[0] || 'field').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                        
+                        window.scraperData.pendingElement = {
+                            selector,
+                            extractType,
+                            tag: el.tagName.toLowerCase(),
+                            text,
+                            value,
+                            element: el
+                        };
+                        
+                        document.getElementById('field-label').value = suggestedLabel;
+                        forms.extract.style.display = 'block';
+                        document.getElementById('field-label').focus();
+                        document.getElementById('field-label').select();
+                    }
                 }, true);
             }
         """)
