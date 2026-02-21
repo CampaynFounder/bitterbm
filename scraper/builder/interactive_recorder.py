@@ -66,25 +66,22 @@ class InteractiveRecorder:
                     z-index: 999999;
                     font-family: monospace;
                     font-size: 14px;
-                    max-width: 300px;
+                    max-width: 320px;
                     box-shadow: 0 4px 12px rgba(0,0,0,0.5);
                 `;
                 overlay.innerHTML = `
                     <div style="font-weight: bold; margin-bottom: 10px; font-size: 16px;">🎬 Scraper Recorder</div>
                     <div style="margin-bottom: 15px;">
                         <div id="mode-indicator">Mode: <span style="color: #4ade80;">INTERACT</span></div>
-                        <div style="font-size: 12px; color: #aaa; margin-top: 5px;">Use the page normally</div>
+                        <div style="font-size: 12px; color: #aaa; margin-top: 5px;" id="mode-help">Use the page normally</div>
                     </div>
-                    <div style="border-top: 1px solid #444; padding-top: 10px; margin-top: 10px;">
-                        <div style="margin-bottom: 5px;"><strong>Controls:</strong></div>
-                        <div style="font-size: 12px; line-height: 1.6;">
-                            <div><kbd style="background: #333; padding: 2px 6px; border-radius: 3px;">E</kbd> - Extract Mode (click to mark fields)</div>
-                            <div><kbd style="background: #333; padding: 2px 6px; border-radius: 3px;">I</kbd> - Interact Mode (normal browsing)</div>
-                            <div><kbd style="background: #333; padding: 2px 6px; border-radius: 3px;">S</kbd> - Take Screenshot</div>
-                            <div><kbd style="background: #333; padding: 2px 6px; border-radius: 3px;">Q</kbd> - Finish & Generate Config</div>
-                        </div>
+                    <div style="border-top: 1px solid #444; padding-top: 10px; margin-top: 10px; margin-bottom: 10px;">
+                        <button id="btn-extract" style="width: 100%; padding: 8px; margin-bottom: 5px; background: #f59e0b; border: none; border-radius: 4px; color: white; font-weight: bold; cursor: pointer;">📍 Extract Mode (E)</button>
+                        <button id="btn-interact" style="width: 100%; padding: 8px; margin-bottom: 5px; background: #4ade80; border: none; border-radius: 4px; color: black; font-weight: bold; cursor: pointer;">👆 Interact Mode (I)</button>
+                        <button id="btn-screenshot" style="width: 100%; padding: 8px; margin-bottom: 5px; background: #06b6d4; border: none; border-radius: 4px; color: white; font-weight: bold; cursor: pointer;">📸 Screenshot (S)</button>
+                        <button id="btn-finish" style="width: 100%; padding: 8px; background: #ef4444; border: none; border-radius: 4px; color: white; font-weight: bold; cursor: pointer;">✅ Finish (Q)</button>
                     </div>
-                    <div id="extracted-count" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #444; font-size: 12px;">
+                    <div id="extracted-count" style="padding-top: 10px; border-top: 1px solid #444; font-size: 12px;">
                         Fields marked: <span style="color: #4ade80;">0</span>
                     </div>
                 `;
@@ -96,48 +93,70 @@ class InteractiveRecorder:
                 window.shouldFinish = false;
                 window.shouldScreenshot = false;
                 
-                // Key handlers
+                // Helper to update UI
+                const setMode = (mode, color, text) => {
+                    window.scraperMode = mode;
+                    document.getElementById('mode-indicator').innerHTML = `Mode: <span style="color: ${color};">${text}</span>`;
+                    document.getElementById('mode-help').textContent = mode === 'extract' ? 'Click elements to mark for extraction' : 'Use the page normally';
+                };
+                
+                // Button handlers
+                document.getElementById('btn-extract').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    setMode('extract', '#f59e0b', 'EXTRACT');
+                    console.log('Mode: EXTRACT');
+                });
+                
+                document.getElementById('btn-interact').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    setMode('interact', '#4ade80', 'INTERACT');
+                    console.log('Mode: INTERACT');
+                });
+                
+                document.getElementById('btn-screenshot').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    window.shouldScreenshot = true;
+                    console.log('Screenshot requested');
+                });
+                
+                document.getElementById('btn-finish').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    window.shouldFinish = true;
+                    console.log('Finish requested');
+                });
+                
+                // Key handlers (backup method)
                 document.addEventListener('keydown', (e) => {
+                    console.log('Key pressed:', e.key);
                     if (e.key.toLowerCase() === 'e') {
-                        window.scraperMode = 'extract';
-                        document.getElementById('mode-indicator').innerHTML = 
-                            'Mode: <span style="color: #f59e0b;">EXTRACT</span>';
-                        document.querySelector('#mode-indicator + div').textContent = 
-                            'Click elements to mark for extraction';
+                        setMode('extract', '#f59e0b', 'EXTRACT');
                     } else if (e.key.toLowerCase() === 'i') {
-                        window.scraperMode = 'interact';
-                        document.getElementById('mode-indicator').innerHTML = 
-                            'Mode: <span style="color: #4ade80;">INTERACT</span>';
-                        document.querySelector('#mode-indicator + div').textContent = 
-                            'Use the page normally';
+                        setMode('interact', '#4ade80', 'INTERACT');
                     } else if (e.key.toLowerCase() === 's') {
                         window.shouldScreenshot = true;
-                        document.getElementById('mode-indicator').innerHTML = 
-                            'Mode: <span style="color: #06b6d4;">📸 SCREENSHOT</span>';
-                        setTimeout(() => {
-                            if (window.scraperMode === 'interact') {
-                                document.getElementById('mode-indicator').innerHTML = 
-                                    'Mode: <span style="color: #4ade80;">INTERACT</span>';
-                            }
-                        }, 1000);
                     } else if (e.key.toLowerCase() === 'q') {
                         window.shouldFinish = true;
                     }
-                });
+                }, true);
                 
                 // Click handler for extract mode
                 document.addEventListener('click', (e) => {
+                    console.log('Click detected, mode:', window.scraperMode);
                     if (window.scraperMode === 'extract') {
                         e.preventDefault();
                         e.stopPropagation();
                         
                         const el = e.target;
                         
+                        // Skip if clicking overlay buttons
+                        if (el.id && el.id.startsWith('btn-')) return;
+                        if (el.closest('#scraper-overlay')) return;
+                        
                         // Generate selector
                         let selector = '';
                         if (el.id) selector = `#${el.id}`;
                         else if (el.name) selector = `[name="${el.name}"]`;
-                        else if (el.className) {
+                        else if (el.className && typeof el.className === 'string') {
                             const classes = el.className.split(' ').filter(c => c);
                             if (classes.length) selector = `.${classes[0]}`;
                         }
@@ -162,9 +181,11 @@ class InteractiveRecorder:
                         );
                         
                         if (!label) {
-                            // User cancelled
+                            console.log('Label cancelled');
                             return;
                         }
+                        
+                        console.log('Labeled field:', label);
                         
                         // Determine extraction type
                         let extractType = 'text';
@@ -213,6 +234,8 @@ class InteractiveRecorder:
                             window.extractedElements.length;
                     }
                 }, true);
+                
+                console.log('Scraper overlay injected successfully');
             }
         """)
     
@@ -234,13 +257,12 @@ class InteractiveRecorder:
             print("🎬 INTERACTIVE RECORDING MODE")
             print("="*60)
             print("\n📋 Instructions:")
-            print("  ⚠️  FOCUS THE BROWSER WINDOW (not this terminal!)")
-            print("  1. Interact with the page (fill forms, click buttons)")
-            print("  2. Press 'E' key IN THE BROWSER to enter Extract Mode")
+            print("  1. Use the BUTTONS in the overlay (top-right)")
+            print("  2. Click '📍 Extract Mode' button")
             print("  3. Click on elements you want to capture")
-            print("  4. Press 'S' key IN THE BROWSER to take screenshot")
-            print("  5. Press 'Q' key IN THE BROWSER when finished")
-            print("\n  💡 The overlay in the top-right shows your current mode")
+            print("  4. Click '📸 Screenshot' button to save page state")
+            print("  5. Click '✅ Finish' button when done")
+            print("\n  💡 You can also use keyboard: E, I, S, Q keys")
             print("\n" + "="*60 + "\n")
             
             screenshot_count = 0
