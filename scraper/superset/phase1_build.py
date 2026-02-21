@@ -324,6 +324,7 @@ def run_nested_table_checks(row_locator, root, nested_checks):
     """
     if not nested_checks:
         return {}
+    log(f"  [nestedTableChecks] Running {len(nested_checks)} check(s)...")
     out = {}
     for nc in nested_checks:
         if not nc.get("outputInRow"):
