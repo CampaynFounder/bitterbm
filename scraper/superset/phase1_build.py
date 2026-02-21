@@ -354,15 +354,19 @@ def run_nested_table_checks(row_locator, root, nested_checks, log):
             if table_count == 0 and scope == "row" and base == row_locator:
                 try:
                     next_row = row_locator.locator("xpath=following-sibling::tr[1]")
-                    if next_row.count() > 0:
-                        log(f"    [nestedCheck '{name}'] trying next sibling row...")
+                    next_count = next_row.count()
+                    log(f"    [nestedCheck '{name}'] next sibling row count: {next_count}")
+                    if next_count > 0:
+                        log(f"    [nestedCheck '{name}'] searching for table in sibling...")
                         table_in_next = next_row.locator(table_sel)
-                        if table_in_next.count() > 0:
+                        sibling_table_count = table_in_next.count()
+                        log(f"    [nestedCheck '{name}'] sibling table count: {sibling_table_count}")
+                        if sibling_table_count > 0:
                             table_loc = table_in_next
-                            table_count = table_in_next.count()
-                            log(f"    [nestedCheck '{name}'] found {table_count} table(s) in sibling row")
+                            table_count = sibling_table_count
+                            log(f"    [nestedCheck '{name}'] ✓ using table from sibling row")
                 except Exception as e:
-                    log(f"    [nestedCheck '{name}'] sibling check failed: {e}")
+                    log(f"    [nestedCheck '{name}'] sibling check exception: {e}")
             
             if operator == "exists":
                 loc = table_loc.locator(row_sel) if row_sel else table_loc
