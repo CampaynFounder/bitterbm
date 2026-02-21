@@ -380,6 +380,14 @@ class InteractiveRecorder:
             
             # Take final screenshot
             try:
+                # Close any open modals first
+                page.evaluate("""
+                    () => {
+                        const modal = document.getElementById('scraper-label-modal');
+                        if (modal) modal.remove();
+                    }
+                """)
+                
                 final_screenshot = self.output_dir / "final_screenshot.png"
                 page.screenshot(path=final_screenshot, full_page=True)
                 print(f"📸 Final screenshot: {final_screenshot}")
@@ -390,11 +398,22 @@ class InteractiveRecorder:
             # Get extracted elements
             try:
                 self.extract_fields = page.evaluate("() => window.extractedElements || []")
+                print(f"\n✅ Recorded {len(self.extract_fields)} fields to extract")
+                
+                # Show what was captured
+                if self.extract_fields:
+                    print("\n📋 Captured fields:")
+                    for i, field in enumerate(self.extract_fields, 1):
+                        label = field.get('label', 'unknown')
+                        selector = field.get('selector', 'unknown')
+                        print(f"  {i}. {label} → {selector}")
+                else:
+                    print("\n⚠️  No fields were captured!")
+                    print("💡 Did you click the '📍 Extract Mode' button before clicking elements?")
+                    
             except Exception as e:
                 print(f"⚠️  Could not retrieve extracted elements: {e}")
                 self.extract_fields = []
-            
-            print(f"\n✅ Recorded {len(self.extract_fields)} fields to extract")
             
             browser.close()
     
