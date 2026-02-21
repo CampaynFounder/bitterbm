@@ -76,23 +76,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const queryAction = req.nextUrl.searchParams.get("action")
-  const queryId = req.nextUrl.searchParams.get("id")?.trim() ?? ""
+  let queryAction: string | null = req.nextUrl.searchParams.get("action")
+  let queryId = req.nextUrl.searchParams.get("id")?.trim() ?? ""
+  if (queryAction == null && req.url) {
+    try {
+      const u = req.url.startsWith("http") ? new URL(req.url) : new URL(req.url, "https://x.org")
+      queryAction = u.searchParams.get("action")
+      queryId = queryId || u.searchParams.get("id")?.trim() ?? ""
+    } catch {
+      // ignore
+    }
+  }
+
+  if (queryAction === "delete" && queryId) {
+    const { error } = await supabase.from("scraper_flows").delete().eq("id", queryId)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ ok: true })
+  }
 
   let body: { id?: string; name?: string; description?: string; flow_json?: object; kind?: string; action?: string } = {}
   try {
     body = await req.json()
   } catch {
-    // Body may be empty or invalid; use query params for delete if present
+    // Body may be empty or invalid
   }
 
-  const deleteAction = body.action === "delete" || queryAction === "delete"
-  const deleteId = (typeof body.id === "string" ? body.id.trim() : "") || queryId
-
-  if (deleteAction) {
-    if (!deleteId) {
-      return NextResponse.json({ error: "id required for delete" }, { status: 400 })
-    }
+  if (body.action === "delete" && typeof body.id === "string" && body.id.trim()) {
+    const deleteId = body.id.trim()
     const { error } = await supabase.from("scraper_flows").delete().eq("id", deleteId)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ ok: true })
