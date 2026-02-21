@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     try {
       const u = req.url.startsWith("http") ? new URL(req.url) : new URL(req.url, "https://x.org")
       queryAction = u.searchParams.get("action")
-      queryId = queryId || u.searchParams.get("id")?.trim() ?? ""
+      queryId = queryId || (u.searchParams.get("id")?.trim() ?? "")
     } catch {
       // ignore
     }
