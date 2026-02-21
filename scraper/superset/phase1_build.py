@@ -347,19 +347,25 @@ def run_nested_table_checks(row_locator, root, nested_checks):
         row_index = None
         try:
             table_loc = base.locator(table_sel)
+            table_count = table_loc.count()
+            log(f"    [nestedCheck '{name}'] scope={scope}, tableSelector='{table_sel}', found {table_count} table(s)")
+            # If scope=row and table not found in current row, try next sibling row (expandable detail pattern)
+            if table_count == 0 and scope == "row" and base == row_locator:
+                try:
+                    next_row = row_locator.locator("xpath=following-sibling::tr[1]")
+                    if next_row.count() > 0:
+                        log(f"    [nestedCheck '{name}'] trying next sibling row...")
+                        table_in_next = next_row.locator(table_sel)
+                        if table_in_next.count() > 0:
+                            table_loc = table_in_next
+                            table_count = table_in_next.count()
+                            log(f"    [nestedCheck '{name}'] found {table_count} table(s) in sibling row")
+                except Exception as e:
+                    log(f"    [nestedCheck '{name}'] sibling check failed: {e}")
+            
             if operator == "exists":
                 loc = table_loc.locator(row_sel) if row_sel else table_loc
                 exists = loc.count() > 0
-                # If scope=row and table not found, try next sibling row (expandable detail row pattern)
-                if not exists and scope == "row" and base == row_locator:
-                    try:
-                        next_row = row_locator.locator("xpath=following-sibling::tr[1]")
-                        if next_row.count() > 0:
-                            table_in_next = next_row.locator(table_sel)
-                            if table_in_next.count() > 0:
-                                exists = True
-                    except Exception:
-                        pass
             else:
                 def _norm(s):
                     s = str(s).strip()
