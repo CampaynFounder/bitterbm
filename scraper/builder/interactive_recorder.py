@@ -247,29 +247,47 @@ class InteractiveRecorder:
             while True:
                 page.wait_for_timeout(500)
                 
-                # Check for screenshot request
-                should_screenshot = page.evaluate("() => window.shouldScreenshot")
-                if should_screenshot:
-                    screenshot_count += 1
-                    screenshot_path = self.output_dir / f"screenshot_{screenshot_count}.png"
-                    page.screenshot(path=screenshot_path)
-                    print(f"📸 Screenshot saved: {screenshot_path}")
-                    page.evaluate("() => window.shouldScreenshot = false")
-                    self.screenshots.append(str(screenshot_path))
-                
-                # Check for finish signal
-                should_finish = page.evaluate("() => window.shouldFinish")
-                if should_finish:
-                    break
+                try:
+                    # Re-inject overlay if page navigated
+                    overlay_exists = page.evaluate("() => !!document.getElementById('scraper-overlay')")
+                    if not overlay_exists:
+                        print("⚠️  Page changed, re-injecting overlay...")
+                        self.inject_overlay(page)
+                    
+                    # Check for screenshot request
+                    should_screenshot = page.evaluate("() => window.shouldScreenshot")
+                    if should_screenshot:
+                        screenshot_count += 1
+                        screenshot_path = self.output_dir / f"screenshot_{screenshot_count}.png"
+                        page.screenshot(path=screenshot_path)
+                        print(f"📸 Screenshot saved: {screenshot_path}")
+                        page.evaluate("() => window.shouldScreenshot = false")
+                        self.screenshots.append(str(screenshot_path))
+                    
+                    # Check for finish signal
+                    should_finish = page.evaluate("() => window.shouldFinish")
+                    if should_finish:
+                        break
+                except Exception as e:
+                    # Context destroyed, likely navigation - re-inject on next loop
+                    print(f"⚠️  Context error (page may have navigated): {e}")
+                    page.wait_for_timeout(1000)
             
             # Take final screenshot
-            final_screenshot = self.output_dir / "final_screenshot.png"
-            page.screenshot(path=final_screenshot, full_page=True)
-            print(f"📸 Final screenshot: {final_screenshot}")
-            self.screenshots.append(str(final_screenshot))
+            try:
+                final_screenshot = self.output_dir / "final_screenshot.png"
+                page.screenshot(path=final_screenshot, full_page=True)
+                print(f"📸 Final screenshot: {final_screenshot}")
+                self.screenshots.append(str(final_screenshot))
+            except Exception as e:
+                print(f"⚠️  Could not take final screenshot: {e}")
             
             # Get extracted elements
-            self.extract_fields = page.evaluate("() => window.extractedElements || []")
+            try:
+                self.extract_fields = page.evaluate("() => window.extractedElements || []")
+            except Exception as e:
+                print(f"⚠️  Could not retrieve extracted elements: {e}")
+                self.extract_fields = []
             
             print(f"\n✅ Recorded {len(self.extract_fields)} fields to extract")
             
