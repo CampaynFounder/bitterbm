@@ -152,6 +152,8 @@ class InteractiveRecorder:
                         if (el.id && el.id.startsWith('btn-')) return;
                         if (el.closest('#scraper-overlay')) return;
                         
+                        console.log('Extracting from element:', el);
+                        
                         // Generate selector
                         let selector = '';
                         if (el.id) selector = `#${el.id}`;
@@ -162,76 +164,140 @@ class InteractiveRecorder:
                         }
                         if (!selector) selector = el.tagName.toLowerCase();
                         
+                        console.log('Generated selector:', selector);
+                        
                         // Get text content
                         const text = el.textContent?.trim().slice(0, 100) || '';
                         const value = el.value || el.href || '';
                         
-                        // Prompt for field label
-                        const label = prompt(
-                            'What data does this element contain?\\n\\n' +
-                            'Examples:\\n' +
-                            '  • case_number\\n' +
-                            '  • party_name\\n' +
-                            '  • date_filed\\n' +
-                            '  • judge\\n' +
-                            '  • status\\n' +
-                            '  • pdf_link\\n\\n' +
-                            'Element preview: ' + (text || value || selector).slice(0, 50),
-                            (el.id || el.name || '').replace(/[^a-z0-9]/gi, '_').toLowerCase()
-                        );
+                        console.log('Element text:', text, 'value:', value);
                         
-                        if (!label) {
-                            console.log('Label cancelled');
-                            return;
-                        }
+                        // Create custom input modal
+                        const modal = document.createElement('div');
+                        modal.id = 'scraper-label-modal';
+                        modal.style.cssText = `
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            right: 0;
+                            bottom: 0;
+                            background: rgba(0, 0, 0, 0.8);
+                            z-index: 9999999;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                        `;
                         
-                        console.log('Labeled field:', label);
+                        const suggestedLabel = (el.id || el.name || '').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                        const preview = (text || value || selector).slice(0, 50);
                         
-                        // Determine extraction type
-                        let extractType = 'text';
-                        if (el.tagName === 'A') extractType = 'href';
-                        else if (el.tagName === 'IMG') extractType = 'src';
-                        else if (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') extractType = 'value';
+                        modal.innerHTML = `
+                            <div style="background: white; padding: 30px; border-radius: 12px; max-width: 500px; width: 90%;">
+                                <h3 style="margin: 0 0 15px 0; color: #333;">Label this field</h3>
+                                <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 13px; color: #666;">
+                                    Preview: ${preview}
+                                </div>
+                                <div style="margin-bottom: 15px;">
+                                    <label style="display: block; margin-bottom: 5px; color: #666; font-size: 13px;">Field name (e.g., case_number, party_name, judge):</label>
+                                    <input 
+                                        id="field-label-input" 
+                                        type="text" 
+                                        value="${suggestedLabel}"
+                                        style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 4px; font-size: 14px; box-sizing: border-box;"
+                                    />
+                                </div>
+                                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                                    <button id="modal-cancel" style="padding: 10px 20px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">Cancel</button>
+                                    <button id="modal-submit" style="padding: 10px 20px; border: none; background: #f59e0b; color: white; border-radius: 4px; cursor: pointer; font-weight: bold;">Add Field</button>
+                                </div>
+                            </div>
+                        `;
                         
-                        // Add to extracted
-                        window.extractedElements.push({
-                            label: label.trim(),
-                            selector,
-                            extractType,
-                            tag: el.tagName.toLowerCase(),
-                            text,
-                            value,
-                            id: el.id || '',
-                            name: el.name || '',
-                            classes: el.className || ''
+                        document.body.appendChild(modal);
+                        
+                        const input = document.getElementById('field-label-input');
+                        input.focus();
+                        input.select();
+                        
+                        const submitHandler = () => {
+                            const label = input.value.trim();
+                            console.log('User entered label:', label);
+                            
+                            if (!label) {
+                                modal.remove();
+                                return;
+                            }
+                            
+                            // Determine extraction type
+                            let extractType = 'text';
+                            if (el.tagName === 'A') extractType = 'href';
+                            else if (el.tagName === 'IMG') extractType = 'src';
+                            else if (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') extractType = 'value';
+                            
+                            // Add to extracted
+                            const fieldData = {
+                                label: label,
+                                selector,
+                                extractType,
+                                tag: el.tagName.toLowerCase(),
+                                text,
+                                value,
+                                id: el.id || '',
+                                name: el.name || '',
+                                classes: el.className || ''
+                            };
+                            
+                            window.extractedElements.push(fieldData);
+                            console.log('Added field:', fieldData);
+                            console.log('Total fields:', window.extractedElements.length);
+                            
+                            // Visual feedback
+                            el.style.outline = '3px solid #f59e0b';
+                            el.style.backgroundColor = 'rgba(245, 158, 11, 0.1)';
+                            
+                            // Add label badge
+                            const badge = document.createElement('div');
+                            badge.className = 'scraper-badge';
+                            badge.style.cssText = `
+                                position: absolute;
+                                background: #f59e0b;
+                                color: white;
+                                padding: 4px 8px;
+                                border-radius: 4px;
+                                font-size: 11px;
+                                font-weight: bold;
+                                z-index: 999998;
+                                pointer-events: none;
+                            `;
+                            badge.textContent = label;
+                            const rect = el.getBoundingClientRect();
+                            badge.style.top = (rect.top + window.scrollY - 25) + 'px';
+                            badge.style.left = (rect.left + window.scrollX) + 'px';
+                            document.body.appendChild(badge);
+                            
+                            // Update counter
+                            const counterSpan = document.querySelector('#extracted-count span');
+                            if (counterSpan) {
+                                counterSpan.textContent = window.extractedElements.length;
+                            }
+                            
+                            modal.remove();
+                        };
+                        
+                        document.getElementById('modal-submit').addEventListener('click', submitHandler);
+                        document.getElementById('modal-cancel').addEventListener('click', () => {
+                            console.log('User cancelled');
+                            modal.remove();
                         });
                         
-                        // Visual feedback
-                        el.style.outline = '3px solid #f59e0b';
-                        el.style.backgroundColor = 'rgba(245, 158, 11, 0.1)';
-                        
-                        // Add label badge
-                        const badge = document.createElement('div');
-                        badge.style.cssText = `
-                            position: absolute;
-                            background: #f59e0b;
-                            color: white;
-                            padding: 2px 6px;
-                            border-radius: 3px;
-                            font-size: 11px;
-                            font-weight: bold;
-                            z-index: 999999;
-                            pointer-events: none;
-                        `;
-                        badge.textContent = label.trim();
-                        const rect = el.getBoundingClientRect();
-                        badge.style.top = (rect.top + window.scrollY - 20) + 'px';
-                        badge.style.left = (rect.left + window.scrollX) + 'px';
-                        document.body.appendChild(badge);
-                        
-                        // Update counter
-                        document.querySelector('#extracted-count span').textContent = 
-                            window.extractedElements.length;
+                        input.addEventListener('keydown', (e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                submitHandler();
+                            } else if (e.key === 'Escape') {
+                                modal.remove();
+                            }
+                        });
                     }
                 }, true);
                 

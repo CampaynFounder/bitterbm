@@ -1,82 +1,34 @@
 {
   "flow": {
-    "name": "Test Sample Scraper",
+    "name": "Test Demo Scraper",
     "steps": [
       {
         "type": "navigate",
         "config": {
-          "url": "https://superiorcourtclerk.cobbcounty.gov/WebCaseManagement/mainpage.aspx"
-        }
-      },
-      {
-        "type": "switch_frame",
-        "config": {
-          "selector": "iframe_selector_if_needed"
-        }
-      },
-      {
-        "type": "fill_field",
-        "config": {
-          "selector": "input[name='search']",
-          "value": "search_value"
-        }
-      },
-      {
-        "type": "click",
-        "config": {
-          "selector": "button[type='submit']"
+          "url": "file:///Users/pharrenlowther/projects/bitterbm/test-recorder.html"
         }
       },
       {
         "type": "wait",
         "config": {
-          "selector": "table#results"
-        }
-      },
-      {
-        "type": "extract_field",
-        "config": {
-          "fieldId": "page_title",
-          "selector": "title"
-        }
-      },
-      {
-        "type": "extract_field",
-        "config": {
-          "fieldId": "main_heading",
-          "selector": "h1"
-        }
-      },
-      {
-        "type": "extract_field",
-        "config": {
-          "fieldId": "links",
-          "selector": "a",
-          "multiple": true
+          "timeout": 2000
         }
       }
     ]
   },
   "siteConfig": {
-    "siteId": "test-sample-courts",
-    "baseUrl": "https://superiorcourtclerk.cobbcounty.gov/WebCaseManagement/mainpage.aspx",
-    "resultTable": {
-      "tableSelector": "table#results",
-      "rowSelector": "tbody tr",
-      "primaryId": {
-        "source": "column",
-        "columnIndex": 0
-      },
-      "extractColumns": [
-        {
-          "columnIndex": 0,
-          "outputKey": "case_number"
-        },
-        {
-          "columnIndex": 1,
-          "outputKey": "parties"
-        }
+    "siteId": "test-demo-unknown",
+    "state": "Test",
+    "county": "Demo",
+    "baseUrl": "file:///Users/pharrenlowther/projects/bitterbm/test-recorder.html",
+    "description": "Interactive recording from 2026-02-21T12:30:28.052598",
+    "metadata": {
+      "recordedAt": "2026-02-21T12:30:28.053030",
+      "extractionFields": [],
+      "screenshots": [
+        "scraper/builder/sites/unknown/final_screenshot.png"
       ]
-    }
+    },
+    "extractedFields": []
   }
 }

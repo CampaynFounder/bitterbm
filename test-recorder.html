@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Recorder Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 40px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .field {
+            padding: 20px;
+            margin: 20px 0;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+        }
+        .field:hover {
+            border-color: #4ade80;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Page for Scraper Recorder</h1>
+    <p>Use this page to test the interactive recorder</p>
+    
+    <div class="field" id="case-number">
+        <strong>Case Number:</strong> 2023-CV-12345
+    </div>
+    
+    <div class="field" id="party-names">
+        <strong>Parties:</strong> John Doe vs Jane Smith
+    </div>
+    
+    <div class="field" id="judge">
+        <strong>Judge:</strong> Hon. Mary Johnson
+    </div>
+    
+    <div class="field">
+        <strong>Date Filed:</strong> January 15, 2023
+    </div>
+    
+    <a href="/case/12345/document.pdf" class="field" style="display: block; text-decoration: none; color: inherit;">
+        <strong>PDF Link:</strong> Download Case Document
+    </a>
+</body>
+</html>

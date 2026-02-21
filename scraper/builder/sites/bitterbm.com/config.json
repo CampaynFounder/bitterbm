@@ -21,9 +21,9 @@
     "state": "Test",
     "county": "Demo",
     "baseUrl": "https://bitterbm.com",
-    "description": "Interactive recording from 2026-02-21T12:25:42.459497",
+    "description": "Interactive recording from 2026-02-21T12:28:02.738989",
     "metadata": {
-      "recordedAt": "2026-02-21T12:25:42.460460",
+      "recordedAt": "2026-02-21T12:28:02.739452",
       "extractionFields": [],
       "screenshots": [
         "scraper/builder/sites/bitterbm.com/final_screenshot.png"
