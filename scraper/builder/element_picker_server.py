@@ -43,8 +43,27 @@ def launch_picker():
         # Inject element picker overlay
         picker_page.evaluate("""
             () => {
-                // IMMEDIATELY block all clicks at the earliest possible phase
+                // IMMEDIATELY block all clicks and mousedowns at the earliest possible phase
+                window.addEventListener('mousedown', (e) => {
+                    const overlay = document.getElementById('element-picker-overlay');
+                    if (overlay && !e.target.closest('#element-picker-overlay')) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.stopImmediatePropagation();
+                    }
+                }, {capture: true, passive: false});
+                
                 window.addEventListener('click', (e) => {
+                    const overlay = document.getElementById('element-picker-overlay');
+                    if (overlay && !e.target.closest('#element-picker-overlay')) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.stopImmediatePropagation();
+                    }
+                }, {capture: true, passive: false});
+                
+                // Block mouseup too
+                window.addEventListener('mouseup', (e) => {
                     const overlay = document.getElementById('element-picker-overlay');
                     if (overlay && !e.target.closest('#element-picker-overlay')) {
                         e.preventDefault();
@@ -139,12 +158,14 @@ def launch_picker():
                     window.lastHighlighted = e.target;
                 }, true);
                 
-                // Select on click - this runs AFTER the blocker above
+                // Select on mousedown (fires before click, harder to block)
                 setTimeout(() => {
-                    document.addEventListener('click', (e) => {
+                    document.addEventListener('mousedown', (e) => {
                         if (e.target.closest('#element-picker-overlay')) return;
                         
                         const el = e.target;
+                        
+                        console.log('Element clicked:', el);
                         
                         // Clear previous selection
                         if (window.selectedElement) {
@@ -153,8 +174,8 @@ def launch_picker():
                         }
                         
                         // Highlight selected
-                        el.style.outline = '3px solid #22c55e';
-                        el.style.backgroundColor = 'rgba(34, 197, 94, 0.2)';
+                        el.style.outline = '3px solid #22c55e !important';
+                        el.style.backgroundColor = 'rgba(34, 197, 94, 0.2) !important';
                         window.selectedElement = el;
                         
                         // Generate selector
@@ -200,6 +221,8 @@ def launch_picker():
                         
                         window.selectedInfo = info;
                         
+                        console.log('Selected:', info);
+                        
                         // Update UI
                         document.getElementById('selected-info').innerHTML = `
                             <div style="color: #4ade80; font-weight: bold; margin-bottom: 5px; font-size: 11px;">${selector}</div>
@@ -212,7 +235,7 @@ def launch_picker():
                         copyBtn.style.cursor = 'pointer';
                         copyBtn.style.background = '#22c55e';
                         
-                    }, true);
+                    }, {capture: true, passive: false});
                 }, 100);
                 
                 // Copy selector
