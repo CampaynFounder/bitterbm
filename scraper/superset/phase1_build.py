@@ -358,12 +358,23 @@ def run_nested_table_checks(row_locator, root, nested_checks, log):
                     log(f"    [nestedCheck '{name}'] next sibling row count: {next_count}")
                     if next_count > 0:
                         log(f"    [nestedCheck '{name}'] searching for table in sibling...")
-                        # Debug: log sibling row HTML snippet
+                        # Check if sibling row is hidden (display: none) - common for expandable rows
                         try:
-                            sibling_html = next_row.first.evaluate("el => el.outerHTML")
-                            log(f"    [nestedCheck '{name}'] sibling HTML (first 500 chars): {sibling_html[:500]}")
+                            is_hidden = next_row.first.evaluate("el => window.getComputedStyle(el).display === 'none'")
+                            if is_hidden:
+                                log(f"    [nestedCheck '{name}'] sibling row is hidden (display: none), trying to expand parent row...")
+                                # Try clicking the parent row to expand it
+                                try:
+                                    row_locator.click()
+                                    # Wait a bit for expansion animation/loading
+                                    import time
+                                    time.sleep(0.5)
+                                    log(f"    [nestedCheck '{name}'] clicked parent row, waiting for expansion...")
+                                except Exception as click_err:
+                                    log(f"    [nestedCheck '{name}'] click failed: {click_err}")
                         except Exception:
                             pass
+                        
                         table_in_next = next_row.locator(table_sel)
                         sibling_table_count = table_in_next.count()
                         log(f"    [nestedCheck '{name}'] sibling table count: {sibling_table_count}")
