@@ -76,9 +76,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const { searchParams } = new URL(req.url)
-  const queryAction = searchParams.get("action")
-  const queryId = searchParams.get("id")?.trim() ?? ""
+  const queryAction = req.nextUrl.searchParams.get("action")
+  const queryId = req.nextUrl.searchParams.get("id")?.trim() ?? ""
 
   let body: { id?: string; name?: string; description?: string; flow_json?: object; kind?: string; action?: string } = {}
   try {
