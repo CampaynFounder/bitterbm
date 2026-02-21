@@ -315,7 +315,7 @@ def nested_filter_passes(row_locator, nested_filters):
     return True
 
 
-def run_nested_table_checks(row_locator, root, nested_checks):
+def run_nested_table_checks(row_locator, root, nested_checks, log):
     """
     Run nestedTableChecks: for each check, resolve scope (row vs page), then either
     - operator 'exists': element/table (and optional rowSelector) has at least one match.
@@ -534,7 +534,7 @@ def main():
                     continue
                 id_val, extracted = extract_row_id_and_data(row_loc, site_config, rt)
                 nested_checks_result = run_nested_table_checks(
-                    row_loc, root, rt.get("nestedTableChecks") or []
+                    row_loc, root, rt.get("nestedTableChecks") or [], log
                 )
                 extracted = {**extracted, **nested_checks_result}
                 if id_val:
