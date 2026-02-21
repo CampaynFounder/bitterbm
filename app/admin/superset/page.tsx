@@ -932,7 +932,7 @@ export default function AdminSupersetPage() {
     setList((l) => l.filter((x) => x.id !== id))
     setSaveError(null)
     try {
-      const res = await fetch(`/api/admin/scraper/flows?action=delete&id=${encodeURIComponent(deleteId)}`, { method: "POST", headers: authHeaders(), body: JSON.stringify({ action: "delete", id: deleteId }) })
+      const res = await fetch(`/api/admin/scraper/flows?id=${encodeURIComponent(deleteId)}`, { method: "DELETE", headers: authHeaders() })
       const data = (await res.json()) as { error?: string }
       if (!res.ok) {
         setList(prev)
