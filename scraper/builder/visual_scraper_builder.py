@@ -155,17 +155,17 @@ def analyze_page(url, auth_pause_seconds=0):
 
 
 def generate_scraper_with_ai(page_data, user_goals, state=None, county=None):
-    """Use Claude to suggest selectors based on visual analysis"""
+    """Use OpenAI to suggest selectors based on visual analysis"""
     try:
-        import anthropic
+        import openai
     except ImportError:
-        print("⚠️  anthropic not installed. Install with: pip install anthropic", file=sys.stderr)
+        print("⚠️  openai not installed. Install with: pip install openai", file=sys.stderr)
         return generate_scraper_fallback(page_data, user_goals, state, county)
     
     try:
-        client = anthropic.Anthropic()
+        client = openai.OpenAI()
     except Exception as e:
-        print(f"⚠️  Claude API not configured: {e}", file=sys.stderr)
+        print(f"⚠️  OpenAI API not configured: {e}", file=sys.stderr)
         return generate_scraper_fallback(page_data, user_goals, state, county)
     
     # Read screenshot
@@ -194,7 +194,7 @@ Generate a complete scraper configuration that:
 Return ONLY valid JSON in this exact format:
 {{
   "flow": {{
-    "name": "{{state or 'Unknown'}} {{county or ''}} Scraper",
+    "name": "{state or 'Unknown'} {county or ''} Scraper",
     "steps": [
       {{"type": "navigate", "config": {{"url": "{page_data['url']}"}}}},
       {{"type": "switch_frame", "config": {{"selector": "iframe_selector_if_needed"}}}},
@@ -205,7 +205,7 @@ Return ONLY valid JSON in this exact format:
     ]
   }},
   "siteConfig": {{
-    "siteId": "{{state or 'unknown'}}-{{county or 'unknown'}}-courts",
+    "siteId": "{(state or 'unknown').lower()}-{(county or 'unknown').lower()}-courts",
     "baseUrl": "{page_data['url']}",
     "resultTable": {{
       "tableSelector": "table_css_selector",
@@ -227,28 +227,31 @@ CRITICAL:
 - Return ONLY the JSON, no markdown formatting"""
     
     try:
-        response = client.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=4000,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": "image/png",
-                            "data": screenshot_b64
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/png;base64,{screenshot_b64}"
+                            }
+                        },
+                        {
+                            "type": "text",
+                            "text": prompt
                         }
-                    },
-                    {"type": "text", "text": prompt}
-                ]
-            }]
+                    ]
+                }
+            ],
+            max_tokens=4000
         )
         
-        return response.content[0].text
+        return response.choices[0].message.content
     except Exception as e:
-        print(f"⚠️  Claude API error: {e}", file=sys.stderr)
+        print(f"⚠️  OpenAI API error: {e}", file=sys.stderr)
         return generate_scraper_fallback(page_data, user_goals, state, county)
 
 
