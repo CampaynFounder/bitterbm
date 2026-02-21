@@ -32,6 +32,8 @@ class SessionRecorder:
         self.recording = False
         self.actions = []
         self.extraction_points = []
+        self.loops = []
+        self.conditions = []
         self.screenshots = []
         
         parsed = urlparse(url)
@@ -79,6 +81,12 @@ class SessionRecorder:
                         <button id="btn-mark" disabled style="width: 100%; padding: 10px; background: #666; border: none; border-radius: 4px; color: white; font-weight: bold; cursor: not-allowed; margin-bottom: 5px;">
                             📍 Mark Extraction
                         </button>
+                        <button id="btn-loop" disabled style="width: 100%; padding: 10px; background: #666; border: none; border-radius: 4px; color: white; font-weight: bold; cursor: not-allowed; margin-bottom: 5px;">
+                            🔄 Define Loop
+                        </button>
+                        <button id="btn-condition" disabled style="width: 100%; padding: 10px; background: #666; border: none; border-radius: 4px; color: white; font-weight: bold; cursor: not-allowed; margin-bottom: 5px;">
+                            ⚡ Add Condition
+                        </button>
                         <button id="btn-screenshot" style="width: 100%; padding: 10px; background: #06b6d4; border: none; border-radius: 4px; color: white; font-weight: bold; cursor: pointer; margin-bottom: 5px;">
                             📸 Screenshot
                         </button>
@@ -90,6 +98,8 @@ class SessionRecorder:
                     <div style="border-top: 1px solid #444; padding-top: 10px; font-size: 12px;">
                         <div>Actions: <span id="action-count" style="color: #4ade80; font-weight: bold;">0</span></div>
                         <div>Extractions: <span id="extract-count" style="color: #f59e0b; font-weight: bold;">0</span></div>
+                        <div>Loops: <span id="loop-count" style="color: #3b82f6; font-weight: bold;">0</span></div>
+                        <div>Conditions: <span id="condition-count" style="color: #a855f7; font-weight: bold;">0</span></div>
                     </div>
                     
                     <div id="mark-form" style="display: none; margin-top: 15px; padding: 10px; background: rgba(245, 158, 11, 0.2); border-radius: 4px;">
@@ -97,6 +107,37 @@ class SessionRecorder:
                         <input id="extract-label" type="text" style="width: 100%; padding: 5px; margin-bottom: 5px; border: none; border-radius: 3px; font-size: 12px; box-sizing: border-box;" />
                         <button id="extract-save" style="width: 48%; padding: 6px; background: #f59e0b; border: none; border-radius: 3px; color: white; font-weight: bold; cursor: pointer; font-size: 11px;">Save</button>
                         <button id="extract-cancel" style="width: 48%; padding: 6px; background: #666; border: none; border-radius: 3px; color: white; cursor: pointer; font-size: 11px; margin-left: 4%;">Cancel</button>
+                    </div>
+                    
+                    <div id="loop-form" style="display: none; margin-top: 15px; padding: 10px; background: rgba(59, 130, 246, 0.2); border-radius: 4px;">
+                        <div style="font-size: 11px; font-weight: bold; margin-bottom: 8px;">🔄 Loop Configuration</div>
+                        <div style="font-size: 10px; margin-bottom: 5px;">Click on table or list to loop through:</div>
+                        <input id="loop-selector" readonly type="text" style="width: 100%; padding: 5px; margin-bottom: 5px; background: #333; color: #fff; border: none; border-radius: 3px; font-size: 11px; box-sizing: border-box;" placeholder="Click a table or list..." />
+                        <div style="font-size: 10px; margin-bottom: 5px;">Row selector:</div>
+                        <input id="loop-row-selector" type="text" value="tbody tr" style="width: 100%; padding: 5px; margin-bottom: 8px; border: none; border-radius: 3px; font-size: 11px; box-sizing: border-box;" />
+                        <button id="loop-save" style="width: 48%; padding: 6px; background: #3b82f6; border: none; border-radius: 3px; color: white; font-weight: bold; cursor: pointer; font-size: 11px;">Save Loop</button>
+                        <button id="loop-cancel" style="width: 48%; padding: 6px; background: #666; border: none; border-radius: 3px; color: white; cursor: pointer; font-size: 11px; margin-left: 4%;">Cancel</button>
+                    </div>
+                    
+                    <div id="condition-form" style="display: none; margin-top: 15px; padding: 10px; background: rgba(168, 85, 247, 0.2); border-radius: 4px; max-height: 200px; overflow-y: auto;">
+                        <div style="font-size: 11px; font-weight: bold; margin-bottom: 8px;">⚡ Extraction Condition</div>
+                        <div style="font-size: 10px; margin-bottom: 5px;">Add filter (AND logic):</div>
+                        <div style="display: flex; gap: 3px; margin-bottom: 5px;">
+                            <input id="cond-col" type="number" min="1" placeholder="Col" style="width: 20%; padding: 5px; border: none; border-radius: 3px; font-size: 11px;" />
+                            <select id="cond-op" style="width: 30%; padding: 5px; border: none; border-radius: 3px; font-size: 11px;">
+                                <option value="equals">Equals</option>
+                                <option value="contains">Contains</option>
+                                <option value="in">In</option>
+                                <option value="all_in">All In</option>
+                                <option value="exists">Exists</option>
+                                <option value="not_exists">Not Exists</option>
+                            </select>
+                            <input id="cond-val" type="text" placeholder="Value" style="width: 40%; padding: 5px; border: none; border-radius: 3px; font-size: 11px;" />
+                            <button id="add-cond" style="width: 10%; padding: 5px; background: #22c55e; border: none; border-radius: 3px; color: white; font-weight: bold; cursor: pointer; font-size: 11px;">+</button>
+                        </div>
+                        <div id="cond-list" style="font-size: 10px; margin-bottom: 8px; max-height: 60px; overflow-y: auto;"></div>
+                        <button id="cond-save" style="width: 48%; padding: 6px; background: #a855f7; border: none; border-radius: 3px; color: white; font-weight: bold; cursor: pointer; font-size: 11px;">Save Conditions</button>
+                        <button id="cond-cancel" style="width: 48%; padding: 6px; background: #666; border: none; border-radius: 3px; color: white; cursor: pointer; font-size: 11px; margin-left: 4%;">Cancel</button>
                     </div>
                 `;
                 
@@ -106,9 +147,14 @@ class SessionRecorder:
                 window.recorderState = {
                     recording: false,
                     marking: false,
+                    looping: false,
+                    conditioning: false,
                     actions: [],
                     extractions: [],
-                    pendingExtraction: null
+                    loops: [],
+                    conditions: [],
+                    pendingExtraction: null,
+                    currentConditions: []
                 };
                 window.shouldFinish = false;
                 window.shouldScreenshot = false;
@@ -117,6 +163,8 @@ class SessionRecorder:
                     const status = document.getElementById('status-display');
                     const btnRecord = document.getElementById('btn-record');
                     const btnMark = document.getElementById('btn-mark');
+                    const btnLoop = document.getElementById('btn-loop');
+                    const btnCondition = document.getElementById('btn-condition');
                     const btnStop = document.getElementById('btn-stop');
                     
                     if (recording) {
@@ -128,6 +176,12 @@ class SessionRecorder:
                         btnMark.disabled = false;
                         btnMark.style.background = '#f59e0b';
                         btnMark.style.cursor = 'pointer';
+                        btnLoop.disabled = false;
+                        btnLoop.style.background = '#3b82f6';
+                        btnLoop.style.cursor = 'pointer';
+                        btnCondition.disabled = false;
+                        btnCondition.style.background = '#a855f7';
+                        btnCondition.style.cursor = 'pointer';
                         btnStop.disabled = false;
                         btnStop.style.background = '#ef4444';
                         btnStop.style.cursor = 'pointer';
@@ -140,12 +194,20 @@ class SessionRecorder:
                         btnMark.disabled = true;
                         btnMark.style.background = '#666';
                         btnMark.style.cursor = 'not-allowed';
+                        btnLoop.disabled = true;
+                        btnLoop.style.background = '#666';
+                        btnLoop.style.cursor = 'not-allowed';
+                        btnCondition.disabled = true;
+                        btnCondition.style.background = '#666';
+                        btnCondition.style.cursor = 'not-allowed';
                     }
                 };
                 
                 const updateCounts = () => {
                     document.getElementById('action-count').textContent = window.recorderState.actions.length;
                     document.getElementById('extract-count').textContent = window.recorderState.extractions.length;
+                    document.getElementById('loop-count').textContent = window.recorderState.loops.length;
+                    document.getElementById('condition-count').textContent = window.recorderState.conditions.length;
                 };
                 
                 // Start/Stop recording
@@ -194,6 +256,94 @@ class SessionRecorder:
                     window.recorderState.pendingExtraction = null;
                 };
                 
+                // Loop definition
+                document.getElementById('btn-loop').onclick = () => {
+                    window.recorderState.looping = true;
+                    document.getElementById('loop-form').style.display = 'block';
+                    alert('Click on a table or list element to define the loop');
+                };
+                
+                document.getElementById('loop-save').onclick = () => {
+                    const loopSelector = document.getElementById('loop-selector').value.trim();
+                    const rowSelector = document.getElementById('loop-row-selector').value.trim();
+                    
+                    if (!loopSelector) {
+                        alert('Please click on a table first');
+                        return;
+                    }
+                    
+                    window.recorderState.loops.push({
+                        loopSelector,
+                        rowSelector
+                    });
+                    
+                    updateCounts();
+                    document.getElementById('loop-form').style.display = 'none';
+                    window.recorderState.looping = false;
+                    alert('Loop saved! Each row will be processed with your extraction logic.');
+                };
+                
+                document.getElementById('loop-cancel').onclick = () => {
+                    document.getElementById('loop-form').style.display = 'none';
+                    window.recorderState.looping = false;
+                };
+                
+                // Condition definition
+                document.getElementById('btn-condition').onclick = () => {
+                    window.recorderState.conditioning = true;
+                    window.recorderState.currentConditions = [];
+                    document.getElementById('condition-form').style.display = 'block';
+                    updateCondList();
+                };
+                
+                const updateCondList = () => {
+                    const list = document.getElementById('cond-list');
+                    if (window.recorderState.currentConditions.length === 0) {
+                        list.innerHTML = '<div style="color: #999;">No conditions yet (all records will be extracted)</div>';
+                    } else {
+                        list.innerHTML = window.recorderState.currentConditions.map((c, i) => 
+                            `<div style="background: #333; padding: 3px 5px; border-radius: 2px; margin-bottom: 2px;">
+                                Col ${c.column} ${c.operator} "${c.value}"
+                                <span onclick="window.recorderState.currentConditions.splice(${i}, 1); updateCondList();" style="cursor: pointer; color: #ef4444; float: right;">✕</span>
+                            </div>`
+                        ).join('');
+                    }
+                };
+                
+                document.getElementById('add-cond').onclick = () => {
+                    const column = parseInt(document.getElementById('cond-col').value);
+                    const operator = document.getElementById('cond-op').value;
+                    const value = document.getElementById('cond-val').value.trim();
+                    
+                    if ((operator !== 'exists' && operator !== 'not_exists') && (!column || !value)) {
+                        alert('Column and value are required');
+                        return;
+                    }
+                    
+                    window.recorderState.currentConditions.push({column, operator, value});
+                    updateCondList();
+                    
+                    document.getElementById('cond-col').value = '';
+                    document.getElementById('cond-val').value = '';
+                };
+                
+                document.getElementById('cond-save').onclick = () => {
+                    window.recorderState.conditions.push({
+                        filters: [...window.recorderState.currentConditions],
+                        logic: 'AND'
+                    });
+                    
+                    updateCounts();
+                    document.getElementById('condition-form').style.display = 'none';
+                    window.recorderState.conditioning = false;
+                    alert('Conditions saved! Only matching records will be extracted.');
+                };
+                
+                document.getElementById('cond-cancel').onclick = () => {
+                    document.getElementById('condition-form').style.display = 'none';
+                    window.recorderState.conditioning = false;
+                };
+                
                 // Capture all interactions
                 const captureAction = (type, details) => {
                     if (!window.recorderState.recording) return;
@@ -210,6 +360,25 @@ class SessionRecorder:
                 // Click events
                 document.addEventListener('click', (e) => {
                     if (e.target.closest('#recorder-overlay')) return;
+                    
+                    // Loop mode - click table to select
+                    if (window.recorderState.looping) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        const table = e.target.closest('table');
+                        if (table) {
+                            let selector = '';
+                            if (table.id) selector = `table#${table.id}`;
+                            else if (table.className) selector = `table.${table.className.split(' ')[0]}`;
+                            else selector = 'table';
+                            
+                            document.getElementById('loop-selector').value = selector;
+                            table.style.outline = '3px solid #3b82f6';
+                            setTimeout(() => table.style.outline = '', 2000);
+                        }
+                        return;
+                    }
                     
                     // Marking mode
                     if (window.recorderState.marking) {
@@ -341,20 +510,24 @@ class SessionRecorder:
             
             # Get recorded data
             try:
-                data = page.evaluate("() => window.recorderState || {actions: [], extractions: []}")
+                data = page.evaluate("() => window.recorderState || {actions: [], extractions: [], loops: [], conditions: []}")
                 self.actions = data.get('actions', [])
                 self.extraction_points = data.get('extractions', [])
+                self.loops = data.get('loops', [])
+                self.conditions = data.get('conditions', [])
                 
                 print(f"\n✅ Session recorded:")
                 print(f"   {len(self.actions)} actions")
                 print(f"   {len(self.extraction_points)} extraction points")
+                print(f"   {len(self.loops)} loops defined")
+                print(f"   {len(self.conditions)} condition sets")
             except:
                 pass
             
             browser.close()
     
     def generate_config(self):
-        """Generate playback config"""
+        """Generate playback config with loops and conditions"""
         steps = []
         
         # Convert recorded actions to playback steps
@@ -363,7 +536,7 @@ class SessionRecorder:
                 steps.append({
                     "type": "click",
                     "selector": action['selector'],
-                    "description": f"Click: {action.get('text', '')} [:50]"
+                    "description": f"Click: {action.get('text', '')[:50]}"
                 })
             elif action['type'] == 'input':
                 steps.append({
@@ -373,14 +546,39 @@ class SessionRecorder:
                     "description": f"Fill: {action['selector']}"
                 })
         
-        # Add extraction steps
-        for extraction in self.extraction_points:
-            steps.append({
-                "type": "extract",
-                "label": extraction.get('label', 'unknown'),
-                "selector": extraction['selector'],
-                "extractType": extraction.get('extractType', 'text')
-            })
+        # Add loop configuration
+        if self.loops:
+            loop_config = self.loops[0]  # Use first loop
+            loop_step = {
+                "type": "loop_table",
+                "tableSelector": loop_config['loopSelector'],
+                "rowSelector": loop_config.get('rowSelector', 'tbody tr'),
+                "description": "Iterate through each row"
+            }
+            
+            # Add filters if conditions exist
+            if self.conditions:
+                loop_step['filters'] = self.conditions[0].get('filters', [])
+            
+            # Add extractions to perform on each row
+            loop_step['extractInRow'] = []
+            for extraction in self.extraction_points:
+                loop_step['extractInRow'].append({
+                    "label": extraction.get('label', 'unknown'),
+                    "selector": extraction['selector'],
+                    "type": extraction.get('extractType', 'text')
+                })
+            
+            steps.append(loop_step)
+        else:
+            # No loop - just add extraction steps
+            for extraction in self.extraction_points:
+                steps.append({
+                    "type": "extract",
+                    "label": extraction.get('label', 'unknown'),
+                    "selector": extraction['selector'],
+                    "extractType": extraction.get('extractType', 'text')
+                })
         
         config = {
             "session": {
@@ -395,6 +593,8 @@ class SessionRecorder:
                 "baseUrl": self.url,
                 "actionCount": len(self.actions),
                 "extractionCount": len(self.extraction_points),
+                "loopCount": len(self.loops),
+                "conditionCount": len(self.conditions),
                 "screenshots": self.screenshots
             }
         }
@@ -407,10 +607,14 @@ class SessionRecorder:
         print(f"📁 Files: {self.output_dir}")
         
         print("\n" + "="*70)
-        print("NEXT STEPS:")
-        print("  • Review the session_recording.json file")
-        print("  • Add conditional logic in a separate step")
-        print("  • Test playback with your scraper")
+        print("GENERATED CONFIG:")
+        if self.loops:
+            print(f"  • Loop through: {self.loops[0]['loopSelector']}")
+            if self.conditions:
+                print(f"  • Filter conditions: {len(self.conditions[0].get('filters', []))} filters (AND logic)")
+            print(f"  • Extract {len(self.extraction_points)} fields per row")
+        else:
+            print("  • Single extraction (no loop)")
         print("="*70)
         
         return config
