@@ -129,6 +129,12 @@ export type SiteConfigState = {
       scope?: "row" | "page"
       /** Optional: row selector within the table (e.g. tbody tr). */
       rowSelector?: string
+      /** CSS selector to click to expand hidden sibling row (e.g. img[src*='add.png']). */
+      expandSelector?: string
+      /** CSS selector to click to collapse row after checking (defaults to expandSelector). */
+      collapseSelector?: string
+      /** If true, collapse row after checking (click collapseSelector or expandSelector). */
+      collapseAfter?: boolean
       /** 0-based column index (nth child) to check. */
       columnIndex?: number
       /** "exists" = element/table exists (no column value check); "equals" or "in" for value check. */
