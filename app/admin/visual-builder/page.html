@@ -600,8 +600,64 @@
         }
         
         function openBrowserHelper() {
-            alert('Opening element picker... (This will launch a browser where you can click elements to get their selectors)');
-            // TODO: Launch Playwright browser with element picker
+            const url = prompt('Enter the URL to open:', 'https://example.com');
+            if (!url) return;
+            
+            // Launch picker via server
+            fetch('http://localhost:5555/api/picker/launch', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ url })
+            })
+            .then(res => res.json())
+            .then(data => {
+                console.log('Picker launched:', data);
+                showNotification('✅ Browser opened! Click elements to select them.');
+            })
+            .catch(err => {
+                console.error('Error launching picker:', err);
+                alert('⚠️ Make sure the Element Picker Server is running!\n\nRun: python3 scraper/builder/element_picker_server.py');
+            });
+        }
+        
+        // Listen for element selections from picker
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'ELEMENT_SELECTED') {
+                const info = event.data.data;
+                console.log('Element selected:', info);
+                
+                // Auto-fill the most recent input field
+                const inputs = document.querySelectorAll('.flow-step input[placeholder*="Element Picker"]');
+                if (inputs.length > 0) {
+                    const lastInput = inputs[inputs.length - 1];
+                    lastInput.value = info.selector;
+                    lastInput.dispatchEvent(new Event('change'));
+                    lastInput.style.background = '#d4edda';
+                    setTimeout(() => lastInput.style.background = '', 2000);
+                }
+                
+                showNotification(`✅ Selected: ${info.selector}`);
+            }
+        });
+        
+        function showNotification(message) {
+            const notif = document.createElement('div');
+            notif.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #22c55e;
+                color: white;
+                padding: 15px 20px;
+                border-radius: 10px;
+                z-index: 999999;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                font-weight: 600;
+            `;
+            notif.textContent = message;
+            document.body.appendChild(notif);
+            
+            setTimeout(() => notif.remove(), 3000);
         }
         
         function exportFlow() {
