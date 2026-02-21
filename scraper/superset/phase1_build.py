@@ -420,27 +420,47 @@ def run_nested_table_checks(row_locator, root, nested_checks, log):
 
                 rows_loc = table_loc.locator(row_sel or "tr")
                 n = rows_loc.count()
-                vals = value if operator == "in" and isinstance(value, list) else [value]
+                vals = value if (operator == "in" or operator == "all_in") and isinstance(value, list) else [value]
                 vals = [_norm(v) for v in vals if v is not None and str(v).strip()]
-                for r in range(n):
-                    cell = rows_loc.nth(r).locator(cell_sel).first
-                    cell_text = (cell.inner_text() or "").strip()
-                    cell_text_norm = _norm(cell_text)
-                    # DEBUG: log first 3 rows
-                    if r < 3:
-                        log(f"    [nestedCheck '{name}'] row {r} col {col_idx}: '{cell_text}' (norm: '{cell_text_norm}')")
-                    if operator == "equals":
-                        if vals and cell_text_norm == _norm(vals[0]):
-                            exists = True
-                            row_index = r
-                            log(f"    [nestedCheck '{name}'] MATCH at row {r}")
-                            break
-                    else:  # in
+                
+                if operator == "all_in":
+                    # For all_in: ALL values must be found (in different rows)
+                    found_vals = set()
+                    for r in range(n):
+                        cell = rows_loc.nth(r).locator(cell_sel).first
+                        cell_text = (cell.inner_text() or "").strip()
+                        cell_text_norm = _norm(cell_text)
                         if cell_text_norm in vals:
-                            exists = True
-                            row_index = r
-                            log(f"    [nestedCheck '{name}'] MATCH at row {r}: '{cell_text_norm}' in {vals}")
-                            break
+                            found_vals.add(cell_text_norm)
+                            if row_index is None:
+                                row_index = r  # First match row
+                    exists = len(found_vals) == len(vals)
+                    if exists:
+                        log(f"    [nestedCheck '{name}'] ALL_IN MATCH: found all {len(vals)} values {list(found_vals)}")
+                    else:
+                        missing = set(vals) - found_vals
+                        log(f"    [nestedCheck '{name}'] ALL_IN incomplete: found {list(found_vals)}, missing {list(missing)}")
+                else:
+                    # For equals/in: find first match
+                    for r in range(n):
+                        cell = rows_loc.nth(r).locator(cell_sel).first
+                        cell_text = (cell.inner_text() or "").strip()
+                        cell_text_norm = _norm(cell_text)
+                        # DEBUG: log first 3 rows
+                        if r < 3:
+                            log(f"    [nestedCheck '{name}'] row {r} col {col_idx}: '{cell_text}' (norm: '{cell_text_norm}')")
+                        if operator == "equals":
+                            if vals and cell_text_norm == _norm(vals[0]):
+                                exists = True
+                                row_index = r
+                                log(f"    [nestedCheck '{name}'] MATCH at row {r}")
+                                break
+                        else:  # in
+                            if cell_text_norm in vals:
+                                exists = True
+                                row_index = r
+                                log(f"    [nestedCheck '{name}'] MATCH at row {r}: '{cell_text_norm}' in {vals}")
+                                break
         except Exception:
             exists = False
         out[name] = {"exists": exists}

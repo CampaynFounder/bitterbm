@@ -137,8 +137,8 @@ export type SiteConfigState = {
       collapseAfter?: boolean
       /** 0-based column index (nth child) to check. */
       columnIndex?: number
-      /** "exists" = element/table exists (no column value check); "equals" or "in" for value check. */
-      operator?: "exists" | "equals" | "in"
+      /** "exists" = element/table exists (no column value check); "equals" or "in" for value check; "all_in" = ALL values must exist. */
+      operator?: "exists" | "equals" | "in" | "all_in"
       /** Value(s) to match in that column. */
       value?: string | string[]
       /** If set, output includes: name, exists (boolean), tableSelector, columnIndex, rowIndex (nth row match). */
@@ -614,10 +614,10 @@ function SiteConfigForm({ config, onChange, onlySections }: { config: SiteConfig
                 </div>
                 <div style={{ display: "flex", gap: "var(--space-sm)", flexWrap: "wrap", alignItems: "center", marginBottom: "var(--space-xs)" }}>
                   <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Check:</span>
-                  <select value={nc.operator ?? "equals"} onChange={(e) => { const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], operator: e.target.value as "exists" | "equals" | "in" }; update("resultTable.nestedTableChecks", arr) }} style={{ ...inputStyle, width: 88 }}><option value="exists">exists</option><option value="equals">equals</option><option value="in">in</option></select>
+                  <select value={nc.operator ?? "equals"} onChange={(e) => { const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], operator: e.target.value as "exists" | "equals" | "in" | "all_in" }; update("resultTable.nestedTableChecks", arr) }} style={{ ...inputStyle, width: 88 }}><option value="exists">exists</option><option value="equals">equals</option><option value="in">in</option><option value="all_in">all_in</option></select>
                   <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Column index (0-based):</span>
                   <input type="number" min={0} value={Math.max(0, nc.columnIndex ?? 0)} onChange={(e) => { const v = Math.max(0, parseInt(e.target.value, 10) || 0); const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], columnIndex: v }; update("resultTable.nestedTableChecks", arr) }} style={{ ...inputStyle, width: 56 }} title="Column in the nested table to check (0 = first)" />
-                  <input value={Array.isArray(nc.value) ? (nc.value as string[]).map((s) => { let x = String(s).trim(); if (x.startsWith('\\"') && x.endsWith('\\"')) x = x.slice(2, -2); else if (x.startsWith('"') && x.endsWith('"')) x = x.slice(1, -1); return x; }).join(", ") : String(nc.value ?? "")} onChange={(e) => { const v = e.target.value; const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], value: (nc.operator ?? "equals") === "in" ? v.split(",").map((s) => s.trim()).filter(Boolean) : v }; update("resultTable.nestedTableChecks", arr) }} placeholder={(nc.operator ?? "equals") === "in" ? "A, B, C (comma-separated)" : "Value"} style={{ ...inputStyle, width: 200 }} title="One value for equals; for 'in', type several values separated by commas" />
+                  <input value={Array.isArray(nc.value) ? (nc.value as string[]).map((s) => { let x = String(s).trim(); if (x.startsWith('\\"') && x.endsWith('\\"')) x = x.slice(2, -2); else if (x.startsWith('"') && x.endsWith('"')) x = x.slice(1, -1); return x; }).join(", ") : String(nc.value ?? "")} onChange={(e) => { const v = e.target.value; const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], value: ((nc.operator ?? "equals") === "in" || (nc.operator ?? "equals") === "all_in") ? v.split(",").map((s) => s.trim()).filter(Boolean) : v }; update("resultTable.nestedTableChecks", arr) }} placeholder={((nc.operator ?? "equals") === "in" || (nc.operator ?? "equals") === "all_in") ? "A, B, C (comma-separated)" : "Value"} style={{ ...inputStyle, width: 200 }} title="One value for equals; for 'in' or 'all_in', type several values separated by commas" />
                   <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.8125rem" }}><input type="checkbox" checked={nc.outputInRow ?? false} onChange={(e) => { const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], outputInRow: e.target.checked }; update("resultTable.nestedTableChecks", arr) }} />Output in row</label>
                 </div>
                 <button type="button" onClick={() => update("resultTable.nestedTableChecks", (rt.nestedTableChecks ?? []).filter((_, j) => j !== i))} style={btnSecondary}>Remove</button>

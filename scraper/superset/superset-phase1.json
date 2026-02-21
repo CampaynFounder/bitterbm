@@ -45,7 +45,7 @@
         "label": "pick date",
         "config": {
           "toValue": "02/02/2022",
-          "fromValue": "01/02/2018",
+          "fromValue": "02/02/2018",
           "toSelector": "input#tbFiledTo.DatePicker.hasDatepicker",
           "fromSelector": "input#tbFiledFrom.DatePicker.hasDatepicker"
         }
@@ -129,7 +129,9 @@
           "columnIndex": 2,
           "outputInRow": true,
           "rowSelector": "tbody tr",
-          "tableSelector": "table#EventGrid"
+          "tableSelector": "table#EventGrid",
+          "collapseAfter": true,
+          "expandSelector": "img[src*=\"add.png\"]"
         }
       ]
     },
