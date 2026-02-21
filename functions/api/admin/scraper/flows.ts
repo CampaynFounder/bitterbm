@@ -113,3 +113,31 @@ export async function onRequestPost(context: { request: Request; env: Env }): Pr
   if (error) return json({ error: error.message }, 500)
   return json({ id: data.id })
 }
+
+export async function onRequestDelete(context: { request: Request; env: Env }): Promise<Response> {
+  if (!(await authorize(context))) {
+    return json({ error: "Unauthorized" }, 401)
+  }
+
+  const { env } = context
+  const url = new URL(context.request.url)
+  let id = url.searchParams.get("id")?.trim()
+
+  if (!id) {
+    try {
+      const body = await context.request.json()
+      id = body.id?.trim()
+    } catch {
+      // no body
+    }
+  }
+
+  if (!id) {
+    return json({ error: "id required" }, 400)
+  }
+
+  const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
+  const { error } = await supabase.from("scraper_flows").delete().eq("id", id)
+  if (error) return json({ error: error.message }, 500)
+  return json({ ok: true })
+}
