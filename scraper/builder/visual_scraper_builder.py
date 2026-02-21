@@ -1,14 +1,37 @@
 """
 Visual Scraper Builder - AI-powered selector generation from screenshots and descriptions
 
+Supports multiple AI providers:
+  - OpenAI GPT-4o (default)
+  - Anthropic Claude 3.5 Sonnet
+  - Hugging Face models (Qwen2-VL, Llama-Vision, etc.)
+
 Usage:
+  # Use OpenAI (default)
   python scraper/builder/visual_scraper_builder.py --url "https://example.com" --describe "case number, judge, PDF links"
   
+  # Use Claude
+  python scraper/builder/visual_scraper_builder.py --url "..." --describe "..." --provider claude
+  
+  # Use Hugging Face
+  export HF_TOKEN="hf_..."
+  export HF_API_URL="https://api-inference.huggingface.co/models/Qwen/Qwen2-VL-72B-Instruct"
+  python scraper/builder/visual_scraper_builder.py --url "..." --describe "..." --provider huggingface
+  
+  # Or set default provider via env var
+  export SCRAPER_AI_PROVIDER=claude
+  python scraper/builder/visual_scraper_builder.py --url "..." --describe "..."
+
 With auth (pause for manual login):
   python scraper/builder/visual_scraper_builder.py --url "https://example.com" --auth-pause 30 --describe "..."
   
 With state/county context:
   python scraper/builder/visual_scraper_builder.py --url "..." --describe "..." --state GA --county Cobb
+
+API Keys:
+  - OpenAI: export OPENAI_API_KEY="sk-..."
+  - Claude: export ANTHROPIC_API_KEY="sk-ant-..."
+  - Hugging Face: export HF_TOKEN="hf_..."
 """
 
 import argparse
@@ -154,8 +177,38 @@ def analyze_page(url, auth_pause_seconds=0):
         }
 
 
-def generate_scraper_with_ai(page_data, user_goals, state=None, county=None):
-    """Use OpenAI to suggest selectors based on visual analysis"""
+def generate_scraper_with_ai(page_data, user_goals, state=None, county=None, provider=None):
+    """
+    Use AI to suggest selectors based on visual analysis
+    
+    Supports multiple providers:
+    - openai (default): GPT-4o with vision
+    - claude: Claude 3.5 Sonnet
+    - huggingface: Open models (requires additional setup)
+    
+    Set via --provider flag or SCRAPER_AI_PROVIDER env var
+    """
+    import os
+    
+    # Determine provider
+    if provider is None:
+        provider = os.getenv("SCRAPER_AI_PROVIDER", "openai").lower()
+    
+    print(f"🤖 Using AI provider: {provider}")
+    
+    if provider == "openai":
+        return _generate_with_openai(page_data, user_goals, state, county)
+    elif provider == "claude":
+        return _generate_with_claude(page_data, user_goals, state, county)
+    elif provider == "huggingface":
+        return _generate_with_huggingface(page_data, user_goals, state, county)
+    else:
+        print(f"⚠️  Unknown provider '{provider}', using fallback", file=sys.stderr)
+        return generate_scraper_fallback(page_data, user_goals, state, county)
+
+
+def _generate_with_openai(page_data, user_goals, state=None, county=None):
+    """Generate scraper config using OpenAI GPT-4o"""
     try:
         import openai
     except ImportError:
@@ -168,15 +221,165 @@ def generate_scraper_with_ai(page_data, user_goals, state=None, county=None):
         print(f"⚠️  OpenAI API not configured: {e}", file=sys.stderr)
         return generate_scraper_fallback(page_data, user_goals, state, county)
     
-    # Read screenshot
     with open(page_data["screenshot"], "rb") as f:
         screenshot_b64 = base64.b64encode(f.read()).decode()
     
+    prompt = _build_prompt(page_data, user_goals, state, county)
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/png;base64,{screenshot_b64}"
+                            }
+                        },
+                        {
+                            "type": "text",
+                            "text": prompt
+                        }
+                    ]
+                }
+            ],
+            max_tokens=4000
+        )
+        
+        return response.choices[0].message.content
+    except Exception as e:
+        print(f"⚠️  OpenAI API error: {e}", file=sys.stderr)
+        return generate_scraper_fallback(page_data, user_goals, state, county)
+
+
+def _generate_with_claude(page_data, user_goals, state=None, county=None):
+    """Generate scraper config using Anthropic Claude"""
+    try:
+        import anthropic
+    except ImportError:
+        print("⚠️  anthropic not installed. Install with: pip install anthropic", file=sys.stderr)
+        return generate_scraper_fallback(page_data, user_goals, state, county)
+    
+    try:
+        client = anthropic.Anthropic()
+    except Exception as e:
+        print(f"⚠️  Claude API not configured: {e}", file=sys.stderr)
+        return generate_scraper_fallback(page_data, user_goals, state, county)
+    
+    with open(page_data["screenshot"], "rb") as f:
+        screenshot_b64 = base64.b64encode(f.read()).decode()
+    
+    prompt = _build_prompt(page_data, user_goals, state, county)
+    
+    try:
+        response = client.messages.create(
+            model="claude-3-5-sonnet-20241022",
+            max_tokens=4000,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": "image/png",
+                            "data": screenshot_b64
+                        }
+                    },
+                    {"type": "text", "text": prompt}
+                ]
+            }]
+        )
+        
+        return response.content[0].text
+    except Exception as e:
+        print(f"⚠️  Claude API error: {e}", file=sys.stderr)
+        return generate_scraper_fallback(page_data, user_goals, state, county)
+
+
+def _generate_with_huggingface(page_data, user_goals, state=None, county=None):
+    """
+    Generate scraper config using Hugging Face models
+    
+    Supports:
+    - Qwen/Qwen2-VL-72B-Instruct (vision + text)
+    - meta-llama/Llama-3.2-90B-Vision-Instruct
+    - Or any vision-language model via Inference API
+    
+    Set HF_API_URL and HF_TOKEN env vars, or use default Inference API
+    """
+    import os
+    
+    try:
+        import requests
+    except ImportError:
+        print("⚠️  requests not installed. Install with: pip install requests", file=sys.stderr)
+        return generate_scraper_fallback(page_data, user_goals, state, county)
+    
+    # Configuration
+    hf_token = os.getenv("HF_TOKEN")
+    hf_api_url = os.getenv("HF_API_URL", "https://api-inference.huggingface.co/models/Qwen/Qwen2-VL-72B-Instruct")
+    
+    if not hf_token:
+        print("⚠️  HF_TOKEN not set. Get one at https://huggingface.co/settings/tokens", file=sys.stderr)
+        return generate_scraper_fallback(page_data, user_goals, state, county)
+    
+    with open(page_data["screenshot"], "rb") as f:
+        screenshot_b64 = base64.b64encode(f.read()).decode()
+    
+    prompt = _build_prompt(page_data, user_goals, state, county)
+    
+    try:
+        # Hugging Face Inference API format
+        headers = {"Authorization": f"Bearer {hf_token}"}
+        
+        # Try vision-language model format
+        payload = {
+            "inputs": prompt,
+            "parameters": {
+                "max_new_tokens": 4000,
+                "temperature": 0.7,
+            }
+        }
+        
+        # Add image if model supports it (VL models)
+        if "VL" in hf_api_url or "Vision" in hf_api_url or "vision" in hf_api_url:
+            payload["inputs"] = {
+                "text": prompt,
+                "image": screenshot_b64
+            }
+        
+        response = requests.post(hf_api_url, headers=headers, json=payload, timeout=60)
+        response.raise_for_status()
+        
+        result = response.json()
+        
+        # Extract text from various response formats
+        if isinstance(result, list) and len(result) > 0:
+            text = result[0].get("generated_text", str(result))
+        elif isinstance(result, dict):
+            text = result.get("generated_text") or result.get("text") or str(result)
+        else:
+            text = str(result)
+        
+        return text
+        
+    except Exception as e:
+        print(f"⚠️  Hugging Face API error: {e}", file=sys.stderr)
+        print(f"   API URL: {hf_api_url}", file=sys.stderr)
+        return generate_scraper_fallback(page_data, user_goals, state, county)
+
+
+def _build_prompt(page_data, user_goals, state=None, county=None):
+    """Build the common prompt for all AI providers"""
     context = ""
     if state or county:
         context = f"\nGEOGRAPHIC CONTEXT: State={state or 'N/A'}, County={county or 'N/A'}"
     
-    prompt = f"""Analyze this court/public records webpage and generate a Playwright scraper configuration.
+    return f"""Analyze this court/public records webpage and generate a Playwright scraper configuration.
 
 USER GOALS: {user_goals}{context}
 
@@ -225,34 +428,6 @@ CRITICAL:
 - For PDFs: use the document_link selectors found
 - Include iframe handling if type='iframe' elements exist
 - Return ONLY the JSON, no markdown formatting"""
-    
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/png;base64,{screenshot_b64}"
-                            }
-                        },
-                        {
-                            "type": "text",
-                            "text": prompt
-                        }
-                    ]
-                }
-            ],
-            max_tokens=4000
-        )
-        
-        return response.choices[0].message.content
-    except Exception as e:
-        print(f"⚠️  OpenAI API error: {e}", file=sys.stderr)
-        return generate_scraper_fallback(page_data, user_goals, state, county)
 
 
 def generate_scraper_fallback(page_data, user_goals, state=None, county=None):
@@ -312,6 +487,7 @@ def main():
     parser.add_argument("--auth-pause", type=int, default=0, help="Seconds to pause for manual login")
     parser.add_argument("--state", help="State code (e.g. GA)")
     parser.add_argument("--county", help="County name (e.g. Cobb)")
+    parser.add_argument("--provider", choices=["openai", "claude", "huggingface"], help="AI provider (default: openai, or set SCRAPER_AI_PROVIDER)")
     parser.add_argument("--output", default="scraper/builder/generated_scraper.json", help="Output file")
     args = parser.parse_args()
     
@@ -335,7 +511,7 @@ def main():
     if args.state or args.county:
         print(f"   Context: {args.state or ''} {args.county or ''}")
     
-    scraper_text = generate_scraper_with_ai(page_data, args.describe, args.state, args.county)
+    scraper_text = generate_scraper_with_ai(page_data, args.describe, args.state, args.county, args.provider)
     
     # Step 3: Save output
     output_path = Path(args.output)
