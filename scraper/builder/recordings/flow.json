@@ -1,0 +1,15 @@
+{
+  "name": "Recorded Flow",
+  "steps": [
+    {
+      "type": "navigate",
+      "config": {
+        "url": "https://your-site.com/"
+      }
+    }
+  ],
+  "metadata": {
+    "recordedWith": "simple-recorder",
+    "stepCount": 1
+  }
+}
