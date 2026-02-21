@@ -1,0 +1,291 @@
+{
+  "flow": {
+    "name": "Cobb Gold Scraper 3",
+    "version": "1.0",
+    "steps": [
+      {
+        "type": "navigate",
+        "label": "Cobb County",
+        "config": {
+          "url": "https://superiorcourtclerk.cobbcounty.gov/WebCaseManagement/mainpage.aspx",
+          "waitUntil": "load"
+        }
+      },
+      {
+        "type": "switch_frame",
+        "label": "",
+        "config": {
+          "url": "",
+          "name": "",
+          "selector": "iframe[src*=\"Main.aspx\"]"
+        }
+      },
+      {
+        "type": "delay",
+        "label": "",
+        "config": {
+          "ms": 10000
+        }
+      },
+      {
+        "type": "click",
+        "label": "",
+        "config": {
+          "selector": "#hlCivilSearch",
+          "waitAfter": 1000
+        }
+      },
+      {
+        "type": "delay",
+        "label": "",
+        "config": {
+          "ms": 1000
+        }
+      },
+      {
+        "type": "switch_frame",
+        "label": "iframe get",
+        "config": {
+          "selector": "iframe[src*=\"Main.aspx\"]"
+        }
+      },
+      {
+        "type": "fill_field",
+        "label": "Enter Search Text",
+        "config": {
+          "value": "{{name}}",
+          "selector": "input#tbPersonSearch.TextBox",
+          "clearFirst": false,
+          "pressEnter": false
+        }
+      },
+      {
+        "type": "checkbox",
+        "label": "Superior Court Cases",
+        "config": {
+          "state": "checked",
+          "selector": "input#cblCivilCourtTypes_1"
+        }
+      },
+      {
+        "type": "click",
+        "label": "Search",
+        "config": {
+          "selector": "input#btnSearch.Buttons",
+          "waitAfter": 1000
+        }
+      },
+      {
+        "type": "delay",
+        "label": "",
+        "config": {
+          "ms": 6000
+        }
+      },
+      {
+        "type": "for_each_result",
+        "label": "Get All the Cases",
+        "config": {
+          "limit": 0,
+          "selector": "table#CivilPublicGrid.TableGrid tbody tr "
+        }
+      },
+      {
+        "type": "extract_field",
+        "label": "Closed Case Status",
+        "config": {
+          "attr": "text",
+          "fieldId": "Status",
+          "required": false,
+          "selector": "td:nth-of-type(5)"
+        }
+      },
+      {
+        "type": "condition_group",
+        "label": "In Closed Status",
+        "config": {
+          "value": "CL",
+          "fieldId": "Status",
+          "operator": "equals"
+        }
+      },
+      {
+        "type": "extract_field",
+        "label": "Disposition Code",
+        "config": {
+          "attr": "text",
+          "fieldId": "Disp. Code",
+          "required": false,
+          "selector": "td:nth-of-type(9)"
+        }
+      },
+      {
+        "type": "condition_group",
+        "label": "",
+        "config": {
+          "value": "53",
+          "fieldId": "Disp. Code",
+          "operator": "equals"
+        }
+      },
+      {
+        "type": "extract_field",
+        "label": "Disposition Stage",
+        "config": {
+          "attr": "text",
+          "fieldId": "Disp. Stage",
+          "required": false,
+          "selector": "td:nth-of-type(8)"
+        }
+      },
+      {
+        "type": "condition_group",
+        "label": "",
+        "config": {
+          "value": "LGCY",
+          "fieldId": "Disp. Stage",
+          "operator": "equals"
+        }
+      },
+      {
+        "type": "extract_to_memory",
+        "label": "Save Judge Name",
+        "config": {
+          "key": "td:nth-child(4)",
+          "source": "row",
+          "memoryKey": "Judge"
+        }
+      },
+      {
+        "type": "wait",
+        "label": "",
+        "config": {
+          "timeout": 10000,
+          "selector": "img[src*=\"add\"]",
+          "waitUntil": "attached"
+        }
+      },
+      {
+        "type": "click",
+        "label": "Expand The Row",
+        "config": {
+          "force": true,
+          "selector": "img[src*=\"add\"]",
+          "waitAfter": 6000,
+          "scrollIntoView": false
+        }
+      },
+      {
+        "type": "for_each_result",
+        "label": "Get Defense",
+        "config": {
+          "limit": 0,
+          "selector": "table#AttorneyGrid tbody tr "
+        }
+      },
+      {
+        "type": "extract_field",
+        "label": "Defendant Attorney",
+        "config": {
+          "attr": "text",
+          "fieldId": "Defendant",
+          "required": false,
+          "selector": "td:nth-of-type(2)"
+        }
+      },
+      {
+        "type": "condition_group",
+        "label": "Defendant filter",
+        "config": {
+          "value": "D",
+          "fieldId": "Defendant",
+          "operator": "equals"
+        }
+      },
+      {
+        "type": "extract_to_memory",
+        "label": "Save Dedendant Atty Name",
+        "config": {
+          "key": "td:nth-child(2)",
+          "source": "row",
+          "memoryKey": "Defendant"
+        }
+      },
+      {
+        "type": "for_each_result",
+        "label": "Get Plaintiff",
+        "config": {
+          "limit": 0,
+          "selector": "table#AttorneyGrid tbody tr "
+        }
+      },
+      {
+        "type": "extract_field",
+        "label": "Plaintiff Attorney",
+        "config": {
+          "attr": "text",
+          "fieldId": "Plaintiff",
+          "required": false,
+          "selector": "td:nth-of-type(2)"
+        }
+      },
+      {
+        "type": "condition_group",
+        "label": "Plaintiff filter",
+        "config": {
+          "value": "P",
+          "fieldId": "Plaintiff",
+          "operator": "equals"
+        }
+      },
+      {
+        "type": "extract_to_memory",
+        "label": "Save Plaintiff Atty Name",
+        "config": {
+          "key": "td:nth-child(1)",
+          "source": "row",
+          "memoryKey": "Defendant"
+        }
+      },
+      {
+        "type": "for_each_result",
+        "label": "Get Guardian",
+        "config": {
+          "limit": 0,
+          "selector": "table#AttorneyGrid tbody tr "
+        }
+      },
+      {
+        "type": "extract_field",
+        "label": "Guardian Attorney",
+        "config": {
+          "attr": "text",
+          "fieldId": "Guardian",
+          "required": false,
+          "selector": "td:nth-of-type(2)"
+        }
+      },
+      {
+        "type": "condition_group",
+        "label": "Guardian filter",
+        "config": {
+          "value": "G",
+          "fieldId": "Guardian",
+          "operator": "equals"
+        }
+      },
+      {
+        "type": "extract_to_memory",
+        "label": "Save Guardian Atty Name",
+        "config": {
+          "key": "td:nth-child(1)",
+          "source": "row",
+          "memoryKey": "Guardian"
+        }
+      }
+    ]
+  },
+  "vars": {
+    "name": "lowther"
+  }
+}

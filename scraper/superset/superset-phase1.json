@@ -1,0 +1,141 @@
+{
+  "flow": {
+    "name": "superset-search",
+    "steps": [
+      {
+        "type": "navigate",
+        "label": "Cobb Courts",
+        "config": {
+          "url": "https://superiorcourtclerk.cobbcounty.gov/WebCaseManagement/mainpage.aspx",
+          "waitUntil": "load"
+        }
+      },
+      {
+        "type": "switch_frame",
+        "label": "iframe",
+        "config": {
+          "url": "",
+          "name": "",
+          "selector": "iframe[src*=\"Main.aspx\"]"
+        }
+      },
+      {
+        "type": "click",
+        "label": "civil courts",
+        "config": {
+          "selector": "a#hlCivilSearch",
+          "waitAfter": 1000
+        }
+      },
+      {
+        "type": "form_fill",
+        "label": "enter name",
+        "config": {
+          "fields": [
+            {
+              "value": "Lowther",
+              "selector": "input#tbPersonSearch.TextBox"
+            },
+            {
+              "value": "01012022",
+              "selector": "input#tbFiledFrom.DatePicker.hasDatepicker"
+            },
+            {
+              "value": "01012026",
+              "selector": "input#tbFiledTo.DatePicker.hasDatepicker"
+            }
+          ],
+          "submit": ""
+        }
+      },
+      {
+        "type": "checkbox",
+        "label": "check superior",
+        "config": {
+          "state": "checked",
+          "selector": "input#cblCivilCourtTypes_1"
+        }
+      },
+      {
+        "type": "click",
+        "label": "Search",
+        "config": {
+          "timeout": 10000,
+          "selector": " input#btnSearch.Buttons",
+          "waitAfter": 1000
+        }
+      }
+    ]
+  },
+  "siteConfig": {
+    "iframe": {
+      "selector": "iframe#content"
+    },
+    "siteId": "example",
+    "baseUrl": "https://...",
+    "pagination": {
+      "mode": "all_in_dom"
+    },
+    "searchForm": {
+      "wildcard": "%",
+      "patternField": {
+        "type": "text",
+        "selector": "#search"
+      },
+      "caseSensitive": false,
+      "submitSelector": "#btnSearch",
+      "minNonWildcardChars": 1
+    },
+    "resultTable": {
+      "primaryId": {
+        "source": "column",
+        "columnIndex": 1
+      },
+      "rowFilter": [
+        {
+          "not": false,
+          "value": "53",
+          "operator": "equals",
+          "columnIndex": 8
+        },
+        {
+          "not": false,
+          "value": "Other Domestic Relations",
+          "operator": "equals",
+          "columnIndex": 9
+        }
+      ],
+      "threshold": 1,
+      "rowSelector": "tbody tr",
+      "tableSelector": "table#CivilPublicGrid.TableGrid",
+      "extractColumns": [
+        {
+          "outputKey": "Judge",
+          "columnIndex": 3
+        }
+      ],
+      "nestedRowFilters": [],
+      "nestedTableChecks": [
+        {
+          "name": "Events Table",
+          "scope": "row",
+          "value": [
+            "\"ORDER FINAL\"",
+            "\"PARENTING PLAN\""
+          ],
+          "operator": "in",
+          "columnIndex": 2,
+          "outputInRow": true,
+          "rowSelector": "tbody tr",
+          "tableSelector": "table#EventGrid"
+        }
+      ]
+    },
+    "patternGeneration": {
+      "length": 3,
+      "alphabet": "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+      "useWildcard": true,
+      "wildcardChar": "%"
+    }
+  }
+}

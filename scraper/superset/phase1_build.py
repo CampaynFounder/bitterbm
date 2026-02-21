@@ -180,7 +180,14 @@ def run_flow_steps(page, steps, vars_dict, log):
                     sel = f.get("selector", "")
                     val = str(f.get("value", ""))
                     if sel:
-                        root.locator(sel).first.fill(val)
+                        elem = root.locator(sel).first
+                        # Check if it's a datepicker (has datepicker class or data attribute)
+                        is_datepicker = elem.evaluate("el => el.classList.contains('hasDatepicker') || el.classList.contains('DatePicker') || !!el.dataset.datepicker")
+                        if is_datepicker:
+                            # For jQuery UI datepicker: set value via JS and trigger change
+                            elem.evaluate(f"el => {{ el.value = '{val}'; if (window.jQuery && window.jQuery.datepicker) {{ window.jQuery(el).datepicker('setDate', '{val}'); }} window.jQuery(el).trigger('change'); }}")
+                        else:
+                            elem.fill(val)
                 submit = cfg.get("submit", "")
                 if submit:
                     root.locator(submit).first.click()

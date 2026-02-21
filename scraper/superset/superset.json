@@ -1,0 +1,19 @@
+{
+  "siteId": "example",
+  "generatedAt": "2026-02-21T12:28:34.243842Z",
+  "searchConfigSnapshot": {
+    "pattern": "%"
+  },
+  "ids": [
+    "18107412"
+  ],
+  "rows": [
+    {
+      "id": "18107412",
+      "Judge": "A. GREGORY POOLE",
+      "Events Table": {
+        "exists": false
+      }
+    }
+  ]
+}

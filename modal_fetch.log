@@ -1,0 +1,87 @@
+/Users/pharrenlowther/Library/Python/3.9/lib/python/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+✓ Initialized. View run at 
+https://modal.com/apps/vannilli/main/ap-yt1aCLUvV9IALOfQOeb7Zn
+Aborting app initialization...
+
+Stopping app - keyboard interrupt received. Use `modal run --detach` to prevent KeyboardInterrupts from killing apps.
+╭───────────────────── Traceback (most recent call last) ──────────────────────╮
+│ /Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framew │
+│ ork/Versions/3.9/lib/python3.9/runpy.py:197 in _run_module_as_main           │
+│                                                                              │
+│   196 │   │   sys.argv[0] = mod_spec.origin                                  │
+│ ❱ 197 │   return _run_code(code, main_globals, None,                         │
+│   198 │   │   │   │   │    "__main__", mod_spec)                             │
+│                                                                              │
+│ /Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framew │
+│ ork/Versions/3.9/lib/python3.9/runpy.py:87 in _run_code                      │
+│                                                                              │
+│    86 │   │   │   │   │      __spec__ = mod_spec)                            │
+│ ❱  87 │   exec(code, run_globals)                                            │
+│    88 │   return run_globals                                                 │
+│                                                                              │
+│ /Users/pharrenlowther/Library/Python/3.9/lib/python/site-packages/modal/__ma │
+│ in__.py:77 in <module>                                                       │
+│                                                                              │
+│   76 if __name__ == "__main__":                                              │
+│ ❱ 77 │   main()                                                              │
+│   78                                                                         │
+│                                                                              │
+│ /Users/pharrenlowther/Library/Python/3.9/lib/python/site-packages/modal/__ma │
+│ in__.py:18 in main                                                           │
+│                                                                              │
+│   17 │   try:                                                                │
+│ ❱ 18 │   │   entrypoint_cli()                                                │
+│   19                                                                         │
+│                                                                              │
+│ /Users/pharrenlowther/Library/Python/3.9/lib/python/site-packages/click/core │
+│ .py:1161 in __call__                                                         │
+│                                                                              │
+│ /Users/pharrenlowther/Library/Python/3.9/lib/python/site-packages/typer/core │
+│ .py:807 in main                                                              │
+│                                                                              │
+│ /Users/pharrenlowther/Library/Python/3.9/lib/python/site-packages/typer/core │
+│ .py:193 in _main                                                             │
+│                                                                              │
+│ /Users/pharrenlowther/Library/Python/3.9/lib/python/site-packages/click/core │
+│ .py:1697 in invoke                                                           │
+│                                                                              │
+│ /Users/pharrenlowther/Library/Python/3.9/lib/python/site-packages/click/core │
+│ .py:1697 in invoke                                                           │
+│                                                                              │
+│ /Users/pharrenlowther/Library/Python/3.9/lib/python/site-packages/click/core │
+│ .py:1443 in invoke                                                           │
+│                                                                              │
+│ /Users/pharrenlowther/Library/Python/3.9/lib/python/site-packages/click/core │
+│ .py:788 in invoke                                                            │
+│                                                                              │
+│ /Users/pharrenlowther/Library/Python/3.9/lib/python/site-packages/click/deco │
+│ rators.py:33 in new_func                                                     │
+│                                                                              │
+│ /Users/pharrenlowther/Library/Python/3.9/lib/python/site-packages/modal/cli/ │
+│ run.py:308 in f                                                              │
+│                                                                              │
+│   307 │   │   with enable_output(show_progress):                             │
+│ ❱ 308 │   │   │   with run_app(                                              │
+│   309 │   │   │   │   app,                                                   │
+│                                                                              │
+│ /Users/pharrenlowther/Library/Python/3.9/lib/python/site-packages/synchronic │
+│ ity/synchronizer.py:669 in proxy_method                                      │
+│                                                                              │
+│ /Users/pharrenlowther/Library/Python/3.9/lib/python/site-packages/synchronic │
+│ ity/combined_types.py:27 in __call__                                         │
+│                                                                              │
+│ /Users/pharrenlowther/Library/Python/3.9/lib/python/site-packages/synchronic │
+│ ity/synchronizer.py:586 in f_wrapped                                         │
+│                                                                              │
+│ /Users/pharrenlowther/Library/Python/3.9/lib/python/site-packages/synchronic │
+│ ity/synchronizer.py:371 in _run_function_sync                                │
+│                                                                              │
+│ /Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framew │
+│ ork/Versions/3.9/lib/python3.9/concurrent/futures/_base.py:443 in result     │
+│                                                                              │
+│   442 │   │   │   │   if self._state in [CANCELLED, CANCELLED_AND_NOTIFIED]: │
+│ ❱ 443 │   │   │   │   │   raise CancelledError()                             │
+│   444 │   │   │   │   elif self._state == FINISHED:                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+CancelledError

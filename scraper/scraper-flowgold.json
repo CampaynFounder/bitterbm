@@ -1,0 +1,44 @@
+{
+  "flow": {
+    "name": "Court Records Search",
+    "version": "1.0",
+    "steps": [
+      {
+        "type": "navigate",
+        "label": "",
+        "config": {
+          "url": "https://superiorcourtclerk.cobbcounty.gov/WebCaseManagement/mainpage.aspx",
+          "waitUntil": "load"
+        }
+      },
+      {
+        "type": "switch_frame",
+        "label": "",
+        "config": {
+          "url": "",
+          "name": "",
+          "selector": "iframe[src*=\"Main.aspx\"]"
+        }
+      },
+      {
+        "type": "delay",
+        "label": "",
+        "config": {
+          "ms": 10000
+        }
+      },
+      {
+        "label": "",
+        "type": "click",
+        "config": {
+          "selector": "#hlCivilSearch",
+          "waitAfter": 1000
+        }
+      }
+    ]
+  },
+  "vars": {
+    "court": "",
+    "search_term": "AAA%"
+  }
+}

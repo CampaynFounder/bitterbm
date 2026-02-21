@@ -750,6 +750,10 @@ export default function AdminSupersetPage() {
   const [savedResultConfigsLoading, setSavedResultConfigsLoading] = useState(false)
   const [saveLoading, setSaveLoading] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [selectedFlowIds, setSelectedFlowIds] = useState<Set<string>>(new Set())
+  const [selectedConfigIds, setSelectedConfigIds] = useState<Set<string>>(new Set())
+  const [selectedResultConfigIds, setSelectedResultConfigIds] = useState<Set<string>>(new Set())
+  const [selectedE2EIds, setSelectedE2EIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (loadFlowModalOpen && (adminSecret || session?.access_token)) {
@@ -941,6 +945,29 @@ export default function AdminSupersetPage() {
     } catch {
       setList(prev)
       setSaveError("Delete failed")
+    }
+  }
+
+  async function handleBulkDelete(ids: Set<string>, setList: React.Dispatch<React.SetStateAction<SavedFlowRow[]>>, list: SavedFlowRow[], setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>>) {
+    if (ids.size === 0) return
+    if (!confirm(`Delete ${ids.size} item(s)?`)) return
+    const prev = list
+    setList((l) => l.filter((x) => !ids.has(x.id)))
+    setSaveError(null)
+    try {
+      const results = await Promise.allSettled(
+        Array.from(ids).map((id) => fetch(`/api/admin/scraper/flows?id=${encodeURIComponent(id)}`, { method: "DELETE", headers: authHeaders() }).then((r) => r.json()))
+      )
+      const failed = results.filter((r) => r.status === "rejected" || (r.status === "fulfilled" && r.value.error))
+      if (failed.length > 0) {
+        setList(prev)
+        setSaveError(`${failed.length} deletion(s) failed`)
+      } else {
+        setSelectedIds(new Set())
+      }
+    } catch {
+      setList(prev)
+      setSaveError("Bulk delete failed")
     }
   }
 
@@ -1226,6 +1253,11 @@ export default function AdminSupersetPage() {
               <div style={{ padding: "var(--space-md)", borderBottom: "1px solid var(--border)" }}>
                 <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "var(--space-sm)" }}>Load superset flow</h3>
                 <input type="text" value={flowSearch} onChange={(e) => setFlowSearch(e.target.value)} placeholder="Search by name…" style={inputStyle} />
+                {selectedFlowIds.size > 0 && (
+                  <button type="button" onClick={() => handleBulkDelete(selectedFlowIds, setSavedFlowsList, savedFlowsList, setSelectedFlowIds)} style={{ ...btnSecondary, marginTop: "var(--space-sm)", color: "var(--accent-gold)" }}>
+                    Delete {selectedFlowIds.size} selected
+                  </button>
+                )}
                 {saveError && <p style={{ fontSize: "0.875rem", color: "var(--accent-gold)", marginTop: "var(--space-sm)" }}>{saveError}</p>}
               </div>
               <div style={{ overflow: "auto", flex: 1, padding: "var(--space-sm)" }}>
@@ -1235,9 +1267,11 @@ export default function AdminSupersetPage() {
                       const raw = f.flow_json
                       const fj = (typeof raw === "string" ? (() => { try { return JSON.parse(raw) } catch { return null } })() : raw) as { name?: string; steps?: ScraperStep[] } | null
                       const stepsArr = Array.isArray(fj?.steps) ? fj.steps : []
+                      const isSelected = selectedFlowIds.has(f.id)
                       return (
                         <li key={f.id} style={{ display: "flex", alignItems: "center", gap: "var(--space-xs)", marginBottom: "var(--space-xs)" }}>
-                          <button type="button" onClick={() => { setFlowName((fj?.name ?? f.name) || "superset-search"); setSteps(stepsArr); setLoadFlowModalOpen(false); setFlowSearch("") }} style={{ flex: 1, padding: "var(--space-sm)", textAlign: "left", background: "none", border: "none", borderRadius: 8, cursor: "pointer", fontSize: "0.875rem", color: "var(--text-primary)" }} className="hover:bg-[var(--bg-elevated)]">
+                          <input type="checkbox" checked={isSelected} onChange={(e) => { const newSet = new Set(selectedFlowIds); if (e.target.checked) newSet.add(f.id); else newSet.delete(f.id); setSelectedFlowIds(newSet); }} style={{ cursor: "pointer" }} />
+                          <button type="button" onClick={() => { setFlowName((fj?.name ?? f.name) || "superset-search"); setSteps(stepsArr); setLoadFlowModalOpen(false); setFlowSearch(""); setSelectedFlowIds(new Set()) }} style={{ flex: 1, padding: "var(--space-sm)", textAlign: "left", background: "none", border: "none", borderRadius: 8, cursor: "pointer", fontSize: "0.875rem", color: "var(--text-primary)" }} className="hover:bg-[var(--bg-elevated)]">
                             <span style={{ fontWeight: 500 }}>{f.name}</span>
                             {f.description && <span style={{ display: "block", fontSize: "0.75rem", color: "var(--text-muted)" }}>{f.description}</span>}
                           </button>
