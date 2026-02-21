@@ -108,6 +108,7 @@ def launch_picker():
                     
                     e.preventDefault();
                     e.stopPropagation();
+                    e.stopImmediatePropagation();
                     
                     const el = e.target;
                     
@@ -176,7 +177,8 @@ def launch_picker():
                     copyBtn.style.cursor = 'pointer';
                     copyBtn.style.background = '#22c55e';
                     
-                }, true);
+                    return false;
+                }, {capture: true, passive: false});
                 
                 // Copy selector
                 document.getElementById('copy-selector').onclick = () => {
