@@ -78,6 +78,7 @@ class InteractiveRecorder:
                     <div style="border-top: 1px solid #444; padding-top: 10px; margin-top: 10px; margin-bottom: 10px;">
                         <button id="btn-extract" style="width: 100%; padding: 8px; margin-bottom: 5px; background: #f59e0b; border: none; border-radius: 4px; color: white; font-weight: bold; cursor: pointer;">📍 Extract Mode (E)</button>
                         <button id="btn-interact" style="width: 100%; padding: 8px; margin-bottom: 5px; background: #4ade80; border: none; border-radius: 4px; color: black; font-weight: bold; cursor: pointer;">👆 Interact Mode (I)</button>
+                        <button id="btn-clear" style="width: 100%; padding: 8px; margin-bottom: 5px; background: #8b5cf6; border: none; border-radius: 4px; color: white; font-weight: bold; cursor: pointer;">🧹 Clear Modals</button>
                         <button id="btn-screenshot" style="width: 100%; padding: 8px; margin-bottom: 5px; background: #06b6d4; border: none; border-radius: 4px; color: white; font-weight: bold; cursor: pointer;">📸 Screenshot (S)</button>
                         <button id="btn-finish" style="width: 100%; padding: 8px; background: #ef4444; border: none; border-radius: 4px; color: white; font-weight: bold; cursor: pointer;">✅ Finish (Q)</button>
                     </div>
@@ -111,6 +112,18 @@ class InteractiveRecorder:
                     e.stopPropagation();
                     setMode('interact', '#4ade80', 'INTERACT');
                     console.log('Mode: INTERACT');
+                });
+                
+                document.getElementById('btn-clear').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    // Force remove all modals and backdrops
+                    const modal = document.getElementById('scraper-label-modal');
+                    if (modal) {
+                        modal.remove();
+                        console.log('Cleared modal');
+                    }
+                    // Also remove any orphaned modals
+                    document.querySelectorAll('[id^="scraper-label-modal"]').forEach(m => m.remove());
                 });
                 
                 document.getElementById('btn-screenshot').addEventListener('click', (e) => {
@@ -223,10 +236,15 @@ class InteractiveRecorder:
                             const label = input.value.trim();
                             console.log('User entered label:', label);
                             
-                            // Remove modal FIRST
-                            modal.remove();
+                            // Force remove modal immediately
+                            const modalEl = document.getElementById('scraper-label-modal');
+                            if (modalEl) {
+                                modalEl.style.display = 'none';
+                                modalEl.remove();
+                            }
                             
                             if (!label) {
+                                console.log('No label provided');
                                 return;
                             }
                             
@@ -287,7 +305,11 @@ class InteractiveRecorder:
                         document.getElementById('modal-submit').addEventListener('click', submitHandler);
                         document.getElementById('modal-cancel').addEventListener('click', () => {
                             console.log('User cancelled');
-                            modal.remove();
+                            const modalEl = document.getElementById('scraper-label-modal');
+                            if (modalEl) {
+                                modalEl.style.display = 'none';
+                                modalEl.remove();
+                            }
                         });
                         
                         input.addEventListener('keydown', (e) => {
@@ -295,7 +317,11 @@ class InteractiveRecorder:
                                 e.preventDefault();
                                 submitHandler();
                             } else if (e.key === 'Escape') {
-                                modal.remove();
+                                const modalEl = document.getElementById('scraper-label-modal');
+                                if (modalEl) {
+                                    modalEl.style.display = 'none';
+                                    modalEl.remove();
+                                }
                             }
                         });
                     }
