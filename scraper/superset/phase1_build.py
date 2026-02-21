@@ -359,25 +359,40 @@ def run_nested_table_checks(row_locator, root, nested_checks, log):
                     if next_count > 0:
                         log(f"    [nestedCheck '{name}'] searching for table in sibling...")
                         # Check if sibling row is hidden (display: none) - common for expandable rows
+                        expanded = False
                         try:
                             is_hidden = next_row.first.evaluate("el => window.getComputedStyle(el).display === 'none'")
                             if is_hidden:
-                                log(f"    [nestedCheck '{name}'] sibling row is hidden (display: none), trying to expand parent row...")
-                                # Try clicking the parent row to expand it
-                                try:
-                                    row_locator.click()
-                                    # Wait a bit for expansion animation/loading
-                                    import time
-                                    time.sleep(0.5)
-                                    log(f"    [nestedCheck '{name}'] clicked parent row, waiting for expansion...")
-                                except Exception as click_err:
-                                    log(f"    [nestedCheck '{name}'] click failed: {click_err}")
+                                expand_sel = nc.get("expandSelector", "")
+                                if expand_sel:
+                                    log(f"    [nestedCheck '{name}'] sibling row is hidden, clicking '{expand_sel}' to expand...")
+                                    try:
+                                        row_locator.locator(expand_sel).first.click()
+                                        # Wait for expansion and content load
+                                        import time
+                                        time.sleep(0.8)
+                                        expanded = True
+                                        log(f"    [nestedCheck '{name}'] ✓ expanded row")
+                                    except Exception as click_err:
+                                        log(f"    [nestedCheck '{name}'] expand click failed: {click_err}")
+                                else:
+                                    log(f"    [nestedCheck '{name}'] sibling hidden but no expandSelector configured")
                         except Exception:
                             pass
                         
                         table_in_next = next_row.locator(table_sel)
                         sibling_table_count = table_in_next.count()
                         log(f"    [nestedCheck '{name}'] sibling table count: {sibling_table_count}")
+                        
+                        # Collapse after checking if configured
+                        if expanded and nc.get("collapseAfter", False):
+                            try:
+                                collapse_sel = nc.get("collapseSelector") or expand_sel
+                                if collapse_sel:
+                                    row_locator.locator(collapse_sel).first.click()
+                                    log(f"    [nestedCheck '{name}'] collapsed row")
+                            except Exception:
+                                pass
                         if sibling_table_count > 0:
                             table_loc = table_in_next
                             table_count = sibling_table_count
