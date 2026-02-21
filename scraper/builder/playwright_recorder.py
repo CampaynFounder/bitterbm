@@ -101,9 +101,12 @@ def record_session(url, output_dir):
             # Keep browser open until user closes or Ctrl+C
             page.wait_for_timeout(3600000)  # 1 hour max
         except KeyboardInterrupt:
-            print("\n\n⏹️  Recording stopped by user")
+            print("\n\n⏹️  Stopping recording...")
+        except Exception as e:
+            print(f"\n\n⚠️  Recording interrupted: {e}")
         
         # Get recorded events from page
+        print("💾 Saving recorded actions...")
         try:
             fills = page.evaluate("() => window._recordedFills || []")
             clicks = page.evaluate("() => window._recordedClicks || []")
@@ -139,8 +142,14 @@ def record_session(url, output_dir):
         
         except Exception as e:
             print(f"⚠️  Could not retrieve all events: {e}")
+            fills = []
+            clicks = []
         
-        browser.close()
+        # Close browser before processing
+        try:
+            browser.close()
+        except:
+            pass
     
     # Save flow
     flow = {
