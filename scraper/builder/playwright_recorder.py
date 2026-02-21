@@ -82,7 +82,17 @@ def record_session(url, output_dir):
         """))
         
         print(f"\n🌐 Opening: {url}")
-        page.goto(url, wait_until="networkidle")
+        try:
+            page.goto(url, wait_until="networkidle", timeout=30000)
+        except Exception as e:
+            print(f"⚠️  Navigation warning: {e}")
+            print("Trying with domcontentloaded instead...")
+            try:
+                page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            except Exception as e2:
+                print(f"❌ Could not load page: {e2}")
+                browser.close()
+                return []
         
         print("\n✅ Recording started. Interact with the page...")
         print("💡 Press Ctrl+C when done\n")
