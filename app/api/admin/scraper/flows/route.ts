@@ -78,13 +78,17 @@ export async function POST(req: NextRequest) {
 
   let queryAction: string | null = req.nextUrl.searchParams.get("action")
   let queryId = req.nextUrl.searchParams.get("id")?.trim() ?? ""
+  let debugMode = req.nextUrl.searchParams.get("debug") === "1"
   let fallbackAction: string | null = null
   let fallbackId = ""
+  let fallbackUrl: URL | null = null
   if (queryAction == null && req.url) {
     try {
       const u = req.url.startsWith("http") ? new URL(req.url) : new URL(req.url, "https://x.org")
+      fallbackUrl = u
       fallbackAction = u.searchParams.get("action")
       fallbackId = u.searchParams.get("id")?.trim() ?? ""
+      if (!debugMode) debugMode = u.searchParams.get("debug") === "1"
       queryAction = fallbackAction
       queryId = queryId || fallbackId
     } catch {
@@ -93,7 +97,7 @@ export async function POST(req: NextRequest) {
   }
 
   // DEBUG: if debug=1 in query, return request details
-  if (req.nextUrl.searchParams.get("debug") === "1") {
+  if (debugMode) {
     let bodyDebug: any = {}
     try {
       bodyDebug = await req.json()
@@ -105,6 +109,8 @@ export async function POST(req: NextRequest) {
       reqUrl: req.url,
       nextUrlHref: req.nextUrl.href,
       nextUrlSearchParams: Object.fromEntries(req.nextUrl.searchParams.entries()),
+      fallbackUrlHref: fallbackUrl?.href ?? null,
+      fallbackSearchParams: fallbackUrl ? Object.fromEntries(fallbackUrl.searchParams.entries()) : null,
       queryAction,
       queryId,
       fallbackAction,
