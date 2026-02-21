@@ -1,0 +1,34 @@
+{
+  "flow": {
+    "name": "Test Demo Scraper",
+    "steps": [
+      {
+        "type": "navigate",
+        "config": {
+          "url": "https://bitterbm.com"
+        }
+      },
+      {
+        "type": "wait",
+        "config": {
+          "timeout": 2000
+        }
+      }
+    ]
+  },
+  "siteConfig": {
+    "siteId": "test-demo-bitterbm-com",
+    "state": "Test",
+    "county": "Demo",
+    "baseUrl": "https://bitterbm.com",
+    "description": "Interactive recording from 2026-02-21T12:25:42.459497",
+    "metadata": {
+      "recordedAt": "2026-02-21T12:25:42.460460",
+      "extractionFields": [],
+      "screenshots": [
+        "scraper/builder/sites/bitterbm.com/final_screenshot.png"
+      ]
+    },
+    "extractedFields": []
+  }
+}

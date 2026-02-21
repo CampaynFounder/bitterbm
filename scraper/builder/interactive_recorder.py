@@ -251,18 +251,33 @@ class InteractiveRecorder:
             page.wait_for_timeout(2000)
             
             # Inject overlay
+            print("💉 Injecting overlay...")
             self.inject_overlay(page)
+            
+            # Verify overlay exists
+            overlay_check = page.evaluate("() => !!document.getElementById('scraper-overlay')")
+            if overlay_check:
+                print("✅ Overlay injected successfully - check top-right corner of browser")
+            else:
+                print("❌ WARNING: Overlay failed to inject!")
+            
+            # Test that globals are set
+            mode_check = page.evaluate("() => window.scraperMode")
+            print(f"🔧 Initial mode: {mode_check}")
             
             print("\n" + "="*60)
             print("🎬 INTERACTIVE RECORDING MODE")
             print("="*60)
-            print("\n📋 Instructions:")
-            print("  1. Use the BUTTONS in the overlay (top-right)")
-            print("  2. Click '📍 Extract Mode' button")
-            print("  3. Click on elements you want to capture")
-            print("  4. Click '📸 Screenshot' button to save page state")
-            print("  5. Click '✅ Finish' button when done")
-            print("\n  💡 You can also use keyboard: E, I, S, Q keys")
+            print("\n📋 Step-by-step:")
+            print("  1. Look at the TOP-RIGHT of the browser window")
+            print("  2. You should see a black box with buttons")
+            print("  3. Click the ORANGE '📍 Extract Mode' button")
+            print("  4. The mode should change to 'EXTRACT' (orange)")
+            print("  5. NOW click any element on the page")
+            print("  6. A popup will ask for a label - type something like 'test'")
+            print("  7. Click '📸 Screenshot' button when ready")
+            print("  8. Click '✅ Finish' button to complete")
+            print("\n  ⚠️  If you don't see the overlay, the page may have CSP restrictions")
             print("\n" + "="*60 + "\n")
             
             screenshot_count = 0
