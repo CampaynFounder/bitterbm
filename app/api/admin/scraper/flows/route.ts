@@ -78,14 +78,39 @@ export async function POST(req: NextRequest) {
 
   let queryAction: string | null = req.nextUrl.searchParams.get("action")
   let queryId = req.nextUrl.searchParams.get("id")?.trim() ?? ""
+  let fallbackAction: string | null = null
+  let fallbackId = ""
   if (queryAction == null && req.url) {
     try {
       const u = req.url.startsWith("http") ? new URL(req.url) : new URL(req.url, "https://x.org")
-      queryAction = u.searchParams.get("action")
-      queryId = queryId || (u.searchParams.get("id")?.trim() ?? "")
+      fallbackAction = u.searchParams.get("action")
+      fallbackId = u.searchParams.get("id")?.trim() ?? ""
+      queryAction = fallbackAction
+      queryId = queryId || fallbackId
     } catch {
       // ignore
     }
+  }
+
+  // DEBUG: if debug=1 in query, return request details
+  if (req.nextUrl.searchParams.get("debug") === "1") {
+    let bodyDebug: any = {}
+    try {
+      bodyDebug = await req.json()
+    } catch (e: any) {
+      bodyDebug = { _parseError: e.message }
+    }
+    return NextResponse.json({
+      debug: true,
+      reqUrl: req.url,
+      nextUrlHref: req.nextUrl.href,
+      nextUrlSearchParams: Object.fromEntries(req.nextUrl.searchParams.entries()),
+      queryAction,
+      queryId,
+      fallbackAction,
+      fallbackId,
+      bodyDebug,
+    })
   }
 
   if (queryAction === "delete" && queryId) {
