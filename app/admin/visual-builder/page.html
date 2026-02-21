@@ -265,6 +265,14 @@
         <div class="main-content">
             <div class="sidebar">
                 <div class="step-palette">
+                    <h3>📂 Import Flow</h3>
+                    <input type="file" id="import-flow" accept=".json" style="display: none;" onchange="importFlow(event)">
+                    <button class="btn-primary" onclick="document.getElementById('import-flow').click()" style="margin-bottom: 10px;">
+                        📥 Load Recorded Flow
+                    </button>
+                </div>
+                
+                <div class="step-palette">
                     <h3>🔐 Authentication</h3>
                     <div class="step-option" draggable="true" data-type="auth">
                         <span class="step-icon">🔑</span>
@@ -346,6 +354,10 @@
                 <button class="btn-primary" onclick="openBrowserHelper()">
                     🌐 Open Element Picker
                 </button>
+                
+                <button class="btn-primary" onclick="exportFlow()" style="margin-top: 10px; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                    💾 Export Flow
+                </button>
             </div>
             
             <div class="flow-canvas" id="flowCanvas">
@@ -360,6 +372,43 @@
     <script>
         let flowSteps = [];
         let stepCounter = 0;
+        
+        // Import recorded flow
+        function importFlow(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    // Clear existing steps
+                    flowSteps = [];
+                    stepCounter = 0;
+                    
+                    // Import steps from recorded flow
+                    if (data.steps && Array.isArray(data.steps)) {
+                        data.steps.forEach(step => {
+                            const newStep = {
+                                id: ++stepCounter,
+                                type: step.type,
+                                config: step.config || {}
+                            };
+                            flowSteps.push(newStep);
+                        });
+                        
+                        renderFlow();
+                        showNotification(`✅ Imported ${flowSteps.length} steps from recording!`);
+                    } else {
+                        alert('Invalid flow format. Expected {steps: [...]}');
+                    }
+                } catch (err) {
+                    alert('Error parsing JSON: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
         
         // Drag and drop handlers
         document.querySelectorAll('.step-option').forEach(option => {
@@ -451,7 +500,18 @@
         }
         
         function getStepConfig(step) {
+            // Pre-fill with existing config values
+            const config = step.config || {};
+            
             switch(step.type) {
+                case 'navigate':
+                    return `
+                        <div class="config-field">
+                            <label>URL</label>
+                            <input type="text" value="${config.url || ''}" placeholder="https://..." onchange="updateStep(${step.id}, 'url', this.value)">
+                        </div>
+                    `;
+                
                 case 'auth':
                     return `
                         <div class="config-field">
@@ -472,11 +532,11 @@
                     return `
                         <div class="config-field">
                             <label>Element to Click</label>
-                            <input type="text" placeholder="Click 'Element Picker' to select" onchange="updateStep(${step.id}, 'selector', this.value)">
+                            <input type="text" value="${config.selector || ''}" placeholder="Click 'Element Picker' to select" onchange="updateStep(${step.id}, 'selector', this.value)">
                         </div>
                         <div class="config-field">
                             <label>Description (optional)</label>
-                            <input type="text" placeholder="e.g., Click Search button" onchange="updateStep(${step.id}, 'description', this.value)">
+                            <input type="text" value="${config.description || ''}" placeholder="e.g., Click Search button" onchange="updateStep(${step.id}, 'description', this.value)">
                         </div>
                     `;
                 
@@ -484,11 +544,11 @@
                     return `
                         <div class="config-field">
                             <label>Field to Fill</label>
-                            <input type="text" placeholder="Click 'Element Picker' to select" onchange="updateStep(${step.id}, 'selector', this.value)">
+                            <input type="text" value="${config.selector || ''}" placeholder="Click 'Element Picker' to select" onchange="updateStep(${step.id}, 'selector', this.value)">
                         </div>
                         <div class="config-field">
                             <label>Value</label>
-                            <input type="text" placeholder="Text to enter or {{variable}}" onchange="updateStep(${step.id}, 'value', this.value)">
+                            <input type="text" value="${config.value || ''}" placeholder="Text to enter or {{variable}}" onchange="updateStep(${step.id}, 'value', this.value)">
                         </div>
                     `;
                 
@@ -661,10 +721,16 @@
         }
         
         function exportFlow() {
-            console.log('Exporting flow:', flowSteps);
             const config = {
-                name: 'My Scraper Flow',
-                steps: flowSteps
+                name: prompt('Flow name:', 'My Scraper Flow') || 'My Scraper Flow',
+                steps: flowSteps.map(s => ({
+                    type: s.type,
+                    config: s.config
+                })),
+                metadata: {
+                    createdAt: new Date().toISOString(),
+                    stepCount: flowSteps.length
+                }
             };
             
             // Download as JSON
@@ -674,6 +740,29 @@
             a.href = url;
             a.download = 'scraper_flow.json';
             a.click();
+            
+            showNotification('✅ Flow exported!');
+        }
+        
+        function showNotification(message) {
+            const notif = document.createElement('div');
+            notif.style.cssText = `
+                position: fixed;
+                top: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: #22c55e;
+                color: white;
+                padding: 15px 30px;
+                border-radius: 10px;
+                z-index: 999999;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                font-weight: 600;
+            `;
+            notif.textContent = message;
+            document.body.appendChild(notif);
+            
+            setTimeout(() => notif.remove(), 3000);
         }
     </script>
 </body>
