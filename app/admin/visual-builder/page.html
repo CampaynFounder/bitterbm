@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visual Scraper Builder</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 1200px;
+            width: 100%;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            max-height: 90vh;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .sidebar {
+            width: 300px;
+            background: #f8f9fa;
+            padding: 20px;
+            border-right: 1px solid #e0e0e0;
+            overflow-y: auto;
+        }
+        
+        .flow-canvas {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+            background: #fafafa;
+        }
+        
+        .step-palette {
+            margin-bottom: 30px;
+        }
+        
+        .step-palette h3 {
+            font-size: 14px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+        }
+        
+        .step-option {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: grab;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .step-option:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .step-option:active {
+            cursor: grabbing;
+        }
+        
+        .step-icon {
+            font-size: 24px;
+        }
+        
+        .step-info h4 {
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 3px;
+        }
+        
+        .step-info p {
+            font-size: 12px;
+            color: #999;
+        }
+        
+        .flow-step {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            position: relative;
+            transition: all 0.3s;
+        }
+        
+        .flow-step:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .flow-step.active {
+            border-color: #667eea;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .step-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        
+        .step-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .step-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .step-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+            padding: 5px;
+        }
+        
+        .step-btn:hover {
+            opacity: 1;
+        }
+        
+        .step-config {
+            display: grid;
+            gap: 12px;
+        }
+        
+        .config-field label {
+            display: block;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        .config-field input,
+        .config-field select,
+        .config-field textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        
+        .config-field input:focus,
+        .config-field select:focus,
+        .config-field textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            width: 100%;
+            margin-top: 10px;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .empty-state h3 {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        
+        .flow-connector {
+            width: 2px;
+            height: 15px;
+            background: #ddd;
+            margin: 0 auto;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid #e0e0e0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Visual Scraper Builder</h1>
+            <p>Drag & drop to build your automation flow</p>
+        </div>
+        
+        <div class="main-content">
+            <div class="sidebar">
+                <div class="step-palette">
+                    <h3>🔐 Authentication</h3>
+                    <div class="step-option" draggable="true" data-type="auth">
+                        <span class="step-icon">🔑</span>
+                        <div class="step-info">
+                            <h4>Login</h4>
+                            <p>Enter credentials</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="step-palette">
+                    <h3>🧭 Navigation</h3>
+                    <div class="step-option" draggable="true" data-type="click">
+                        <span class="step-icon">👆</span>
+                        <div class="step-info">
+                            <h4>Click Element</h4>
+                            <p>Click button or link</p>
+                        </div>
+                    </div>
+                    <div class="step-option" draggable="true" data-type="fill">
+                        <span class="step-icon">✏️</span>
+                        <div class="step-info">
+                            <h4>Fill Field</h4>
+                            <p>Enter text or select option</p>
+                        </div>
+                    </div>
+                    <div class="step-option" draggable="true" data-type="wait">
+                        <span class="step-icon">⏱️</span>
+                        <div class="step-info">
+                            <h4>Wait</h4>
+                            <p>Pause for page load</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="step-palette">
+                    <h3>🔍 Data Extraction</h3>
+                    <div class="step-option" draggable="true" data-type="loop">
+                        <span class="step-icon">🔄</span>
+                        <div class="step-info">
+                            <h4>Loop Table</h4>
+                            <p>Iterate through rows</p>
+                        </div>
+                    </div>
+                    <div class="step-option" draggable="true" data-type="condition">
+                        <span class="step-icon">⚡</span>
+                        <div class="step-info">
+                            <h4>If Condition</h4>
+                            <p>Filter by value</p>
+                        </div>
+                    </div>
+                    <div class="step-option" draggable="true" data-type="extract">
+                        <span class="step-icon">📥</span>
+                        <div class="step-info">
+                            <h4>Extract Field</h4>
+                            <p>Capture text or link</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="step-palette">
+                    <h3>📄 Documents</h3>
+                    <div class="step-option" draggable="true" data-type="pdf">
+                        <span class="step-icon">📑</span>
+                        <div class="step-info">
+                            <h4>Download PDF</h4>
+                            <p>Save document</p>
+                        </div>
+                    </div>
+                    <div class="step-option" draggable="true" data-type="screenshot">
+                        <span class="step-icon">📸</span>
+                        <div class="step-info">
+                            <h4>Take Screenshot</h4>
+                            <p>Capture page image</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="btn-primary" onclick="openBrowserHelper()">
+                    🌐 Open Element Picker
+                </button>
+            </div>
+            
+            <div class="flow-canvas" id="flowCanvas">
+                <div class="empty-state">
+                    <h3>👈 Drag steps here to build your flow</h3>
+                    <p>Start with Authentication or Navigation steps</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let flowSteps = [];
+        let stepCounter = 0;
+        
+        // Drag and drop handlers
+        document.querySelectorAll('.step-option').forEach(option => {
+            option.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('stepType', option.dataset.type);
+            });
+        });
+        
+        const canvas = document.getElementById('flowCanvas');
+        canvas.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+        
+        canvas.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const stepType = e.dataTransfer.getData('stepType');
+            addStep(stepType);
+        });
+        
+        function addStep(type) {
+            const step = {
+                id: ++stepCounter,
+                type,
+                config: {}
+            };
+            
+            flowSteps.push(step);
+            renderFlow();
+        }
+        
+        function renderFlow() {
+            if (flowSteps.length === 0) {
+                canvas.innerHTML = `
+                    <div class="empty-state">
+                        <h3>👈 Drag steps here to build your flow</h3>
+                        <p>Start with Authentication or Navigation steps</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            canvas.innerHTML = flowSteps.map((step, index) => `
+                ${index > 0 ? '<div class="flow-connector"></div>' : ''}
+                <div class="flow-step" data-step-id="${step.id}">
+                    <div class="step-header">
+                        <div class="step-title">
+                            <span>${getStepIcon(step.type)}</span>
+                            <span>${getStepName(step.type)}</span>
+                        </div>
+                        <div class="step-actions">
+                            <button class="step-btn" onclick="deleteStep(${step.id})">🗑️</button>
+                        </div>
+                    </div>
+                    <div class="step-config">
+                        ${getStepConfig(step)}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function getStepIcon(type) {
+            const icons = {
+                auth: '🔑',
+                click: '👆',
+                fill: '✏️',
+                wait: '⏱️',
+                loop: '🔄',
+                condition: '⚡',
+                extract: '📥',
+                pdf: '📑',
+                screenshot: '📸'
+            };
+            return icons[type] || '📌';
+        }
+        
+        function getStepName(type) {
+            const names = {
+                auth: 'Login',
+                click: 'Click Element',
+                fill: 'Fill Field',
+                wait: 'Wait',
+                loop: 'Loop Table',
+                condition: 'If Condition',
+                extract: 'Extract Field',
+                pdf: 'Download PDF',
+                screenshot: 'Take Screenshot'
+            };
+            return names[type] || 'Step';
+        }
+        
+        function getStepConfig(step) {
+            switch(step.type) {
+                case 'auth':
+                    return `
+                        <div class="config-field">
+                            <label>Username Field</label>
+                            <input type="text" placeholder="Click 'Element Picker' to select" onchange="updateStep(${step.id}, 'usernameSelector', this.value)">
+                        </div>
+                        <div class="config-field">
+                            <label>Password Field</label>
+                            <input type="text" placeholder="Click 'Element Picker' to select" onchange="updateStep(${step.id}, 'passwordSelector', this.value)">
+                        </div>
+                        <div class="config-field">
+                            <label>Login Button</label>
+                            <input type="text" placeholder="Click 'Element Picker' to select" onchange="updateStep(${step.id}, 'submitSelector', this.value)">
+                        </div>
+                    `;
+                
+                case 'click':
+                    return `
+                        <div class="config-field">
+                            <label>Element to Click</label>
+                            <input type="text" placeholder="Click 'Element Picker' to select" onchange="updateStep(${step.id}, 'selector', this.value)">
+                        </div>
+                        <div class="config-field">
+                            <label>Description (optional)</label>
+                            <input type="text" placeholder="e.g., Click Search button" onchange="updateStep(${step.id}, 'description', this.value)">
+                        </div>
+                    `;
+                
+                case 'fill':
+                    return `
+                        <div class="config-field">
+                            <label>Field to Fill</label>
+                            <input type="text" placeholder="Click 'Element Picker' to select" onchange="updateStep(${step.id}, 'selector', this.value)">
+                        </div>
+                        <div class="config-field">
+                            <label>Value</label>
+                            <input type="text" placeholder="Text to enter or {{variable}}" onchange="updateStep(${step.id}, 'value', this.value)">
+                        </div>
+                    `;
+                
+                case 'wait':
+                    return `
+                        <div class="config-field">
+                            <label>Wait for (seconds)</label>
+                            <input type="number" value="2" min="0.5" step="0.5" onchange="updateStep(${step.id}, 'duration', this.value)">
+                        </div>
+                    `;
+                
+                case 'loop':
+                    return `
+                        <div class="config-field">
+                            <label>Table Selector</label>
+                            <input type="text" placeholder="Click 'Element Picker' to select table" onchange="updateStep(${step.id}, 'tableSelector', this.value)">
+                        </div>
+                        <div class="config-field">
+                            <label>Row Selector</label>
+                            <input type="text" value="tbody tr" onchange="updateStep(${step.id}, 'rowSelector', this.value)">
+                        </div>
+                    `;
+                
+                case 'condition':
+                    return `
+                        <div class="config-field">
+                            <label>Column Number</label>
+                            <input type="number" min="1" placeholder="e.g., 2" onchange="updateStep(${step.id}, 'column', this.value)">
+                        </div>
+                        <div class="config-field">
+                            <label>Operator</label>
+                            <select onchange="updateStep(${step.id}, 'operator', this.value)">
+                                <option value="equals">Equals</option>
+                                <option value="contains">Contains</option>
+                                <option value="in">In List</option>
+                                <option value="exists">Exists</option>
+                            </select>
+                        </div>
+                        <div class="config-field">
+                            <label>Value</label>
+                            <input type="text" placeholder="Expected value" onchange="updateStep(${step.id}, 'value', this.value)">
+                        </div>
+                    `;
+                
+                case 'extract':
+                    return `
+                        <div class="config-field">
+                            <label>Element to Extract</label>
+                            <input type="text" placeholder="Click 'Element Picker' to select" onchange="updateStep(${step.id}, 'selector', this.value)">
+                        </div>
+                        <div class="config-field">
+                            <label>Field Name</label>
+                            <input type="text" placeholder="e.g., case_number" onchange="updateStep(${step.id}, 'fieldName', this.value)">
+                        </div>
+                        <div class="config-field">
+                            <label>Extract Type</label>
+                            <select onchange="updateStep(${step.id}, 'extractType', this.value)">
+                                <option value="text">Text</option>
+                                <option value="href">Link (href)</option>
+                                <option value="value">Input Value</option>
+                                <option value="src">Image Source</option>
+                            </select>
+                        </div>
+                    `;
+                
+                case 'pdf':
+                    return `
+                        <div class="config-field">
+                            <label>PDF Link</label>
+                            <input type="text" placeholder="Click 'Element Picker' to select link" onchange="updateStep(${step.id}, 'selector', this.value)">
+                        </div>
+                        <div class="config-field">
+                            <label>Save As</label>
+                            <input type="text" placeholder="e.g., case_{{case_number}}.pdf" onchange="updateStep(${step.id}, 'filename', this.value)">
+                        </div>
+                    `;
+                
+                case 'screenshot':
+                    return `
+                        <div class="config-field">
+                            <label>Screenshot Name</label>
+                            <input type="text" placeholder="e.g., results_page" onchange="updateStep(${step.id}, 'name', this.value)">
+                        </div>
+                        <div class="config-field">
+                            <label>Full Page</label>
+                            <select onchange="updateStep(${step.id}, 'fullPage', this.value)">
+                                <option value="true">Yes</option>
+                                <option value="false">Visible Area Only</option>
+                            </select>
+                        </div>
+                    `;
+                
+                default:
+                    return '';
+            }
+        }
+        
+        function updateStep(id, key, value) {
+            const step = flowSteps.find(s => s.id === id);
+            if (step) {
+                step.config[key] = value;
+                console.log('Updated step:', step);
+            }
+        }
+        
+        function deleteStep(id) {
+            flowSteps = flowSteps.filter(s => s.id !== id);
+            renderFlow();
+        }
+        
+        function openBrowserHelper() {
+            alert('Opening element picker... (This will launch a browser where you can click elements to get their selectors)');
+            // TODO: Launch Playwright browser with element picker
+        }
+        
+        function exportFlow() {
+            console.log('Exporting flow:', flowSteps);
+            const config = {
+                name: 'My Scraper Flow',
+                steps: flowSteps
+            };
+            
+            // Download as JSON
+            const blob = new Blob([JSON.stringify(config, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'scraper_flow.json';
+            a.click();
+        }
+    </script>
+</body>
+</html>

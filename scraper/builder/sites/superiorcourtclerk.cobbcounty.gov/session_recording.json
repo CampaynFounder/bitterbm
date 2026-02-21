@@ -1,0 +1,18 @@
+{
+  "session": {
+    "name": "GA Cobb Session",
+    "recordedAt": "2026-02-21T15:13:39.073033",
+    "steps": []
+  },
+  "metadata": {
+    "siteId": "ga-cobb-superiorcourtclerk-cobbcounty-gov",
+    "state": "GA",
+    "county": "Cobb",
+    "baseUrl": "https://superiorcourtclerk.cobbcounty.gov/WebCaseManagement/mainpage.aspx",
+    "actionCount": 0,
+    "extractionCount": 0,
+    "loopCount": 0,
+    "conditionCount": 1,
+    "screenshots": []
+  }
+}
