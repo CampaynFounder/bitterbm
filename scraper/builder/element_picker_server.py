@@ -43,12 +43,49 @@ def launch_picker():
         # Inject element picker overlay
         picker_page.evaluate("""
             () => {
+                // IMMEDIATELY block all clicks at the earliest possible phase
+                window.addEventListener('click', (e) => {
+                    const overlay = document.getElementById('element-picker-overlay');
+                    if (overlay && !e.target.closest('#element-picker-overlay')) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.stopImmediatePropagation();
+                    }
+                }, {capture: true, passive: false});
+                
+                // Block form submissions
+                window.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                }, {capture: true, passive: false});
+                
+                // Create visual indicator
+                const indicator = document.createElement('div');
+                indicator.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    padding: 10px;
+                    text-align: center;
+                    z-index: 99999998;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    font-size: 14px;
+                    font-weight: bold;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+                `;
+                indicator.innerHTML = '🎯 ELEMENT PICKER ACTIVE - Click any element to select it';
+                document.body.appendChild(indicator);
+                
                 // Create overlay
                 const overlay = document.createElement('div');
                 overlay.id = 'element-picker-overlay';
                 overlay.style.cssText = `
                     position: fixed;
-                    top: 20px;
+                    top: 60px;
                     right: 20px;
                     background: rgba(0, 0, 0, 0.95);
                     color: white;
@@ -66,19 +103,19 @@ def launch_picker():
                         🎯 Element Picker
                     </div>
                     <div style="margin-bottom: 15px; padding: 12px; background: rgba(102, 126, 234, 0.3); border-radius: 8px; font-size: 13px;">
-                        <strong>Hover</strong> over any element<br>
-                        <strong>Click</strong> to select it
+                        Hover to preview<br>
+                        Click to select
                     </div>
                     <div style="font-size: 12px; color: #aaa; margin-bottom: 10px;">
-                        Selected:
+                        Selected Element:
                     </div>
-                    <div id="selected-info" style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px; font-size: 12px; font-family: monospace; word-break: break-all; margin-bottom: 15px; min-height: 40px; color: #4ade80;">
-                        None
+                    <div id="selected-info" style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 6px; font-size: 12px; font-family: monospace; word-break: break-all; margin-bottom: 15px; min-height: 60px; color: #4ade80;">
+                        None - click an element
                     </div>
-                    <button id="copy-selector" disabled style="width: 100%; padding: 10px; background: #667eea; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: not-allowed; margin-bottom: 8px;">
-                        📋 Copy Selector
+                    <button id="copy-selector" disabled style="width: 100%; padding: 10px; background: #667eea; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: not-allowed; margin-bottom: 8px; font-size: 13px;">
+                        📋 Copy & Send Selector
                     </button>
-                    <button id="close-picker" style="width: 100%; padding: 10px; background: #ef4444; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">
+                    <button id="close-picker" style="width: 100%; padding: 10px; background: #ef4444; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 13px;">
                         ✕ Close Picker
                     </button>
                 `;
@@ -90,95 +127,93 @@ def launch_picker():
                 
                 // Highlight on hover
                 document.addEventListener('mousemove', (e) => {
-                    if (e.target.closest('#element-picker-overlay')) return;
+                    if (e.target.closest('#element-picker-overlay') || e.target.closest('div[style*="ELEMENT PICKER ACTIVE"]')) return;
                     
                     if (window.lastHighlighted && window.lastHighlighted !== window.selectedElement) {
                         window.lastHighlighted.style.outline = '';
                         window.lastHighlighted.style.backgroundColor = '';
                     }
                     
-                    e.target.style.outline = '2px solid #667eea';
+                    e.target.style.outline = '2px dashed #667eea';
                     e.target.style.backgroundColor = 'rgba(102, 126, 234, 0.1)';
                     window.lastHighlighted = e.target;
                 }, true);
                 
-                // Select on click
-                document.addEventListener('click', (e) => {
-                    if (e.target.closest('#element-picker-overlay')) return;
-                    
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.stopImmediatePropagation();
-                    
-                    const el = e.target;
-                    
-                    // Clear previous selection
-                    if (window.selectedElement) {
-                        window.selectedElement.style.outline = '';
-                        window.selectedElement.style.backgroundColor = '';
-                    }
-                    
-                    // Highlight selected
-                    el.style.outline = '3px solid #22c55e';
-                    el.style.backgroundColor = 'rgba(34, 197, 94, 0.1)';
-                    window.selectedElement = el;
-                    
-                    // Generate selector
-                    let selector = '';
-                    if (el.id) {
-                        selector = `#${el.id}`;
-                    } else if (el.name) {
-                        selector = `[name="${el.name}"]`;
-                    } else if (el.className && typeof el.className === 'string') {
-                        const classes = el.className.split(' ').filter(c => c && !c.includes('picker'));
-                        if (classes.length > 0) {
-                            selector = `.${classes[0]}`;
-                        }
-                    }
-                    
-                    if (!selector) {
-                        selector = el.tagName.toLowerCase();
+                // Select on click - this runs AFTER the blocker above
+                setTimeout(() => {
+                    document.addEventListener('click', (e) => {
+                        if (e.target.closest('#element-picker-overlay')) return;
                         
-                        // Try to make it more specific
-                        let parent = el.parentElement;
-                        if (parent && parent.tagName !== 'BODY') {
-                            let parentSelector = parent.tagName.toLowerCase();
-                            if (parent.id) parentSelector = `#${parent.id}`;
-                            else if (parent.className) {
-                                const pClasses = parent.className.split(' ').filter(c => c);
-                                if (pClasses.length) parentSelector = `.${pClasses[0]}`;
-                            }
-                            selector = `${parentSelector} > ${selector}`;
+                        const el = e.target;
+                        
+                        // Clear previous selection
+                        if (window.selectedElement) {
+                            window.selectedElement.style.outline = '';
+                            window.selectedElement.style.backgroundColor = '';
                         }
-                    }
-                    
-                    // Get element info
-                    const info = {
-                        selector,
-                        tag: el.tagName.toLowerCase(),
-                        text: el.textContent?.trim().slice(0, 50) || '',
-                        value: el.value || '',
-                        href: el.href || '',
-                        type: el.type || '',
-                        name: el.name || '',
-                        id: el.id || ''
-                    };
-                    
-                    window.selectedInfo = info;
-                    
-                    // Update UI
-                    document.getElementById('selected-info').innerHTML = `
-                        <div style="color: #4ade80; font-weight: bold; margin-bottom: 5px;">${selector}</div>
-                        <div style="color: #aaa; font-size: 11px;">${el.tagName} - ${info.text || info.value || 'No text'}</div>
-                    `;
-                    
-                    const copyBtn = document.getElementById('copy-selector');
-                    copyBtn.disabled = false;
-                    copyBtn.style.cursor = 'pointer';
-                    copyBtn.style.background = '#22c55e';
-                    
-                    return false;
-                }, {capture: true, passive: false});
+                        
+                        // Highlight selected
+                        el.style.outline = '3px solid #22c55e';
+                        el.style.backgroundColor = 'rgba(34, 197, 94, 0.2)';
+                        window.selectedElement = el;
+                        
+                        // Generate selector
+                        let selector = '';
+                        if (el.id) {
+                            selector = `#${el.id}`;
+                        } else if (el.name) {
+                            selector = `[name="${el.name}"]`;
+                        } else if (el.className && typeof el.className === 'string') {
+                            const classes = el.className.split(' ').filter(c => c && !c.includes('picker'));
+                            if (classes.length > 0) {
+                                selector = `.${classes[0]}`;
+                            }
+                        }
+                        
+                        if (!selector) {
+                            selector = el.tagName.toLowerCase();
+                            
+                            // Try to make it more specific
+                            let parent = el.parentElement;
+                            if (parent && parent.tagName !== 'BODY') {
+                                let parentSelector = parent.tagName.toLowerCase();
+                                if (parent.id) parentSelector = `#${parent.id}`;
+                                else if (parent.className) {
+                                    const pClasses = parent.className.split(' ').filter(c => c);
+                                    if (pClasses.length) parentSelector = `.${pClasses[0]}`;
+                                }
+                                selector = `${parentSelector} > ${selector}`;
+                            }
+                        }
+                        
+                        // Get element info
+                        const info = {
+                            selector,
+                            tag: el.tagName.toLowerCase(),
+                            text: el.textContent?.trim().slice(0, 50) || '',
+                            value: el.value || '',
+                            href: el.href || '',
+                            type: el.type || '',
+                            name: el.name || '',
+                            id: el.id || ''
+                        };
+                        
+                        window.selectedInfo = info;
+                        
+                        // Update UI
+                        document.getElementById('selected-info').innerHTML = `
+                            <div style="color: #4ade80; font-weight: bold; margin-bottom: 5px; font-size: 11px;">${selector}</div>
+                            <div style="color: #fff; margin-bottom: 3px; font-size: 11px;">Tag: ${el.tagName}</div>
+                            <div style="color: #aaa; font-size: 10px;">${info.text || info.value || '(empty)'}</div>
+                        `;
+                        
+                        const copyBtn = document.getElementById('copy-selector');
+                        copyBtn.disabled = false;
+                        copyBtn.style.cursor = 'pointer';
+                        copyBtn.style.background = '#22c55e';
+                        
+                    }, true);
+                }, 100);
                 
                 // Copy selector
                 document.getElementById('copy-selector').onclick = () => {
@@ -196,9 +231,11 @@ def launch_picker():
                         // Visual feedback
                         const btn = document.getElementById('copy-selector');
                         const originalText = btn.innerHTML;
-                        btn.innerHTML = '✅ Copied & Sent!';
+                        btn.innerHTML = '✅ Sent to Builder!';
+                        btn.style.background = '#10b981';
                         setTimeout(() => {
                             btn.innerHTML = originalText;
+                            btn.style.background = '#22c55e';
                         }, 2000);
                     }
                 };
