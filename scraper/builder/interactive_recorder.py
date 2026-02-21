@@ -147,9 +147,36 @@ class InteractiveRecorder:
                         const text = el.textContent?.trim().slice(0, 100) || '';
                         const value = el.value || el.href || '';
                         
+                        // Prompt for field label
+                        const label = prompt(
+                            'What data does this element contain?\\n\\n' +
+                            'Examples:\\n' +
+                            '  • case_number\\n' +
+                            '  • party_name\\n' +
+                            '  • date_filed\\n' +
+                            '  • judge\\n' +
+                            '  • status\\n' +
+                            '  • pdf_link\\n\\n' +
+                            'Element preview: ' + (text || value || selector).slice(0, 50),
+                            (el.id || el.name || '').replace(/[^a-z0-9]/gi, '_').toLowerCase()
+                        );
+                        
+                        if (!label) {
+                            // User cancelled
+                            return;
+                        }
+                        
+                        // Determine extraction type
+                        let extractType = 'text';
+                        if (el.tagName === 'A') extractType = 'href';
+                        else if (el.tagName === 'IMG') extractType = 'src';
+                        else if (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') extractType = 'value';
+                        
                         // Add to extracted
                         window.extractedElements.push({
+                            label: label.trim(),
                             selector,
+                            extractType,
                             tag: el.tagName.toLowerCase(),
                             text,
                             value,
@@ -161,6 +188,25 @@ class InteractiveRecorder:
                         // Visual feedback
                         el.style.outline = '3px solid #f59e0b';
                         el.style.backgroundColor = 'rgba(245, 158, 11, 0.1)';
+                        
+                        // Add label badge
+                        const badge = document.createElement('div');
+                        badge.style.cssText = `
+                            position: absolute;
+                            background: #f59e0b;
+                            color: white;
+                            padding: 2px 6px;
+                            border-radius: 3px;
+                            font-size: 11px;
+                            font-weight: bold;
+                            z-index: 999999;
+                            pointer-events: none;
+                        `;
+                        badge.textContent = label.trim();
+                        const rect = el.getBoundingClientRect();
+                        badge.style.top = (rect.top + window.scrollY - 20) + 'px';
+                        badge.style.left = (rect.left + window.scrollX) + 'px';
+                        document.body.appendChild(badge);
                         
                         // Update counter
                         document.querySelector('#extracted-count span').textContent = 
@@ -229,22 +275,74 @@ class InteractiveRecorder:
             
             browser.close()
     
+    def prompt_for_metadata(self):
+        """Prompt user for metadata labels after recording"""
+        print("\n" + "="*60)
+        print("📝 FIELD LABELING")
+        print("="*60)
+        print(f"\nYou marked {len(self.extract_fields)} fields.")
+        print("\nFor each field, enter what data it represents:")
+        print("Examples: case_number, party_name, date_filed, judge, pdf_link\n")
+        
+        labeled_fields = []
+        for i, field in enumerate(self.extract_fields):
+            preview = field.get('text') or field.get('value') or field['selector']
+            preview = preview[:50]
+            
+            existing_label = field.get('label', '')
+            if existing_label:
+                print(f"\n[{i+1}/{len(self.extract_fields)}] Field: {field['selector']}")
+                print(f"  Preview: {preview}")
+                print(f"  Current label: {existing_label}")
+                use_existing = input(f"  Keep this label? (Y/n): ").strip().lower()
+                if use_existing != 'n':
+                    labeled_fields.append(field)
+                    continue
+            
+            print(f"\n[{i+1}/{len(self.extract_fields)}] Field: {field['selector']}")
+            print(f"  Preview: {preview}")
+            label = input(f"  Label (or 'skip' to ignore): ").strip()
+            
+            if label and label.lower() != 'skip':
+                field['label'] = label
+                labeled_fields.append(field)
+            else:
+                print("  ⏭️  Skipped")
+        
+        self.extract_fields = labeled_fields
+        print(f"\n✅ Labeled {len(labeled_fields)} fields")
+    
     def generate_config(self):
         """Generate Playwright config from recorded session"""
-        # Build steps
+        # Build extraction config
+        extraction_fields = {}
+        for field in self.extract_fields:
+            label = field.get('label', field.get('id') or field.get('name') or 'unknown')
+            extraction_fields[label] = {
+                "selector": field['selector'],
+                "type": field.get('extractType', 'text'),
+                "element": field['tag']
+            }
+        
+        # Build steps (simplified for now - user will enhance in UI)
         steps = [
-            {"type": "navigate", "config": {"url": self.url}}
+            {
+                "type": "navigate",
+                "config": {"url": self.url}
+            },
+            {
+                "type": "wait",
+                "config": {"timeout": 2000}
+            }
         ]
         
-        # Add extract steps for each marked field
-        for i, field in enumerate(self.extract_fields):
-            field_id = field.get('id') or field.get('name') or f"field_{i}"
+        # Add extraction step
+        if extraction_fields:
             steps.append({
-                "type": "extract_field",
+                "type": "extract_data",
+                "label": "Extract case data",
                 "config": {
-                    "fieldId": field_id,
-                    "selector": field['selector'],
-                    "attr": "text" if field['text'] else "value"
+                    "fields": extraction_fields
                 }
             })
         
@@ -255,10 +353,16 @@ class InteractiveRecorder:
             },
             "siteConfig": {
                 "siteId": f"{(self.state or 'unknown').lower()}-{(self.county or 'unknown').lower()}-{self.domain.replace('.', '-')}",
+                "state": self.state,
+                "county": self.county,
                 "baseUrl": self.url,
                 "description": f"Interactive recording from {datetime.now().isoformat()}",
-                "extractedFields": self.extract_fields,
-                "screenshots": self.screenshots
+                "metadata": {
+                    "recordedAt": datetime.now().isoformat(),
+                    "extractionFields": list(extraction_fields.keys()),
+                    "screenshots": self.screenshots
+                },
+                "extractedFields": self.extract_fields
             }
         }
         
@@ -269,6 +373,13 @@ class InteractiveRecorder:
         
         print(f"\n💾 Config saved: {config_path}")
         print(f"📁 All files in: {self.output_dir}")
+        
+        # Print summary
+        print("\n" + "="*60)
+        print("📊 EXTRACTION SUMMARY")
+        print("="*60)
+        for label, info in extraction_fields.items():
+            print(f"  • {label}: {info['selector']} ({info['type']})")
         
         return config
 
@@ -282,9 +393,11 @@ def main():
     
     recorder = InteractiveRecorder(args.url, args.state, args.county)
     recorder.record_session()
+    recorder.prompt_for_metadata()
     recorder.generate_config()
     
     print("\n✅ Recording complete!")
+    print("🚀 Next: Use the Scraper Builder UI to refine and save to database")
 
 
 if __name__ == "__main__":

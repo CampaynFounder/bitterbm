@@ -1,0 +1,82 @@
+{
+  "flow": {
+    "name": "Test Sample Scraper",
+    "steps": [
+      {
+        "type": "navigate",
+        "config": {
+          "url": "https://superiorcourtclerk.cobbcounty.gov/WebCaseManagement/mainpage.aspx"
+        }
+      },
+      {
+        "type": "switch_frame",
+        "config": {
+          "selector": "iframe_selector_if_needed"
+        }
+      },
+      {
+        "type": "fill_field",
+        "config": {
+          "selector": "input[name='search']",
+          "value": "search_value"
+        }
+      },
+      {
+        "type": "click",
+        "config": {
+          "selector": "button[type='submit']"
+        }
+      },
+      {
+        "type": "wait",
+        "config": {
+          "selector": "table#results"
+        }
+      },
+      {
+        "type": "extract_field",
+        "config": {
+          "fieldId": "page_title",
+          "selector": "title"
+        }
+      },
+      {
+        "type": "extract_field",
+        "config": {
+          "fieldId": "main_heading",
+          "selector": "h1"
+        }
+      },
+      {
+        "type": "extract_field",
+        "config": {
+          "fieldId": "links",
+          "selector": "a",
+          "multiple": true
+        }
+      }
+    ]
+  },
+  "siteConfig": {
+    "siteId": "test-sample-courts",
+    "baseUrl": "https://superiorcourtclerk.cobbcounty.gov/WebCaseManagement/mainpage.aspx",
+    "resultTable": {
+      "tableSelector": "table#results",
+      "rowSelector": "tbody tr",
+      "primaryId": {
+        "source": "column",
+        "columnIndex": 0
+      },
+      "extractColumns": [
+        {
+          "columnIndex": 0,
+          "outputKey": "case_number"
+        },
+        {
+          "columnIndex": 1,
+          "outputKey": "parties"
+        }
+      ]
+    }
+  }
+}
