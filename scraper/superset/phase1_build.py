@@ -358,6 +358,12 @@ def run_nested_table_checks(row_locator, root, nested_checks, log):
                     log(f"    [nestedCheck '{name}'] next sibling row count: {next_count}")
                     if next_count > 0:
                         log(f"    [nestedCheck '{name}'] searching for table in sibling...")
+                        # Debug: log sibling row HTML snippet
+                        try:
+                            sibling_html = next_row.first.evaluate("el => el.outerHTML")
+                            log(f"    [nestedCheck '{name}'] sibling HTML (first 500 chars): {sibling_html[:500]}")
+                        except Exception:
+                            pass
                         table_in_next = next_row.locator(table_sel)
                         sibling_table_count = table_in_next.count()
                         log(f"    [nestedCheck '{name}'] sibling table count: {sibling_table_count}")
