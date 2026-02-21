@@ -171,8 +171,24 @@ def run_flow_steps(page, steps, vars_dict, log):
                 target.fill(value)
 
             elif typ == "date_range":
-                root.fill(cfg.get("fromSelector", ""), str(cfg.get("fromValue", "")))
-                root.fill(cfg.get("toSelector", ""), str(cfg.get("toValue", "")))
+                from_sel = cfg.get("fromSelector", "")
+                to_sel = cfg.get("toSelector", "")
+                from_val = str(cfg.get("fromValue", ""))
+                to_val = str(cfg.get("toValue", ""))
+                if from_sel:
+                    elem = root.locator(from_sel).first
+                    is_datepicker = elem.evaluate("el => el.classList.contains('hasDatepicker') || el.classList.contains('DatePicker') || !!el.dataset.datepicker")
+                    if is_datepicker:
+                        elem.evaluate(f"el => {{ el.value = '{from_val}'; if (window.jQuery && window.jQuery.datepicker) {{ window.jQuery(el).datepicker('setDate', '{from_val}'); }} window.jQuery(el).trigger('change'); }}")
+                    else:
+                        elem.fill(from_val)
+                if to_sel:
+                    elem = root.locator(to_sel).first
+                    is_datepicker = elem.evaluate("el => el.classList.contains('hasDatepicker') || el.classList.contains('DatePicker') || !!el.dataset.datepicker")
+                    if is_datepicker:
+                        elem.evaluate(f"el => {{ el.value = '{to_val}'; if (window.jQuery && window.jQuery.datepicker) {{ window.jQuery(el).datepicker('setDate', '{to_val}'); }} window.jQuery(el).trigger('change'); }}")
+                    else:
+                        elem.fill(to_val)
 
             elif typ == "form_fill":
                 fields = cfg.get("fields") or []
