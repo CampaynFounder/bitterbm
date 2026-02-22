@@ -14,12 +14,56 @@ import { supabase } from '@/lib/supabase';
  * 5. View Analytics
  */
 
+// Type definitions
+type County = {
+  id: string;
+  name: string;
+  state: string;
+  court_type: string;
+  base_url: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type Superset = {
+  id: string;
+  county_id: string;
+  name: string;
+  search_params: any;
+  case_ids: any;
+  total_cases: number;
+  status: string;
+  progress: number;
+  created_at: string;
+  counties?: { name: string; state: string };
+};
+
+type QueueItem = {
+  id: string;
+  task_type: string;
+  status: string;
+  priority: number;
+  queued_at: string;
+  attempts: number;
+  max_attempts: number;
+};
+
+type ReviewItem = {
+  id: string;
+  review_type: string;
+  status: string;
+  data_to_review: any;
+  created_at: string;
+  cases?: { case_number: string };
+};
+
 export default function DataPipelinePage() {
   const [activeTab, setActiveTab] = useState('counties');
-  const [counties, setCounties] = useState([]);
-  const [supersets, setSupersets] = useState([]);
-  const [queue, setQueue] = useState([]);
-  const [reviewItems, setReviewItems] = useState([]);
+  const [counties, setCounties] = useState<County[]>([]);
+  const [supersets, setSupersets] = useState<Superset[]>([]);
+  const [queue, setQueue] = useState<QueueItem[]>([]);
+  const [reviewItems, setReviewItems] = useState<ReviewItem[]>([]);
 
   useEffect(() => {
     loadData();
@@ -141,7 +185,7 @@ export default function DataPipelinePage() {
 // County Configuration Tab
 // ========================================
 
-function CountiesTab({ counties, onUpdate }) {
+function CountiesTab({ counties, onUpdate }: { counties: County[]; onUpdate: () => void }) {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -237,7 +281,7 @@ function CountiesTab({ counties, onUpdate }) {
   );
 }
 
-function CountyCard({ county, onUpdate }) {
+function CountyCard({ county, onUpdate }: { county: County; onUpdate: () => void }) {
   const [expanded, setExpanded] = useState(false);
 
   const statusColors = {
@@ -296,7 +340,11 @@ function CountyCard({ county, onUpdate }) {
 // Supersets Tab
 // ========================================
 
-function SupersetsTab({ supersets, counties, onUpdate }) {
+function SupersetsTab({ supersets, counties, onUpdate }: { 
+  supersets: Superset[]; 
+  counties: County[]; 
+  onUpdate: () => void;
+}) {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     county_id: '',
@@ -417,7 +465,7 @@ function SupersetsTab({ supersets, counties, onUpdate }) {
   );
 }
 
-function SupersetCard({ superset }) {
+function SupersetCard({ superset }: { superset: Superset }) {
   const statusColors = {
     pending: 'bg-gray-100 text-gray-800',
     collecting: 'bg-blue-100 text-blue-800',
@@ -460,7 +508,7 @@ function SupersetCard({ superset }) {
 // Processing Queue Tab
 // ========================================
 
-function QueueTab({ queue }) {
+function QueueTab({ queue }: { queue: QueueItem[] }) {
   const stats = {
     queued: queue.filter(q => q.status === 'queued').length,
     processing: queue.filter(q => q.status === 'processing').length,
@@ -536,10 +584,10 @@ function QueueTab({ queue }) {
 // Review Queue Tab
 // ========================================
 
-function ReviewTab({ items, onUpdate }) {
+function ReviewTab({ items, onUpdate }: { items: ReviewItem[]; onUpdate: () => void }) {
   const [selectedItem, setSelectedItem] = useState(null);
 
-  const handleApprove = async (item) => {
+  const handleApprove = async (item: ReviewItem) => {
     await supabase
       .from('review_queue')
       .update({ status: 'approved', reviewed_at: new Date().toISOString() })
@@ -548,7 +596,7 @@ function ReviewTab({ items, onUpdate }) {
     onUpdate();
   };
 
-  const handleReject = async (item) => {
+  const handleReject = async (item: ReviewItem) => {
     await supabase
       .from('review_queue')
       .update({ status: 'rejected', reviewed_at: new Date().toISOString() })
@@ -647,7 +695,12 @@ function AnalyticsTab() {
 // Helper Components
 // ========================================
 
-function StatCard({ title, value, icon, color }) {
+function StatCard({ title, value, icon, color }: { 
+  title: string; 
+  value: number; 
+  icon: string; 
+  color: 'blue' | 'green' | 'yellow' | 'red';
+}) {
   const colors = {
     blue: 'bg-blue-50 border-blue-200 text-blue-700',
     green: 'bg-green-50 border-green-200 text-green-700',
@@ -668,7 +721,12 @@ function StatCard({ title, value, icon, color }) {
   );
 }
 
-function Tab({ label, active, badge, onClick }) {
+function Tab({ label, active, badge, onClick }: { 
+  label: string; 
+  active: boolean; 
+  badge?: number; 
+  onClick: () => void;
+}) {
   return (
     <button
       onClick={onClick}
@@ -679,7 +737,7 @@ function Tab({ label, active, badge, onClick }) {
       }`}
     >
       {label}
-      {badge > 0 && (
+      {badge !== undefined && badge > 0 && (
         <span className="absolute -top-1 -right-2 bg-red-500 text-white text-xs rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center text-[10px] sm:text-xs">
           {badge}
         </span>
