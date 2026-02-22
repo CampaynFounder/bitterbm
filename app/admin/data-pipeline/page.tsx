@@ -78,10 +78,10 @@ export default function DataPipelinePage() {
 
   const loadData = async () => {
     const [countiesRes, supersetsRes, queueRes, reviewRes] = await Promise.all([
-      supabase.from('counties').select('*').order('created_at', { ascending: false }),
-      supabase.from('supersets').select('*, counties(name, state)').order('created_at', { ascending: false }),
-      supabase.from('processing_queue').select('*').order('queued_at', { ascending: false }).limit(100),
-      supabase.from('review_queue').select('*, cases(case_number)').eq('status', 'pending')
+      supabase.from('scraper_counties').select('*').order('created_at', { ascending: false }),
+      supabase.from('scraper_supersets').select('*, scraper_counties(name, state)').order('created_at', { ascending: false }),
+      supabase.from('scraper_queue').select('*').order('queued_at', { ascending: false }).limit(100),
+      supabase.from('scraper_review_queue').select('*, scraped_cases(case_number)').eq('status', 'pending')
     ]);
 
     setCounties(countiesRes.data || []);
@@ -92,7 +92,7 @@ export default function DataPipelinePage() {
 
   const loadQueue = async () => {
     const { data } = await supabase
-      .from('processing_queue')
+      .from('scraper_queue')
       .select('*')
       .order('queued_at', { ascending: false })
       .limit(100);
@@ -197,7 +197,7 @@ function CountiesTab({ counties, onUpdate }: { counties: County[]; onUpdate: () 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    await supabase.from('counties').insert(formData);
+    await supabase.from('scraper_counties').insert(formData);
     
     setShowForm(false);
     setFormData({ name: '', state: '', court_type: 'family', base_url: '' });
@@ -589,7 +589,7 @@ function ReviewTab({ items, onUpdate }: { items: ReviewItem[]; onUpdate: () => v
 
   const handleApprove = async (item: ReviewItem) => {
     await supabase
-      .from('review_queue')
+      .from('scraper_review_queue')
       .update({ status: 'approved', reviewed_at: new Date().toISOString() })
       .eq('id', item.id);
     
@@ -598,7 +598,7 @@ function ReviewTab({ items, onUpdate }: { items: ReviewItem[]; onUpdate: () => v
 
   const handleReject = async (item: ReviewItem) => {
     await supabase
-      .from('review_queue')
+      .from('scraper_review_queue')
       .update({ status: 'rejected', reviewed_at: new Date().toISOString() })
       .eq('id', item.id);
     
