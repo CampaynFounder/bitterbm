@@ -250,9 +250,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </div>
         </aside>
 
-        {/* Main Content Area - centered, responsive padding */}
-        <main className="flex-1 overflow-y-auto min-w-0">
-          <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        {/* Main Content Area - single centered column, generous padding */}
+        <main className="flex-1 overflow-y-auto min-w-0 flex justify-center">
+          <div className="w-full max-w-4xl lg:max-w-5xl mx-auto px-4 sm:px-6 md:px-8 lg:px-10 py-6 sm:py-8 box-border">
             {children}
           </div>
         </main>

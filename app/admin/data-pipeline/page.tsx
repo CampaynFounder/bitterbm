@@ -110,7 +110,7 @@ export default function DataPipelinePage() {
   ];
 
   return (
-    <div className="w-full">
+    <div className="w-full min-w-0">
       <PageHeader
         title="County Data Pipeline"
         description="Configure counties, generate supersets, and monitor data extraction"

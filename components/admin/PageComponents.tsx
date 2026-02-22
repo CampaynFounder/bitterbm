@@ -12,8 +12,8 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, description, icon, badge, actions }: PageHeaderProps) {
   return (
-    <div className="bg-white border-b border-gray-200 shadow-sm">
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+    <div className="bg-white border-b border-gray-200 shadow-sm w-full">
+      <div className="w-full py-6 sm:py-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-start gap-4 min-w-0">
             {icon && (
@@ -176,7 +176,7 @@ interface SectionProps {
 
 export function Section({ children, className = '' }: SectionProps) {
   return (
-    <div className={`w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 ${className}`}>
+    <div className={`w-full py-6 sm:py-8 ${className}`}>
       {children}
     </div>
   );
