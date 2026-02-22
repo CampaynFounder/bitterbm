@@ -340,8 +340,8 @@ export default function ExecutionPage() {
   const [expandedStates, setExpandedStates] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
-  const load = async () => {
-    setLoading(true);
+  const load = async (silent = false) => {
+    if (!silent) setLoading(true);
     const [
       countiesRes,
       configsRes,
@@ -385,12 +385,13 @@ export default function ExecutionPage() {
     setQueue((queueRes.data as QueueItem[]) ?? []);
     setCaseCountByCounty((casesRes.data as Record<string, number>) ?? {});
     setDocCountByCounty((docsRes.data as Record<string, number>) ?? {});
-    setLoading(false);
+    if (!silent) setLoading(false);
   };
 
   useEffect(() => {
     load();
-    const t = setInterval(load, 10000);
+    const POLL_IDLE_MS = 60_000;
+    const t = setInterval(() => load(true), POLL_IDLE_MS);
     return () => clearInterval(t);
   }, []);
 
@@ -492,7 +493,7 @@ export default function ExecutionPage() {
                 <Card key={rollup.state} noPadding className="overflow-hidden">
                   <button
                     type="button"
-                    className="w-full flex items-center justify-between p-4 text-left hover:bg-[var(--bg-elevated)] transition-colors"
+                    className="w-full flex items-center justify-between gap-4 p-4 text-left hover:bg-[var(--bg-elevated)] transition-colors"
                     onClick={() => {
                       setExpandedStates((prev) => {
                         const next = new Set(prev);
@@ -504,10 +505,21 @@ export default function ExecutionPage() {
                     aria-expanded={expanded}
                   >
                     <span className="font-semibold">{rollup.state}</span>
-                    <span className="admin-text-muted text-sm">
-                      {rollup.countyCount} counties · {rollup.withSupersetOutput} with superset · {rollup.withExtractionOutput} with extraction
+                    <span className="execution-rollup-stats" role="status">
+                      <span className="execution-rollup-stat">
+                        <span className="execution-rollup-stat__value">{rollup.countyCount}</span>
+                        <span className="execution-rollup-stat__label">counties</span>
+                      </span>
+                      <span className="execution-rollup-stat">
+                        <span className="execution-rollup-stat__value">{rollup.withSupersetOutput}</span>
+                        <span className="execution-rollup-stat__label">superset</span>
+                      </span>
+                      <span className="execution-rollup-stat">
+                        <span className="execution-rollup-stat__value">{rollup.withExtractionOutput}</span>
+                        <span className="execution-rollup-stat__label">extraction</span>
+                      </span>
                     </span>
-                    <span className="text-lg">{expanded ? '▼' : '▶'}</span>
+                    <span className="text-lg flex-shrink-0" aria-hidden>{expanded ? '▼' : '▶'}</span>
                   </button>
                   {expanded && (
                     <div className="border-t border-[var(--border)] p-4 pt-2">

@@ -209,6 +209,7 @@ export default function DataPipelinePage() {
 
 function CountiesTab({ counties, onUpdate }: { counties: County[]; onUpdate: () => void }) {
   const [showForm, setShowForm] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [formData, setFormData] = useState({
     name: '',
     state: '',
@@ -218,11 +219,36 @@ function CountiesTab({ counties, onUpdate }: { counties: County[]; onUpdate: () 
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
     await supabase.from('scraper_counties').insert(formData);
-    
     setShowForm(false);
     setFormData({ name: '', state: '', court_type: 'family', base_url: '' });
+    onUpdate();
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === counties.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(counties.map((c) => c.id)));
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Delete ${selectedIds.size} county(ies)? This cannot be undone.`)) return;
+    for (const id of selectedIds) {
+      await supabase.from('scraper_counties').delete().eq('id', id);
+    }
+    setSelectedIds(new Set());
     onUpdate();
   };
 
@@ -230,15 +256,35 @@ function CountiesTab({ counties, onUpdate }: { counties: County[]; onUpdate: () 
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 mb-6" style={{ gap: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
         <h2 className="admin-heading-1">Configured Counties</h2>
-        <Button
-          onClick={() => setShowForm(!showForm)}
-          variant="primary"
-          size="lg"
-          icon="+"
-          className="w-full sm:w-auto min-h-[48px]"
-        >
-          Add County
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {counties.length > 0 && (
+            <>
+              <label className="flex items-center gap-2 cursor-pointer admin-text-secondary text-sm">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.size === counties.length}
+                  onChange={toggleSelectAll}
+                  aria-label="Select all counties"
+                />
+                Select all
+              </label>
+              {selectedIds.size > 0 && (
+                <Button variant="danger" size="sm" onClick={handleBulkDelete}>
+                  Delete selected ({selectedIds.size})
+                </Button>
+              )}
+            </>
+          )}
+          <Button
+            onClick={() => setShowForm(!showForm)}
+            variant="primary"
+            size="lg"
+            icon="+"
+            className="w-full sm:w-auto min-h-[48px]"
+          >
+            Add County
+          </Button>
+        </div>
       </div>
 
       {showForm && (
@@ -310,7 +356,13 @@ function CountiesTab({ counties, onUpdate }: { counties: County[]; onUpdate: () 
           />
         ) : (
           counties.map((county) => (
-            <CountyCard key={county.id} county={county} onUpdate={onUpdate} />
+            <CountyCard
+              key={county.id}
+              county={county}
+              onUpdate={onUpdate}
+              selected={selectedIds.has(county.id)}
+              onToggleSelect={() => toggleSelectOne(county.id)}
+            />
           ))
         )}
       </div>
@@ -318,8 +370,19 @@ function CountiesTab({ counties, onUpdate }: { counties: County[]; onUpdate: () 
   );
 }
 
-function CountyCard({ county, onUpdate }: { county: County; onUpdate: () => void }) {
+function CountyCard({
+  county,
+  onUpdate,
+  selected,
+  onToggleSelect,
+}: {
+  county: County;
+  onUpdate: () => void;
+  selected: boolean;
+  onToggleSelect: () => void;
+}) {
   const [expanded, setExpanded] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   const statusClass: Record<string, string> = {
     draft: 'admin-status-pill--draft',
@@ -328,31 +391,56 @@ function CountyCard({ county, onUpdate }: { county: County; onUpdate: () => void
     paused: 'admin-status-pill--failed'
   };
 
+  const handleDelete = async () => {
+    if (!confirm(`Delete ${county.name}, ${county.state}? This cannot be undone.`)) return;
+    await supabase.from('scraper_counties').delete().eq('id', county.id);
+    onUpdate();
+  };
+
   return (
-    <div className="admin-card border-2 rounded-xl transition-all duration-200" style={{ borderColor: 'var(--border)' }}>
+    <div className="admin-card border-2 rounded-xl transition-all duration-200" style={{ borderColor: selected ? 'var(--accent-primary)' : 'var(--border)' }}>
       <div className="flex items-center justify-between gap-3" style={{ gap: 'var(--space-md)' }}>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap" style={{ gap: 'var(--space-sm)' }}>
-            <h3 className="admin-heading-3">{county.name}, {county.state}</h3>
-            <span className={`admin-status-pill ${statusClass[county.status] || statusClass.draft}`}>
-              {county.status.toUpperCase()}
-            </span>
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <label className="flex-shrink-0 cursor-pointer" title="Select for bulk delete">
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={onToggleSelect}
+              onClick={(e) => e.stopPropagation()}
+              aria-label={`Select ${county.name}`}
+            />
+          </label>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap" style={{ gap: 'var(--space-sm)' }}>
+              <h3 className="admin-heading-3">{county.name}, {county.state}</h3>
+              <span className={`admin-status-pill ${statusClass[county.status] || statusClass.draft}`}>
+                {county.status.toUpperCase()}
+              </span>
+            </div>
+            <p className="admin-text-secondary mt-1 truncate" style={{ marginTop: 'var(--space-xs)' }}>
+              <span className="font-medium">{county.court_type}</span> • {county.base_url}
+            </p>
           </div>
-          <p className="admin-text-secondary mt-1 truncate" style={{ marginTop: 'var(--space-xs)' }}>
-            <span className="font-medium">{county.court_type}</span> • {county.base_url}
-          </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setExpanded(!expanded)}
-          className="flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]"
-          style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}
-          aria-expanded={expanded}
-        >
-          <svg className={`w-6 h-6 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <Button size="sm" variant="secondary" onClick={() => setEditOpen(true)}>
+            Edit
+          </Button>
+          <Button size="sm" variant="danger" onClick={handleDelete}>
+            Delete
+          </Button>
+          <button
+            type="button"
+            onClick={() => setExpanded(!expanded)}
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]"
+            style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}
+            aria-expanded={expanded}
+          >
+            <svg className={`w-6 h-6 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {expanded && (
@@ -370,6 +458,114 @@ function CountyCard({ county, onUpdate }: { county: County; onUpdate: () => void
           </div>
         </div>
       )}
+
+      {editOpen && (
+        <EditCountyModal
+          county={county}
+          onClose={() => setEditOpen(false)}
+          onSaved={() => { setEditOpen(false); onUpdate(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function EditCountyModal({
+  county,
+  onClose,
+  onSaved,
+}: {
+  county: County;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [formData, setFormData] = useState({
+    name: county.name,
+    state: county.state,
+    court_type: county.court_type || 'family',
+    base_url: county.base_url,
+    status: county.status,
+  });
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setSaving(true);
+    await supabase
+      .from('scraper_counties')
+      .update({
+        name: formData.name,
+        state: formData.state,
+        court_type: formData.court_type,
+        base_url: formData.base_url,
+        status: formData.status,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', county.id);
+    setSaving(false);
+    onSaved();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.5)' }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="edit-county-title"
+    >
+      <div className="admin-card max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <h2 id="edit-county-title" className="admin-heading-2 mb-4">Edit county</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="text"
+            placeholder="County Name"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            className="admin-input w-full"
+            required
+          />
+          <input
+            type="text"
+            placeholder="State (e.g., GA)"
+            value={formData.state}
+            onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+            className="admin-input w-full"
+            required
+          />
+          <select
+            value={formData.court_type}
+            onChange={(e) => setFormData({ ...formData, court_type: e.target.value })}
+            className="admin-input w-full"
+          >
+            <option value="family">Family Court</option>
+            <option value="superior">Superior Court</option>
+            <option value="district">District Court</option>
+          </select>
+          <input
+            type="url"
+            placeholder="Base URL"
+            value={formData.base_url}
+            onChange={(e) => setFormData({ ...formData, base_url: e.target.value })}
+            className="admin-input w-full"
+            required
+          />
+          <select
+            value={formData.status}
+            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+            className="admin-input w-full"
+          >
+            <option value="draft">Draft</option>
+            <option value="configured">Configured</option>
+            <option value="active">Active</option>
+            <option value="paused">Paused</option>
+          </select>
+          <div className="flex gap-2 pt-2">
+            <Button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save'}</Button>
+            <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
