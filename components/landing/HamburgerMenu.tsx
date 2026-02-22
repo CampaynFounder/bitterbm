@@ -9,6 +9,17 @@ import { UpgradeToFlatModal } from "@/components/dashboard/UpgradeToFlatModal"
 
 const HAMBURGER_OPENED_KEY = "bitterbm_hamburger_opened"
 
+export type AdminNavSection = {
+  section: string
+  items: Array<{
+    name: string
+    href: string
+    icon?: string
+    description?: string
+    badge?: string
+  }>
+}
+
 const GUEST_ITEMS = [
   { href: "/assessment", label: "Assessment" },
   { href: "/signin", label: "Sign in" },
@@ -28,9 +39,13 @@ const FLAT_ONLY_ITEMS = [
 
 type Props = {
   visible?: boolean
+  /** Admin mode: same component (right, same panel), render admin sections + sign out. Links preserved. */
+  variant?: "default" | "admin"
+  adminSections?: AdminNavSection[]
+  onAdminSignOut?: () => void
 }
 
-export function HamburgerMenu({ visible = true }: Props) {
+export function HamburgerMenu({ visible = true, variant = "default", adminSections, onAdminSignOut }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
@@ -38,6 +53,8 @@ export function HamburgerMenu({ visible = true }: Props) {
   const [showHighlight, setShowHighlight] = useState(false)
   const [plan, setPlan] = useState<string | null>(null)
   const [upgradeFeature, setUpgradeFeature] = useState<string | null>(null)
+
+  const isAdmin = variant === "admin" && adminSections != null && adminSections.length > 0
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -52,6 +69,7 @@ export function HamburgerMenu({ visible = true }: Props) {
   }, [session])
 
   useEffect(() => {
+    if (isAdmin) return
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       if (!s) {
         setSession(false)
@@ -95,7 +113,7 @@ export function HamburgerMenu({ visible = true }: Props) {
       })
     })
     return () => subscription.unsubscribe()
-  }, [])
+  }, [isAdmin])
 
   const isFlat = plan === "flat"
   const isEnrolled = plan === "monthly" || plan === "flat"
@@ -131,12 +149,32 @@ export function HamburgerMenu({ visible = true }: Props) {
 
   if (!visible) return null
 
+  const buttonStyle = {
+    position: "relative" as const,
+    zIndex: 1,
+    display: "flex",
+    flexDirection: "column" as const,
+    justifyContent: "center",
+    gap: 5,
+    width: 44,
+    height: 44,
+    padding: 10,
+    background: "rgba(8, 9, 12, 0.8)",
+    border: !isAdmin && session && showHighlight ? "2px solid var(--accent-primary)" : "1px solid var(--border-accent)",
+    borderRadius: "8px",
+    cursor: "pointer",
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
+    boxShadow: !isAdmin && session && showHighlight ? "0 0 12px var(--accent-glow), 0 0 24px rgba(59, 130, 246, 0.15)" : undefined,
+    transition: "border 0.3s ease, box-shadow 0.3s ease",
+  }
+
   return (
     <>
       <nav
         className="hamburger-nav"
         role="navigation"
-        aria-label="Main menu"
+        aria-label={isAdmin ? "Admin menu" : "Main menu"}
         style={{
           position: "fixed",
           top: "var(--space-md)",
@@ -148,7 +186,7 @@ export function HamburgerMenu({ visible = true }: Props) {
           type="button"
           onClick={() => {
             setOpen((o) => {
-              if (!o && typeof window !== "undefined") {
+              if (!o && typeof window !== "undefined" && !isAdmin) {
                 sessionStorage.setItem(HAMBURGER_OPENED_KEY, "1")
                 setShowHighlight(false)
               }
@@ -158,25 +196,7 @@ export function HamburgerMenu({ visible = true }: Props) {
           aria-expanded={open}
           aria-controls="hamburger-menu-panel"
           aria-label={open ? "Close menu" : "Open menu"}
-          style={{
-            position: "relative",
-            zIndex: 1,
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            gap: 5,
-            width: 44,
-            height: 44,
-            padding: 10,
-            background: "rgba(8, 9, 12, 0.8)",
-            border: session && showHighlight ? "2px solid var(--accent-primary)" : "1px solid var(--border-accent)",
-            borderRadius: "8px",
-            cursor: "pointer",
-            backdropFilter: "blur(12px)",
-            WebkitBackdropFilter: "blur(12px)",
-            boxShadow: session && showHighlight ? "0 0 12px var(--accent-glow), 0 0 24px rgba(59, 130, 246, 0.15)" : undefined,
-            transition: "border 0.3s ease, box-shadow 0.3s ease",
-          }}
+          style={buttonStyle}
         >
           <MenuToggleIcon
             open={open}
@@ -209,7 +229,68 @@ export function HamburgerMenu({ visible = true }: Props) {
             gap: "var(--space-xs)",
           }}
         >
-          {session ? (
+          {isAdmin ? (
+            <>
+              {adminSections!.map((group, idx) => (
+                <div key={idx} style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)" }}>
+                  <h2 style={{ fontSize: "0.6875rem", fontWeight: 600, textTransform: "uppercase", color: "var(--text-secondary)", margin: 0 }}>
+                    {group.section}
+                  </h2>
+                  {group.items.map((item) => {
+                    const isActive = pathname === item.href
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setOpen(false)}
+                        style={navLinkStyle(isActive)}
+                        onMouseEnter={navLinkHover}
+                        onMouseLeave={navLinkHoverOff}
+                      >
+                        {item.icon != null && <span style={{ marginRight: "var(--space-sm)" }} aria-hidden>{item.icon}</span>}
+                        <span style={{ flex: 1 }}>{item.name}</span>
+                        {item.badge != null && (
+                          <span style={{ fontSize: "0.6875rem", padding: "2px 6px", borderRadius: 4, background: "var(--accent-gold)", color: "var(--bg-primary)" }}>
+                            {item.badge}
+                          </span>
+                        )}
+                      </Link>
+                    )
+                  })}
+                </div>
+              ))}
+              {onAdminSignOut != null && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false)
+                    onAdminSignOut()
+                  }}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "var(--space-sm) var(--space-md)",
+                    fontSize: "0.9375rem",
+                    color: "var(--text-primary)",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                    borderRadius: "6px",
+                    transition: "background 0.15s",
+                    marginTop: "var(--space-sm)",
+                    borderTop: "1px solid var(--border)",
+                    paddingTop: "var(--space-md)",
+                  }}
+                  onMouseEnter={navLinkHover}
+                  onMouseLeave={navLinkHoverOff}
+                >
+                  🚪 Sign out
+                </button>
+              )}
+            </>
+          ) : session ? (
             isEnrolled ? (
             <>
               <Link
@@ -277,7 +358,7 @@ export function HamburgerMenu({ visible = true }: Props) {
               </Link>
             ))
           )}
-          {session && (
+          {!isAdmin && session && (
             <button
               type="button"
               onClick={handleSignOut}

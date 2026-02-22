@@ -1,10 +1,10 @@
 'use client';
 
 import './admin.css';
-import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ReactNode, useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { HamburgerMenu } from '@/components/landing/HamburgerMenu';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -28,6 +28,12 @@ const navigation = [
         icon: '🏛️',
         description: 'County Court Data Pipeline',
         badge: 'New'
+      },
+      {
+        name: 'Pipeline Execution',
+        href: '/admin/execution',
+        icon: '▶️',
+        description: 'Track recorders, configs, supersets & extraction by state/county'
       }
     ]
   },
@@ -70,7 +76,6 @@ const navigation = [
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [menuOpen, setMenuOpen] = useState(false);
   const [authStatus, setAuthStatus] = useState<'checking' | 'authenticated' | 'unauthenticated'>('checking');
 
   const isPublicPath = PUBLIC_ADMIN_PATHS.includes(pathname ?? '');
@@ -90,14 +95,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     });
   }, [isPublicPath, pathname, router]);
 
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenuOpen(false);
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [menuOpen]);
+  async function handleAdminSignOut() {
+    await supabase.auth.signOut();
+    router.replace('/admin/login');
+  }
 
   // Public auth pages: no sidebar, no dashboard links — only the auth form
   if (isPublicPath) {
@@ -118,24 +119,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <div className="admin-pages min-h-screen">
-      <header className="admin-header sticky top-0 z-50 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="admin-header__menu-btn p-2 rounded-lg"
-            aria-label={menuOpen ? 'Close admin menu' : 'Open admin menu'}
-            aria-expanded={menuOpen}
-            aria-haspopup="true"
-          >
-            <svg className="w-6 h-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
-              <path strokeLinecap="round" strokeLinejoin="round" d={menuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
-            </svg>
-          </button>
-          <div className="flex items-center gap-2">
-            <span className="text-2xl" aria-hidden>⚖️</span>
-            <span className="admin-brand">Admin</span>
-          </div>
+      <header className="admin-header sticky top-0 z-40 flex items-center justify-between">
+        <div className="flex items-center gap-2" style={{ paddingRight: 56 }}>
+          <span className="text-2xl" aria-hidden>⚖️</span>
+          <span className="admin-brand">Admin</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="admin-status-label hidden sm:inline">Pipeline</span>
@@ -143,71 +130,16 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         </div>
       </header>
 
-      <div className="flex h-[calc(100vh-3.5rem)]">
-        {menuOpen && (
-          <>
-            <div
-              className="fixed inset-0 z-40 transition-all"
-              style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
-              onClick={() => setMenuOpen(false)}
-              aria-hidden
-            />
-            <div
-              role="dialog"
-              aria-label="Admin navigation"
-              className={`admin-menu fixed inset-y-0 left-0 top-14 z-50 w-72 transform transition-transform duration-200 overflow-y-auto ${menuOpen ? 'translate-x-0' : '-translate-x-full'}`}
-            >
-              <div className="admin-menu__content">
-                <p className="admin-menu__title">Menu</p>
-                {navigation.map((section, idx) => (
-                  <div key={idx} className="admin-menu__group">
-                    <h2 className="admin-menu__section">{section.section}</h2>
-                    <nav className="admin-menu__nav" aria-label={section.section}>
-                      {section.items.map((item) => {
-                        const isActive = pathname === item.href;
-                        return (
-                          <Link
-                            key={item.href}
-                            href={item.href}
-                            onClick={() => setMenuOpen(false)}
-                            className="admin-menu__link"
-                            data-active={isActive}
-                          >
-                            <span className="admin-menu__icon" aria-hidden>{item.icon}</span>
-                            <span className="admin-menu__label">{item.name}</span>
-                            {item.badge && (
-                              <span className="admin-menu__badge">{item.badge}</span>
-                            )}
-                          </Link>
-                        );
-                      })}
-                    </nav>
-                  </div>
-                ))}
-                <div className="admin-menu__group" style={{ marginTop: 'auto', paddingTop: 'var(--space-lg)', borderTop: '1px solid var(--border)' }}>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      setMenuOpen(false);
-                      await supabase.auth.signOut();
-                      router.replace('/admin/login');
-                    }}
-                    className="admin-menu__link"
-                    style={{ width: '100%', textAlign: 'left', border: 'none', background: 'none', cursor: 'pointer' }}
-                  >
-                    <span className="admin-menu__icon" aria-hidden>🚪</span>
-                    <span className="admin-menu__label">Sign out</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
+      <HamburgerMenu
+        visible
+        variant="admin"
+        adminSections={navigation}
+        onAdminSignOut={() => handleAdminSignOut()}
+      />
 
-        <main className="flex-1 overflow-y-auto min-w-0">
-          {children}
-        </main>
-      </div>
+      <main className="flex-1 overflow-y-auto min-w-0">
+        {children}
+      </main>
     </div>
   );
 }
