@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import { US_STATES } from "@/lib/constants"
 
@@ -90,6 +90,7 @@ function StepCard({
 
 export default function AdminDashboardPage() {
   const router = useRouter()
+  const pathname = usePathname()
   const [activeTab, setActiveTab] = useState<TabId>("case-law")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -417,9 +418,9 @@ export default function AdminDashboardPage() {
 
   if (!user || loading) {
     return (
-      <main className="section" style={{ minHeight: "80vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div className="admin-dashboard-light flex items-center justify-center" style={{ minHeight: "80vh" }}>
         <p style={{ color: "var(--text-muted)" }}>Loading…</p>
-      </main>
+      </div>
     )
   }
 
@@ -427,32 +428,34 @@ export default function AdminDashboardPage() {
   const labelStyle = { display: "block", fontSize: "0.8125rem", marginBottom: "var(--space-xs)", color: "var(--text-secondary)" } as const
 
   return (
-    <div style={{ minHeight: "100dvh", background: "var(--bg-primary)", color: "var(--text-primary)" }}>
+    <div className="admin-dashboard-light" style={{ minHeight: "100%", background: "var(--bg-primary)", color: "var(--text-primary)" }}>
       <header
         className="sticky top-0 z-10"
-        style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-elevated)", backdropFilter: "blur(12px)" }}
+        style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-elevated)" }}
       >
-        <div className="container" style={{ maxWidth: 1200 }}>
+        <div className="container mx-auto" style={{ maxWidth: 1200 }}>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4" style={{ paddingBlock: "var(--space-md)" }}>
-            <div className="flex items-center gap-4 flex-wrap">
-              <h1 style={{ fontSize: "1.25rem", fontWeight: 600 }}>Admin</h1>
-              <nav className="flex flex-wrap gap-1">
-                {TABS.map((t) =>
-                  t.href ? (
+            <div className="flex items-center gap-4 flex-wrap justify-center sm:justify-start">
+              <h1 style={{ fontSize: "1.25rem", fontWeight: 600 }}>Dashboard</h1>
+              <nav className="flex flex-wrap gap-1 justify-center sm:justify-start">
+                {TABS.map((t) => {
+                  const isActive = t.href ? pathname === t.href : activeTab === t.id
+                  const tabStyle = {
+                    padding: "var(--space-xs) var(--space-md)",
+                    borderRadius: "8px",
+                    fontSize: "0.875rem",
+                    fontWeight: 500,
+                    transition: "background 0.15s, color 0.15s",
+                    ...(isActive
+                      ? { background: "var(--accent-primary)", color: "#fff" }
+                      : { background: "transparent", color: "var(--text-secondary)", border: "1px solid var(--border)" }),
+                  }
+                  return t.href ? (
                     <Link
                       key={t.id}
                       href={t.href}
-                      style={{
-                        padding: "var(--space-xs) var(--space-md)",
-                        borderRadius: "8px",
-                        fontSize: "0.875rem",
-                        fontWeight: 500,
-                        background: "transparent",
-                        color: "var(--text-secondary)",
-                        textDecoration: "none",
-                        transition: "background 0.15s, color 0.15s",
-                      }}
-                      className="hover:bg-[var(--bg-card)] hover:text-[var(--text-primary)]"
+                      style={{ ...tabStyle, textDecoration: "none" }}
+                      className="hover:opacity-90"
                     >
                       {t.label}
                     </Link>
@@ -460,45 +463,38 @@ export default function AdminDashboardPage() {
                     <button
                       key={t.id}
                       onClick={() => setActiveTab(t.id)}
-                    style={{
-                      padding: "var(--space-xs) var(--space-md)",
-                      borderRadius: "8px",
-                      fontSize: "0.875rem",
-                      fontWeight: 500,
-                      transition: "background 0.15s, color 0.15s",
-                      ...(activeTab === t.id
-                        ? { background: "var(--accent-primary)", color: "#fff" }
-                        : { background: "transparent", color: "var(--text-secondary)" }),
-                    }}
-                    onMouseEnter={(e) => {
-                      if (activeTab !== t.id) {
-                        e.currentTarget.style.background = "var(--bg-card)"
-                        e.currentTarget.style.color = "var(--text-primary)"
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (activeTab !== t.id) {
-                        e.currentTarget.style.background = "transparent"
-                        e.currentTarget.style.color = "var(--text-secondary)"
-                      }
-                    }}
-                  >
-                    {t.label}
-                  </button>
+                      style={tabStyle}
+                      onMouseEnter={(e) => {
+                        if (!isActive) {
+                          e.currentTarget.style.background = "var(--bg-card)"
+                          e.currentTarget.style.color = "var(--text-primary)"
+                          e.currentTarget.style.borderColor = "var(--border-accent)"
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isActive) {
+                          e.currentTarget.style.background = "transparent"
+                          e.currentTarget.style.color = "var(--text-secondary)"
+                          e.currentTarget.style.borderColor = "var(--border)"
+                        }
+                      }}
+                    >
+                      {t.label}
+                    </button>
                   )
-                )}
+                })}
               </nav>
             </div>
-            <div className="flex items-center gap-3" style={{ fontSize: "0.875rem" }}>
-              <span style={{ color: "var(--text-muted)", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis" }}>{user.email}</span>
-              <button onClick={handleSignOut} style={{ color: "var(--accent-muted)", background: "none", border: "none", cursor: "pointer" }}>Sign out</button>
+            <div className="flex items-center gap-3 justify-center sm:justify-end" style={{ fontSize: "0.875rem" }}>
+              <span style={{ color: "var(--text-primary)", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis" }}>{user.email}</span>
+              <button onClick={handleSignOut} style={{ color: "var(--accent-primary)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>Sign out</button>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="section" style={{ paddingTop: "var(--space-xl)", paddingBottom: "var(--space-2xl)" }}>
-        <div className="container" style={{ maxWidth: 900 }}>
+      <main className="section mx-auto" style={{ paddingTop: "var(--space-xl)", paddingBottom: "var(--space-2xl)", maxWidth: 900 }}>
+        <div className="container mx-auto" style={{ maxWidth: 900 }}>
         {/* Data creation & scraping pipelines — primary entry for testing */}
         <div
           className="mb-8 p-6 rounded-2xl border-2"
@@ -550,7 +546,7 @@ export default function AdminDashboardPage() {
         {error && (
           <div
             className="mb-4 p-4 rounded-xl"
-            style={{ background: "rgba(239, 68, 68, 0.1)", color: "#fca5a5", border: "1px solid rgba(239, 68, 68, 0.3)" }}
+            style={{ background: "rgba(239, 68, 68, 0.1)", color: "#b91c1c", border: "1px solid rgba(239, 68, 68, 0.3)" }}
           >
             {error}
           </div>
@@ -935,8 +931,8 @@ export default function AdminDashboardPage() {
         </div>
       </main>
 
-      <footer className="container" style={{ maxWidth: 1200, paddingBlock: "var(--space-xl)", marginTop: "var(--space-2xl)", borderTop: "1px solid var(--border)", fontSize: "0.9375rem" }}>
-        <Link href="/" style={{ color: "var(--accent-muted)" }}>← Back to home</Link>
+      <footer className="container mx-auto text-center" style={{ maxWidth: 1200, paddingBlock: "var(--space-xl)", marginTop: "var(--space-2xl)", borderTop: "1px solid var(--border)", fontSize: "0.9375rem" }}>
+        <Link href="/" style={{ color: "var(--accent-primary)" }}>← Back to home</Link>
       </footer>
     </div>
   )

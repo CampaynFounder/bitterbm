@@ -73,3 +73,19 @@
   justify-content: unset;
   width: 100%;
 }
+
+/* Dashboard: light theme so it matches the rest of admin (sidebar + main) */
+.admin-dashboard-light {
+  --bg-primary: #ffffff;
+  --bg-elevated: #f3f4f6;
+  --bg-card: #f9fafb;
+  --border: #e5e7eb;
+  --border-accent: #d1d5db;
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #6b7280;
+  --accent-primary: #2563eb;
+  --accent-muted: #2563eb;
+  --accent-cyan: #0891b2;
+  --accent-gold: #b45309;
+}
