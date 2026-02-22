@@ -1,12 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { ReactNode, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { ReactNode, useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 
 interface AdminLayoutProps {
   children: ReactNode;
 }
+
+const PUBLIC_ADMIN_PATHS = ['/admin/login', '/admin/auth/callback'];
 
 const navigation = [
   {
@@ -65,7 +68,43 @@ const navigation = [
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [authStatus, setAuthStatus] = useState<'checking' | 'authenticated' | 'unauthenticated'>('checking');
+
+  const isPublicPath = PUBLIC_ADMIN_PATHS.includes(pathname ?? '');
+
+  useEffect(() => {
+    if (isPublicPath) {
+      setAuthStatus('authenticated');
+      return;
+    }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setAuthStatus('authenticated');
+      } else {
+        setAuthStatus('unauthenticated');
+        router.replace('/admin/login');
+      }
+    });
+  }, [isPublicPath, pathname, router]);
+
+  // Public auth pages: no sidebar, no dashboard links — only the auth form
+  if (isPublicPath) {
+    return <>{children}</>;
+  }
+
+  // Protected routes: wait for auth check, never show cockpit until authenticated
+  if (authStatus === 'checking' || authStatus === 'unauthenticated') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">Checking authentication…</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">

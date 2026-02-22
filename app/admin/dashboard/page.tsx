@@ -38,7 +38,7 @@ type DashboardState = {
   lastJudgeChunk: PipelineRun | null
 }
 
-type TabId = "case-law" | "judge" | "expert" | "attorney" | "filing" | "state-coverage" | "tools" | "scraper" | "superset"
+type TabId = "case-law" | "judge" | "expert" | "attorney" | "filing" | "state-coverage" | "tools" | "county-pipeline" | "scraper" | "superset"
 
 const TABS: { id: TabId; label: string; href?: string }[] = [
   { id: "case-law", label: "Case Law RAG" },
@@ -48,6 +48,7 @@ const TABS: { id: TabId; label: string; href?: string }[] = [
   { id: "filing", label: "Filing RAG" },
   { id: "state-coverage", label: "State Coverage" },
   { id: "tools", label: "Tools" },
+  { id: "county-pipeline", label: "County Pipeline", href: "/admin/data-pipeline" },
   { id: "scraper", label: "Scraper", href: "/admin/scrape" },
   { id: "superset", label: "Superset", href: "/admin/superset" },
 ]
@@ -498,6 +499,54 @@ export default function AdminDashboardPage() {
 
       <main className="section" style={{ paddingTop: "var(--space-xl)", paddingBottom: "var(--space-2xl)" }}>
         <div className="container" style={{ maxWidth: 900 }}>
+        {/* Data creation & scraping pipelines — primary entry for testing */}
+        <div
+          className="mb-8 p-6 rounded-2xl border-2"
+          style={{ background: "var(--bg-card)", borderColor: "var(--accent-primary)" }}
+        >
+          <h2 style={{ fontSize: "1.25rem", fontWeight: 700, marginBottom: "var(--space-sm)", color: "var(--text-primary)" }}>
+            Data creation &amp; scraping pipelines
+          </h2>
+          <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)", marginBottom: "var(--space-lg)" }}>
+            Configure counties, build supersets, run scrapers, and monitor extraction. Use these for end-to-end testing.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Link
+              href="/admin/data-pipeline"
+              className="block p-5 rounded-xl border-2 border-blue-200 hover:border-blue-400 hover:shadow-lg transition-all"
+              style={{ background: "linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)", textDecoration: "none", color: "inherit" }}
+            >
+              <span style={{ fontSize: "1.5rem", display: "block", marginBottom: "var(--space-sm)" }}>🏛️</span>
+              <strong style={{ fontSize: "1rem", color: "var(--text-primary)" }}>County Data Pipeline</strong>
+              <p style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", marginTop: "var(--space-xs)" }}>
+                Consolidated workflow: counties → supersets → queue → review. Start here for county court data.
+              </p>
+            </Link>
+            <Link
+              href="/admin/scrape"
+              className="block p-5 rounded-xl border-2 border-gray-200 hover:border-gray-400 hover:shadow-lg transition-all"
+              style={{ background: "var(--bg-elevated)", textDecoration: "none", color: "inherit" }}
+            >
+              <span style={{ fontSize: "1.5rem", display: "block", marginBottom: "var(--space-sm)" }}>⚡</span>
+              <strong style={{ fontSize: "1rem", color: "var(--text-primary)" }}>Scraper</strong>
+              <p style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", marginTop: "var(--space-xs)" }}>
+                Build and run browser automation flows. Save flows, run headless or headed.
+              </p>
+            </Link>
+            <Link
+              href="/admin/superset"
+              className="block p-5 rounded-xl border-2 border-gray-200 hover:border-gray-400 hover:shadow-lg transition-all"
+              style={{ background: "var(--bg-elevated)", textDecoration: "none", color: "inherit" }}
+            >
+              <span style={{ fontSize: "1.5rem", display: "block", marginBottom: "var(--space-sm)" }}>📦</span>
+              <strong style={{ fontSize: "1rem", color: "var(--text-primary)" }}>Superset</strong>
+              <p style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", marginTop: "var(--space-xs)" }}>
+                Define search flows and result configs. Export case ID supersets for scraping.
+              </p>
+            </Link>
+          </div>
+        </div>
+
         {error && (
           <div
             className="mb-4 p-4 rounded-xl"

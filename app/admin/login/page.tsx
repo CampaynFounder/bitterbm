@@ -74,7 +74,7 @@ export default function AdminLoginPage() {
           </button>
         </form>
         <p className="mt-6 text-sm text-gray-500">
-          Pipeline status dashboard.
+          Sign in to continue. You will be redirected after authentication.
         </p>
       </div>
     </div>
