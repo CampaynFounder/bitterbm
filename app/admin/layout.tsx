@@ -41,6 +41,12 @@ const navigation = [
     section: 'Configuration',
     items: [
       {
+        name: 'Codegen → Config',
+        href: '/admin/codegen',
+        icon: '📋',
+        description: 'Paste codegen, convert & save superset/extraction config'
+      },
+      {
         name: 'Scraper Builder',
         href: '/admin/scraper-builder',
         icon: '🔧',

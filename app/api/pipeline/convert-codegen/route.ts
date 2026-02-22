@@ -15,7 +15,14 @@ const supabase = createClient(
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { code, county_id } = body;
+    const { code, county_id, config_type = 'superset' } = body;
+
+    if (!code || !county_id) {
+      return NextResponse.json(
+        { success: false, error: 'code and county_id are required' },
+        { status: 400 }
+      );
+    }
 
     // Call Python converter service
     const converterResponse = await fetch('http://localhost:8000/pipeline/convert-codegen', {
@@ -25,22 +32,27 @@ export async function POST(req: NextRequest) {
     });
 
     if (!converterResponse.ok) {
-      throw new Error('Converter service error');
+      const errText = await converterResponse.text();
+      throw new Error(errText || 'Converter service error');
     }
 
     const result = await converterResponse.json();
 
-    // Save config to database
+    const row = {
+      county_id,
+      config_type: config_type === 'extraction' ? 'extraction' : 'superset',
+      navigation_steps: result.config.navigation_steps,
+      search_form: result.config.search_form ?? null,
+      results_table: result.config.results_table ?? null,
+      extraction_rules: result.config.extraction_rules,
+      codegen_source: code,
+      is_validated: false,
+    };
+
+    // Upsert so we replace existing config for this county+type and always store codegen
     const { data: config, error } = await supabase
       .from('scraper_configs')
-      .insert({
-        county_id,
-        navigation_steps: result.config.navigation_steps,
-        search_form: result.config.search_form,
-        results_table: result.config.results_table,
-        extraction_rules: result.config.extraction_rules,
-        is_validated: false
-      })
+      .upsert(row, { onConflict: 'county_id,config_type' })
       .select()
       .single();
 
@@ -51,7 +63,7 @@ export async function POST(req: NextRequest) {
       config_id: config.id,
       config: result.config,
       needs_review: result.needs_review,
-      message: 'Config created. Please review and validate.'
+      message: 'Config saved. Codegen stored. Please review and validate.'
     });
 
   } catch (error) {

@@ -447,7 +447,7 @@ function CountyCard({
       {expanded && (
         <div className="mt-4 pt-4 border-t" style={{ marginTop: 'var(--space-md)', paddingTop: 'var(--space-md)', borderTop: '1px solid var(--border)' }}>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" style={{ gap: 'var(--space-md)' }}>
-            <button type="button" onClick={() => window.location.href = `/admin/scraper-config?county=${county.id}`} className="btn-primary flex items-center justify-center gap-2 min-h-[48px]">
+            <button type="button" onClick={() => window.location.href = `/admin/codegen?county=${county.id}`} className="btn-primary flex items-center justify-center gap-2 min-h-[48px]">
               <span>📝</span> Configure Scraper
             </button>
             <button type="button" onClick={() => window.location.href = `/admin/visual-builder?county=${county.id}`} className="btn-secondary flex items-center justify-center gap-2 min-h-[48px]">
