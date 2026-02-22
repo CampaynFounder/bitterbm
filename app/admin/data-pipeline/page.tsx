@@ -194,7 +194,7 @@ function CountiesTab({ counties, onUpdate }: { counties: County[]; onUpdate: () 
     base_url: ''
   });
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
     await supabase.from('scraper_counties').insert(formData);
@@ -355,7 +355,7 @@ function SupersetsTab({ supersets, counties, onUpdate }: {
     case_types: []
   });
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
     // Call API to generate superset
