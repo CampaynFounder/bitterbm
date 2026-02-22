@@ -585,7 +585,7 @@ function QueueTab({ queue }: { queue: QueueItem[] }) {
 // ========================================
 
 function ReviewTab({ items, onUpdate }: { items: ReviewItem[]; onUpdate: () => void }) {
-  const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedItem, setSelectedItem] = useState<ReviewItem | null>(null);
 
   const handleApprove = async (item: ReviewItem) => {
     await supabase
