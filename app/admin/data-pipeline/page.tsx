@@ -110,7 +110,7 @@ export default function DataPipelinePage() {
   ];
 
   return (
-    <div>
+    <div className="w-full">
       <PageHeader
         title="County Data Pipeline"
         description="Configure counties, generate supersets, and monitor data extraction"
@@ -156,7 +156,7 @@ export default function DataPipelinePage() {
         <ContentCard noPadding>
           <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             {activeTab === 'counties' && <CountiesTab counties={counties} onUpdate={loadData} />}
             {activeTab === 'supersets' && <SupersetsTab supersets={supersets} counties={counties} onUpdate={loadData} />}
             {activeTab === 'queue' && <QueueTab queue={queue} />}
@@ -194,12 +194,14 @@ function CountiesTab({ counties, onUpdate }: { counties: County[]; onUpdate: () 
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Configured Counties</h2>
+      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 mb-6">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Configured Counties</h2>
         <Button
           onClick={() => setShowForm(!showForm)}
           variant="primary"
+          size="lg"
           icon="+"
+          className="w-full sm:w-auto min-h-[48px]"
         >
           Add County
         </Button>
@@ -243,14 +245,16 @@ function CountiesTab({ counties, onUpdate }: { counties: County[]; onUpdate: () 
               required
             />
           </div>
-          <div className="mt-6 flex gap-3">
-            <Button type="submit" variant="primary">
+          <div className="mt-6 flex flex-col sm:flex-row gap-3">
+            <Button type="submit" variant="primary" size="lg" className="w-full sm:w-auto min-h-[48px]">
               Save County
             </Button>
             <Button
               type="button"
               onClick={() => setShowForm(false)}
               variant="secondary"
+              size="lg"
+              className="w-full sm:w-auto min-h-[48px]"
             >
               Cancel
             </Button>
@@ -278,52 +282,59 @@ function CountyCard({ county, onUpdate }: { county: County; onUpdate: () => void
   const [expanded, setExpanded] = useState(false);
 
   const statusColors: Record<string, string> = {
-    draft: 'bg-gray-100 text-gray-800 border-gray-300',
-    configured: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-    active: 'bg-green-100 text-green-800 border-green-300',
-    paused: 'bg-red-100 text-red-800 border-red-300'
+    draft: 'bg-gray-200 text-gray-900',
+    configured: 'bg-amber-200 text-amber-900',
+    active: 'bg-green-200 text-green-900',
+    paused: 'bg-red-200 text-red-900'
   };
 
   return (
-    <div className="bg-white border-2 border-gray-200 rounded-xl p-5 hover:shadow-lg transition-all duration-200">
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h3 className="text-xl font-bold text-gray-900">{county.name}, {county.state}</h3>
-            <span className={`px-3 py-1 text-xs font-bold rounded-full border ${statusColors[county.status] || statusColors.draft}`}>
+    <div className="bg-white border-2 border-gray-200 rounded-xl p-4 sm:p-5 hover:shadow-md transition-all duration-200">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-lg sm:text-xl font-bold text-gray-900">{county.name}, {county.state}</h3>
+            <span className={`px-2.5 py-1 text-xs font-bold rounded-full ${statusColors[county.status] || statusColors.draft}`}>
               {county.status.toUpperCase()}
             </span>
           </div>
-          <p className="text-sm text-gray-600 mt-2">
+          <p className="text-sm text-gray-700 mt-1 truncate">
             <span className="font-medium">{county.court_type}</span> • {county.base_url}
           </p>
         </div>
         <button
+          type="button"
           onClick={() => setExpanded(!expanded)}
-          className="ml-4 p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-600"
+          className="flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+          aria-expanded={expanded}
         >
-          <svg className={`w-5 h-5 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className={`w-6 h-6 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </button>
       </div>
 
       {expanded && (
-        <div className="mt-5 pt-5 border-t-2 border-gray-100">
+        <div className="mt-4 pt-4 border-t border-gray-200">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <button
+              type="button"
               onClick={() => window.location.href = `/admin/scraper-config?county=${county.id}`}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-sm hover:shadow-md font-medium"
+              className="flex items-center justify-center gap-2 min-h-[48px] px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-semibold shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
               <span>📝</span> Configure Scraper
             </button>
             <button
+              type="button"
               onClick={() => window.location.href = `/admin/visual-builder?county=${county.id}`}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all shadow-sm hover:shadow-md font-medium"
+              className="flex items-center justify-center gap-2 min-h-[48px] px-4 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 font-semibold shadow-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
             >
               <span>🎨</span> Visual Builder
             </button>
-            <button className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all shadow-sm hover:shadow-md font-medium">
+            <button
+              type="button"
+              className="flex items-center justify-center gap-2 min-h-[48px] px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 font-semibold shadow-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+            >
               <span>▶️</span> Test Scraper
             </button>
           </div>
@@ -370,24 +381,27 @@ function SupersetsTab({ supersets, counties, onUpdate }: {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">Supersets</h2>
-        <button
+      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 mb-6">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Supersets</h2>
+        <Button
           onClick={() => setShowForm(!showForm)}
-          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+          variant="success"
+          size="lg"
+          icon="+"
+          className="w-full sm:w-auto min-h-[48px]"
         >
-          + Generate Superset
-        </button>
+          Generate Superset
+        </Button>
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
-          <h3 className="text-lg font-semibold mb-4">Generate New Superset</h3>
+        <form onSubmit={handleSubmit} className="bg-gray-50 border-2 border-gray-200 rounded-2xl p-4 sm:p-6 mb-6">
+          <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">Generate New Superset</h3>
           <div className="space-y-4">
             <select
               value={formData.county_id}
               onChange={(e) => setFormData({ ...formData, county_id: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-green-500 focus:border-green-500 min-h-[48px]"
               required
             >
               <option value="">Select County</option>
@@ -397,58 +411,45 @@ function SupersetsTab({ supersets, counties, onUpdate }: {
                 </option>
               ))}
             </select>
-            
             <input
               type="text"
-              placeholder="Superset Name (e.g., 'Family Cases 2020-2024')"
+              placeholder="Superset Name (e.g., Family Cases 2020-2024)"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-green-500 focus:border-green-500 min-h-[48px]"
               required
             />
-            
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <input
                 type="date"
-                placeholder="Date From"
                 value={formData.date_from}
                 onChange={(e) => setFormData({ ...formData, date_from: e.target.value })}
-                className="px-3 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-green-500 min-h-[48px]"
                 required
               />
               <input
                 type="date"
-                placeholder="Date To"
                 value={formData.date_to}
                 onChange={(e) => setFormData({ ...formData, date_to: e.target.value })}
-                className="px-3 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-green-500 min-h-[48px]"
                 required
               />
             </div>
-            
             <input
               type="text"
               placeholder="Party Name (use % for wildcard)"
               value={formData.party_name}
               onChange={(e) => setFormData({ ...formData, party_name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-green-500 min-h-[48px]"
             />
           </div>
-          
-          <div className="mt-4 flex gap-2">
-            <button
-              type="submit"
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-            >
+          <div className="mt-6 flex flex-col sm:flex-row gap-3">
+            <Button type="submit" variant="success" size="lg" className="w-full sm:w-auto min-h-[48px]">
               🚀 Generate
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowForm(false)}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-            >
+            </Button>
+            <Button type="button" onClick={() => setShowForm(false)} variant="secondary" size="lg" className="w-full sm:w-auto min-h-[48px]">
               Cancel
-            </button>
+            </Button>
           </div>
         </form>
       )}
@@ -515,59 +516,51 @@ function QueueTab({ queue }: { queue: QueueItem[] }) {
 
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-4">Processing Queue</h2>
-      
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <p className="text-sm text-gray-600">Queued</p>
-          <p className="text-2xl font-bold text-yellow-700">{stats.queued}</p>
+      <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">Processing Queue</h2>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+        <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4">
+          <p className="text-sm font-semibold text-amber-800">Queued</p>
+          <p className="text-2xl font-bold text-amber-900">{stats.queued}</p>
         </div>
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-sm text-gray-600">Processing</p>
-          <p className="text-2xl font-bold text-blue-700">{stats.processing}</p>
+        <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+          <p className="text-sm font-semibold text-blue-800">Processing</p>
+          <p className="text-2xl font-bold text-blue-900">{stats.processing}</p>
         </div>
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <p className="text-sm text-gray-600">Complete</p>
-          <p className="text-2xl font-bold text-green-700">{stats.complete}</p>
+        <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4">
+          <p className="text-sm font-semibold text-green-800">Complete</p>
+          <p className="text-2xl font-bold text-green-900">{stats.complete}</p>
         </div>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-sm text-gray-600">Failed</p>
-          <p className="text-2xl font-bold text-red-700">{stats.failed}</p>
+        <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4">
+          <p className="text-sm font-semibold text-red-800">Failed</p>
+          <p className="text-2xl font-bold text-red-900">{stats.failed}</p>
         </div>
       </div>
-
-      {/* Queue Items */}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-200">
+      <div className="bg-white border-2 border-gray-200 rounded-xl overflow-hidden overflow-x-auto">
+        <table className="w-full min-w-[400px]">
+          <thead className="bg-gray-100 border-b-2 border-gray-200">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Task</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Queued</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Attempts</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Task</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Queued</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Attempts</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
             {queue.slice(0, 50).map((task) => (
               <tr key={task.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 text-sm">{task.task_type}</td>
+                <td className="px-4 py-3 text-sm font-medium text-gray-900">{task.task_type}</td>
                 <td className="px-4 py-3">
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    task.status === 'queued' ? 'bg-yellow-100 text-yellow-800' :
-                    task.status === 'processing' ? 'bg-blue-100 text-blue-800' :
-                    task.status === 'complete' ? 'bg-green-100 text-green-800' :
-                    'bg-red-100 text-red-800'
+                  <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${
+                    task.status === 'queued' ? 'bg-amber-200 text-amber-900' :
+                    task.status === 'processing' ? 'bg-blue-200 text-blue-900' :
+                    task.status === 'complete' ? 'bg-green-200 text-green-900' :
+                    'bg-red-200 text-red-900'
                   }`}>
                     {task.status}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-600">
-                  {new Date(task.queued_at).toLocaleString()}
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-600">
-                  {task.attempts} / {task.max_attempts}
-                </td>
+                <td className="px-4 py-3 text-sm text-gray-700">{new Date(task.queued_at).toLocaleString()}</td>
+                <td className="px-4 py-3 text-sm text-gray-700">{task.attempts} / {task.max_attempts}</td>
               </tr>
             ))}
           </tbody>
@@ -604,65 +597,56 @@ function ReviewTab({ items, onUpdate }: { items: ReviewItem[]; onUpdate: () => v
 
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-4">Review Queue ({items.length})</h2>
-      
-      <div className="grid grid-cols-2 gap-6">
-        {/* List */}
+      <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">Review Queue ({items.length})</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-3">
           {items.map((item) => (
-            <div
+            <button
               key={item.id}
+              type="button"
               onClick={() => setSelectedItem(item)}
-              className={`bg-white border rounded-lg p-4 cursor-pointer hover:border-blue-500 ${
-                selectedItem?.id === item.id ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200'
+              className={`w-full text-left bg-white border-2 rounded-xl p-4 min-h-[56px] transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                selectedItem?.id === item.id ? 'border-blue-600 ring-2 ring-blue-200' : 'border-gray-200 hover:border-gray-300'
               }`}
             >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-semibold">{item.review_type}</span>
-                <span className="text-xs text-gray-500">
-                  {new Date(item.created_at).toLocaleDateString()}
-                </span>
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <span className="text-sm font-semibold text-gray-900">{item.review_type}</span>
+                <span className="text-xs text-gray-600">{new Date(item.created_at).toLocaleDateString()}</span>
               </div>
-              <p className="text-sm text-gray-600">
-                Case: {item.cases?.case_number}
-              </p>
-            </div>
+              <p className="text-sm text-gray-700">Case: {item.cases?.case_number ?? '—'}</p>
+            </button>
           ))}
         </div>
-
-        {/* Detail */}
         {selectedItem && (
-          <div className="bg-white border border-gray-200 rounded-lg p-6 sticky top-6">
-            <h3 className="text-lg font-semibold mb-4">Review Details</h3>
-            
+          <div className="bg-white border-2 border-gray-200 rounded-2xl p-4 sm:p-6 lg:sticky lg:top-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Review Details</h3>
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-gray-700">Type</label>
-                <p className="text-sm">{selectedItem.review_type}</p>
+                <label className="text-sm font-semibold text-gray-700 block mb-1">Type</label>
+                <p className="text-sm text-gray-900">{selectedItem.review_type}</p>
               </div>
-              
               <div>
-                <label className="text-sm font-medium text-gray-700">Case</label>
-                <p className="text-sm">{selectedItem.cases?.case_number}</p>
+                <label className="text-sm font-semibold text-gray-700 block mb-1">Case</label>
+                <p className="text-sm text-gray-900">{selectedItem.cases?.case_number ?? '—'}</p>
               </div>
-              
               <div>
-                <label className="text-sm font-medium text-gray-700">Data to Review</label>
-                <pre className="mt-1 p-3 bg-gray-50 border border-gray-200 rounded text-xs overflow-auto max-h-64">
+                <label className="text-sm font-semibold text-gray-700 block mb-1">Data to Review</label>
+                <pre className="mt-1 p-3 bg-gray-100 border border-gray-200 rounded-xl text-xs overflow-auto max-h-64 text-gray-800">
                   {JSON.stringify(selectedItem.data_to_review, null, 2)}
                 </pre>
               </div>
-              
-              <div className="flex gap-2 pt-4">
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
                 <button
+                  type="button"
                   onClick={() => handleApprove(selectedItem)}
-                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  className="flex-1 min-h-[48px] px-4 py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                 >
                   ✅ Approve
                 </button>
                 <button
+                  type="button"
                   onClick={() => handleReject(selectedItem)}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                  className="flex-1 min-h-[48px] px-4 py-3 bg-red-600 text-white font-semibold rounded-xl hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
                 >
                   ❌ Reject
                 </button>

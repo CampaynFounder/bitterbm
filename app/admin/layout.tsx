@@ -192,7 +192,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                         href={item.href}
                         onClick={() => setSidebarOpen(false)}
                         className={`
-                          group relative flex items-center gap-3 px-4 py-3.5 rounded-xl
+                          group relative flex items-center gap-3 px-4 py-3.5 min-h-[48px] sm:min-h-[52px] rounded-xl
                           transition-all duration-200
                           ${
                             isActive
@@ -250,9 +250,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </div>
         </aside>
 
-        {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto">
-          <div className="max-w-full">
+        {/* Main Content Area - centered, responsive padding */}
+        <main className="flex-1 overflow-y-auto min-w-0">
+          <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
             {children}
           </div>
         </main>

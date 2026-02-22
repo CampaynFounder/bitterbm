@@ -13,37 +13,34 @@ interface PageHeaderProps {
 export function PageHeader({ title, description, icon, badge, actions }: PageHeaderProps) {
   return (
     <div className="bg-white border-b border-gray-200 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          {/* Left: Title & Description */}
-          <div className="flex items-start gap-4">
+          <div className="flex items-start gap-4 min-w-0">
             {icon && (
-              <div className="hidden sm:flex w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl items-center justify-center shadow-lg flex-shrink-0">
+              <div className="hidden sm:flex w-14 h-14 bg-blue-600 rounded-2xl items-center justify-center shadow-lg flex-shrink-0">
                 <span className="text-3xl">{icon}</span>
               </div>
             )}
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
                   {title}
                 </h1>
                 {badge && (
-                  <span className="px-3 py-1 text-xs font-black bg-gradient-to-r from-green-400 to-green-500 text-white rounded-full shadow-sm">
+                  <span className="px-3 py-1.5 text-xs font-bold bg-green-600 text-white rounded-full">
                     {badge}
                   </span>
                 )}
               </div>
               {description && (
-                <p className="mt-2 text-sm sm:text-base text-gray-600">
+                <p className="mt-2 text-sm sm:text-base text-gray-700">
                   {description}
                 </p>
               )}
             </div>
           </div>
-
-          {/* Right: Actions */}
           {actions && (
-            <div className="flex-shrink-0">
+            <div className="flex-shrink-0 w-full sm:w-auto">
               {actions}
             </div>
           )}
@@ -124,8 +121,9 @@ export function StatCard({ title, value, icon, color, trend, onClick }: StatCard
     <Component
       onClick={onClick}
       className={`
-        bg-gradient-to-br ${colorScheme.bg} border-2 ${colorScheme.border} rounded-2xl p-5 sm:p-6 shadow-sm
-        ${onClick ? 'hover:shadow-lg hover:scale-[1.02] cursor-pointer' : 'hover:shadow-md'}
+        bg-gradient-to-br ${colorScheme.bg} border-2 ${colorScheme.border} rounded-2xl p-4 sm:p-5 lg:p-6 shadow-sm
+        min-h-[100px] sm:min-h-[110px]
+        ${onClick ? 'hover:shadow-lg active:scale-[0.99] cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500' : 'hover:shadow-md'}
         transition-all duration-200
       `}
     >
@@ -165,7 +163,7 @@ interface ContentCardProps {
 
 export function ContentCard({ children, className = '', noPadding = false }: ContentCardProps) {
   return (
-    <div className={`bg-white rounded-2xl shadow-sm border border-gray-200 ${noPadding ? '' : 'p-6'} ${className}`}>
+    <div className={`bg-white rounded-2xl shadow-sm border border-gray-200 ${noPadding ? '' : 'p-4 sm:p-6'} ${className}`}>
       {children}
     </div>
   );
@@ -178,7 +176,7 @@ interface SectionProps {
 
 export function Section({ children, className = '' }: SectionProps) {
   return (
-    <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 ${className}`}>
+    <div className={`w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 ${className}`}>
       {children}
     </div>
   );
@@ -196,24 +194,26 @@ interface TabsProps {
 
 export function Tabs({ tabs, activeTab, onChange }: TabsProps) {
   return (
-    <div className="border-b border-gray-200 bg-gray-50 px-2 py-2">
-      <nav className="flex gap-2 overflow-x-auto">
+    <div className="border-b border-gray-200 bg-gray-100 px-3 sm:px-4 py-3">
+      <nav className="flex gap-2 overflow-x-auto pb-1 -mb-1 scrollbar-thin" aria-label="Section tabs">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => onChange(tab.id)}
+            type="button"
             className={`
-              relative px-4 sm:px-6 py-2.5 font-semibold text-sm rounded-xl transition-all duration-200 whitespace-nowrap
+              relative min-h-[44px] sm:min-h-[48px] px-4 sm:px-6 py-3 font-semibold text-sm rounded-xl transition-all duration-200 whitespace-nowrap
+              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
               ${
                 activeTab === tab.id
-                  ? 'bg-white text-blue-600 shadow-md'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
               }
             `}
           >
             {tab.label}
             {tab.badge !== undefined && tab.badge > 0 && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs rounded-full flex items-center justify-center font-bold shadow-sm">
+              <span className="absolute -top-1 -right-1 min-w-[22px] h-5 px-1.5 bg-red-600 text-white text-xs rounded-full flex items-center justify-center font-bold">
                 {tab.badge}
               </span>
             )}
@@ -246,17 +246,17 @@ export function Button({
   className = ''
 }: ButtonProps) {
   const variants = {
-    primary: 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-md hover:shadow-lg',
-    secondary: 'bg-white border-2 border-gray-300 text-gray-700 hover:bg-gray-50 shadow-sm',
-    success: 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 shadow-md hover:shadow-lg',
-    danger: 'bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800 shadow-md hover:shadow-lg',
-    ghost: 'text-gray-700 hover:bg-gray-100'
+    primary: 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 border border-blue-700 shadow-md hover:shadow-lg focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
+    secondary: 'bg-white border-2 border-gray-300 text-gray-800 hover:bg-gray-50 hover:border-gray-400 focus:ring-2 focus:ring-gray-400 focus:ring-offset-2',
+    success: 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800 border border-green-700 shadow-md focus:ring-2 focus:ring-green-500 focus:ring-offset-2',
+    danger: 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800 border border-red-700 shadow-md focus:ring-2 focus:ring-red-500 focus:ring-offset-2',
+    ghost: 'text-gray-800 hover:bg-gray-100 focus:ring-2 focus:ring-gray-300 focus:ring-offset-2'
   };
 
   const sizes = {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-5 py-2.5 text-sm',
-    lg: 'px-6 py-3 text-base'
+    sm: 'px-4 py-2.5 text-sm min-h-[40px]',
+    md: 'px-5 py-3 text-sm min-h-[44px] sm:min-h-[48px]',
+    lg: 'px-6 py-3.5 text-base min-h-[48px] sm:min-h-[52px]'
   };
 
   return (
@@ -269,7 +269,7 @@ export function Button({
         ${sizes[size]}
         font-semibold rounded-xl transition-all duration-200
         disabled:opacity-50 disabled:cursor-not-allowed
-        flex items-center justify-center gap-2
+        flex items-center justify-center gap-2 outline-none
         ${className}
       `}
     >
