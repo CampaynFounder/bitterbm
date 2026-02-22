@@ -183,6 +183,21 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     </nav>
                   </div>
                 ))}
+                <div className="admin-menu__group" style={{ marginTop: 'auto', paddingTop: 'var(--space-lg)', borderTop: '1px solid var(--border)' }}>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setMenuOpen(false);
+                      await supabase.auth.signOut();
+                      router.replace('/admin/login');
+                    }}
+                    className="admin-menu__link"
+                    style={{ width: '100%', textAlign: 'left', border: 'none', background: 'none', cursor: 'pointer' }}
+                  >
+                    <span className="admin-menu__icon" aria-hidden>🚪</span>
+                    <span className="admin-menu__label">Sign out</span>
+                  </button>
+                </div>
               </div>
             </div>
           </>
