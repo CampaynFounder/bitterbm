@@ -101,82 +101,99 @@ export default function DataPipelinePage() {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <div className="mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-          📊 Data Pipeline Dashboard
-        </h1>
-        <p className="text-sm sm:text-base text-gray-600">
-          Configure counties, generate supersets, and monitor data extraction
-        </p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Page Header */}
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+              <span className="text-2xl">🏛️</span>
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                County Data Pipeline
+              </h1>
+              <p className="text-gray-600 mt-1">
+                Configure counties, generate supersets, and monitor extraction
+              </p>
+            </div>
+          </div>
+        </div>
 
-      {/* Stats Overview - Responsive Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-        <StatCard
-          title="Counties"
-          value={counties.length}
-          icon="🏛️"
-          color="blue"
-        />
-        <StatCard
-          title="Active Supersets"
-          value={supersets.filter(s => s.status === 'processing').length}
-          icon="📦"
-          color="green"
-        />
-        <StatCard
-          title="Queue"
-          value={queue.filter(q => q.status === 'queued').length}
-          icon="⏳"
-          color="yellow"
-        />
-        <StatCard
-          title="Needs Review"
-          value={reviewItems.length}
-          icon="👁️"
-          color="red"
-        />
-      </div>
+        {/* Stats Overview - Modern Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <StatCard
+            title="Counties"
+            value={counties.length}
+            icon="🏛️"
+            color="blue"
+          />
+          <StatCard
+            title="Active Supersets"
+            value={supersets.filter(s => s.status === 'processing').length}
+            icon="📦"
+            color="green"
+          />
+          <StatCard
+            title="Queue"
+            value={queue.filter(q => q.status === 'queued').length}
+            icon="⏳"
+            color="yellow"
+          />
+          <StatCard
+            title="Needs Review"
+            value={reviewItems.length}
+            icon="👁️"
+            color="red"
+          />
+        </div>
 
-      {/* Tabs - Mobile Responsive */}
-      <div className="border-b border-gray-200 mb-6 overflow-x-auto">
-        <nav className="-mb-px flex space-x-4 sm:space-x-8 min-w-max sm:min-w-0">
-          <Tab
-            label="Counties"
-            active={activeTab === 'counties'}
-            onClick={() => setActiveTab('counties')}
-          />
-          <Tab
-            label="Supersets"
-            active={activeTab === 'supersets'}
-            onClick={() => setActiveTab('supersets')}
-          />
-          <Tab
-            label="Processing Queue"
-            active={activeTab === 'queue'}
-            onClick={() => setActiveTab('queue')}
-          />
-          <Tab
-            label="Review Queue"
-            active={activeTab === 'review'}
-            badge={reviewItems.length}
-            onClick={() => setActiveTab('review')}
-          />
-          <Tab
-            label="Analytics"
-            active={activeTab === 'analytics'}
-            onClick={() => setActiveTab('analytics')}
-          />
-        </nav>
-      </div>
+        {/* Tabs - Modern Design */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="border-b border-gray-200 bg-gray-50 p-1">
+            <nav className="flex gap-1 overflow-x-auto">
+              <Tab
+                label="Counties"
+                active={activeTab === 'counties'}
+                onClick={() => setActiveTab('counties')}
+                badge={counties.length}
+              />
+              <Tab
+                label="Supersets"
+                active={activeTab === 'supersets'}
+                onClick={() => setActiveTab('supersets')}
+                badge={supersets.length}
+              />
+              <Tab
+                label="Processing Queue"
+                active={activeTab === 'queue'}
+                onClick={() => setActiveTab('queue')}
+                badge={queue.filter(q => q.status === 'queued').length}
+              />
+              <Tab
+                label="Review Queue"
+                active={activeTab === 'review'}
+                onClick={() => setActiveTab('review')}
+                badge={reviewItems.length}
+              />
+              <Tab
+                label="Analytics"
+                active={activeTab === 'analytics'}
+                onClick={() => setActiveTab('analytics')}
+              />
+            </nav>
+          </div>
 
-      {/* Tab Content */}
-      {activeTab === 'counties' && <CountiesTab counties={counties} onUpdate={loadData} />}
-      {activeTab === 'supersets' && <SupersetsTab supersets={supersets} counties={counties} onUpdate={loadData} />}
-      {activeTab === 'queue' && <QueueTab queue={queue} />}
-      {activeTab === 'review' && <ReviewTab items={reviewItems} onUpdate={loadData} />}
-      {activeTab === 'analytics' && <AnalyticsTab />}
+          {/* Tab Content */}
+          <div className="p-6">
+            {activeTab === 'counties' && <CountiesTab counties={counties} onUpdate={loadData} />}
+            {activeTab === 'supersets' && <SupersetsTab supersets={supersets} counties={counties} onUpdate={loadData} />}
+            {activeTab === 'queue' && <QueueTab queue={queue} />}
+            {activeTab === 'review' && <ReviewTab items={reviewItems} onUpdate={loadData} />}
+            {activeTab === 'analytics' && <AnalyticsTab />}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -206,26 +223,29 @@ function CountiesTab({ counties, onUpdate }: { counties: County[]; onUpdate: () 
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">Configured Counties</h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Configured Counties</h2>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-sm hover:shadow-md font-medium"
         >
-          + Add County
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Add County
         </button>
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
-          <h3 className="text-lg font-semibold mb-4">New County</h3>
-          <div className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl p-6 mb-6 shadow-sm">
+          <h3 className="text-xl font-bold text-gray-900 mb-5">New County Configuration</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <input
               type="text"
               placeholder="County Name"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="px-3 py-2 border border-gray-300 rounded-lg"
+              className="px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
               required
             />
             <input
@@ -233,13 +253,13 @@ function CountiesTab({ counties, onUpdate }: { counties: County[]; onUpdate: () 
               placeholder="State (e.g., GA)"
               value={formData.state}
               onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-              className="px-3 py-2 border border-gray-300 rounded-lg"
+              className="px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
               required
             />
             <select
               value={formData.court_type}
               onChange={(e) => setFormData({ ...formData, court_type: e.target.value })}
-              className="px-3 py-2 border border-gray-300 rounded-lg"
+              className="px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
             >
               <option value="family">Family Court</option>
               <option value="superior">Superior Court</option>
@@ -250,21 +270,21 @@ function CountiesTab({ counties, onUpdate }: { counties: County[]; onUpdate: () 
               placeholder="Base URL"
               value={formData.base_url}
               onChange={(e) => setFormData({ ...formData, base_url: e.target.value })}
-              className="px-3 py-2 border border-gray-300 rounded-lg"
+              className="px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
               required
             />
           </div>
-          <div className="mt-4 flex gap-2">
+          <div className="mt-6 flex gap-3">
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-sm hover:shadow-md font-medium"
             >
               Save County
             </button>
             <button
               type="button"
               onClick={() => setShowForm(false)}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+              className="px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all font-medium"
             >
               Cancel
             </button>
@@ -272,7 +292,7 @@ function CountiesTab({ counties, onUpdate }: { counties: County[]; onUpdate: () 
         </form>
       )}
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {counties.map((county) => (
           <CountyCard key={county.id} county={county} onUpdate={onUpdate} />
         ))}
@@ -285,49 +305,53 @@ function CountyCard({ county, onUpdate }: { county: County; onUpdate: () => void
   const [expanded, setExpanded] = useState(false);
 
   const statusColors: Record<string, string> = {
-    draft: 'bg-gray-100 text-gray-800',
-    configured: 'bg-yellow-100 text-yellow-800',
-    active: 'bg-green-100 text-green-800',
-    paused: 'bg-red-100 text-red-800'
+    draft: 'bg-gray-100 text-gray-800 border-gray-300',
+    configured: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+    active: 'bg-green-100 text-green-800 border-green-300',
+    paused: 'bg-red-100 text-red-800 border-red-300'
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4">
+    <div className="bg-white border-2 border-gray-200 rounded-xl p-5 hover:shadow-lg transition-all duration-200">
       <div className="flex items-center justify-between">
         <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <h3 className="text-lg font-semibold">{county.name}, {county.state}</h3>
-            <span className={`px-2 py-1 text-xs rounded-full ${statusColors[county.status] || statusColors.draft}`}>
-              {county.status}
+          <div className="flex items-center gap-3 flex-wrap">
+            <h3 className="text-xl font-bold text-gray-900">{county.name}, {county.state}</h3>
+            <span className={`px-3 py-1 text-xs font-bold rounded-full border ${statusColors[county.status] || statusColors.draft}`}>
+              {county.status.toUpperCase()}
             </span>
           </div>
-          <p className="text-sm text-gray-600 mt-1">{county.court_type} • {county.base_url}</p>
+          <p className="text-sm text-gray-600 mt-2">
+            <span className="font-medium">{county.court_type}</span> • {county.base_url}
+          </p>
         </div>
         <button
           onClick={() => setExpanded(!expanded)}
-          className="text-blue-600 hover:text-blue-700"
+          className="ml-4 p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-600"
         >
-          {expanded ? '▲' : '▼'}
+          <svg className={`w-5 h-5 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
         </button>
       </div>
 
       {expanded && (
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <div className="flex gap-2">
+        <div className="mt-5 pt-5 border-t-2 border-gray-100">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <button
               onClick={() => window.location.href = `/admin/scraper-config?county=${county.id}`}
-              className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200"
+              className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-sm hover:shadow-md font-medium"
             >
-              📝 Configure Scraper
+              <span>📝</span> Configure Scraper
             </button>
             <button
               onClick={() => window.location.href = `/admin/visual-builder?county=${county.id}`}
-              className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200"
+              className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all shadow-sm hover:shadow-md font-medium"
             >
-              🎨 Visual Builder
+              <span>🎨</span> Visual Builder
             </button>
-            <button className="px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200">
-              ▶️ Test Scraper
+            <button className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all shadow-sm hover:shadow-md font-medium">
+              <span>▶️</span> Test Scraper
             </button>
           </div>
         </div>
@@ -702,20 +726,44 @@ function StatCard({ title, value, icon, color }: {
   color: 'blue' | 'green' | 'yellow' | 'red';
 }) {
   const colors = {
-    blue: 'bg-blue-50 border-blue-200 text-blue-700',
-    green: 'bg-green-50 border-green-200 text-green-700',
-    yellow: 'bg-yellow-50 border-yellow-200 text-yellow-700',
-    red: 'bg-red-50 border-red-200 text-red-700'
+    blue: {
+      bg: 'from-blue-50 to-blue-100',
+      border: 'border-blue-200',
+      text: 'text-blue-700',
+      icon: 'bg-blue-500'
+    },
+    green: {
+      bg: 'from-green-50 to-green-100',
+      border: 'border-green-200',
+      text: 'text-green-700',
+      icon: 'bg-green-500'
+    },
+    yellow: {
+      bg: 'from-yellow-50 to-yellow-100',
+      border: 'border-yellow-200',
+      text: 'text-yellow-700',
+      icon: 'bg-yellow-500'
+    },
+    red: {
+      bg: 'from-red-50 to-red-100',
+      border: 'border-red-200',
+      text: 'text-red-700',
+      icon: 'bg-red-500'
+    }
   };
 
+  const colorScheme = colors[color];
+
   return (
-    <div className={`border rounded-lg p-3 sm:p-4 ${colors[color]}`}>
+    <div className={`bg-gradient-to-br ${colorScheme.bg} border ${colorScheme.border} rounded-xl p-5 shadow-sm hover:shadow-md transition-all duration-200`}>
       <div className="flex items-center justify-between">
-        <div className="flex-1 min-w-0">
-          <p className="text-xs sm:text-sm opacity-75 truncate">{title}</p>
-          <p className="text-xl sm:text-2xl font-bold mt-1">{value}</p>
+        <div className="flex-1">
+          <p className={`text-sm font-medium ${colorScheme.text} opacity-80`}>{title}</p>
+          <p className={`text-3xl font-bold ${colorScheme.text} mt-2`}>{value}</p>
         </div>
-        <span className="text-2xl sm:text-3xl ml-2 flex-shrink-0">{icon}</span>
+        <div className={`w-12 h-12 ${colorScheme.icon} bg-opacity-20 rounded-xl flex items-center justify-center`}>
+          <span className="text-2xl">{icon}</span>
+        </div>
       </div>
     </div>
   );
@@ -730,15 +778,18 @@ function Tab({ label, active, badge, onClick }: {
   return (
     <button
       onClick={onClick}
-      className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm relative whitespace-nowrap ${
-        active
-          ? 'border-blue-500 text-blue-600'
-          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-      }`}
+      className={`
+        relative px-4 py-2 font-medium text-sm rounded-lg transition-all duration-200 whitespace-nowrap
+        ${
+          active
+            ? 'bg-white text-blue-600 shadow-sm'
+            : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
+        }
+      `}
     >
       {label}
       {badge !== undefined && badge > 0 && (
-        <span className="absolute -top-1 -right-2 bg-red-500 text-white text-xs rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center text-[10px] sm:text-xs">
+        <span className="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold shadow-sm">
           {badge}
         </span>
       )}
