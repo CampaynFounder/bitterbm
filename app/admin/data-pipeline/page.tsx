@@ -245,7 +245,8 @@ function CountiesTab({ counties, onUpdate }: { counties: County[]; onUpdate: () 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
     if (!confirm(`Delete ${selectedIds.size} county(ies)? This cannot be undone.`)) return;
-    for (const id of selectedIds) {
+    const ids = Array.from(selectedIds);
+    for (const id of ids) {
       await supabase.from('scraper_counties').delete().eq('id', id);
     }
     setSelectedIds(new Set());
