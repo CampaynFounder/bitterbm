@@ -14,7 +14,7 @@ Flow:
 """
 
 from dataclasses import dataclass
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 import json
 from pathlib import Path
 from datetime import datetime
@@ -23,6 +23,11 @@ import asyncio
 from playwright.async_api import async_playwright
 from supabase import create_client
 import openai
+
+from scraper.superset.result_table_extract import (
+    is_rich_result_config,
+    extract_from_result_table_async,
+)
 
 
 @dataclass
@@ -89,18 +94,22 @@ class DataPipeline:
         
         scraper_config = config.data[0]
         
-        # Run search and collect IDs
-        case_ids = await self._run_search_collect_ids(
+        # Run search and collect IDs (and optional per-row data when using rich result_table)
+        case_ids, rows_data = await self._run_search_collect_ids(
             scraper_config,
             search_params
         )
         
-        # Update superset
-        self.supabase.table('supersets').update({
+        update_payload = {
             'case_ids': case_ids,
             'total_cases': len(case_ids),
-            'status': 'complete'
-        }).eq('id', superset_id).execute()
+            'status': 'complete',
+        }
+        if rows_data is not None:
+            update_payload['rows_data'] = rows_data
+        
+        # Update superset (table may be 'supersets' or 'scraper_supersets' depending on deployment)
+        self.supabase.table('supersets').update(update_payload).eq('id', superset_id).execute()
         
         print(f"✅ Superset created: {len(case_ids)} cases")
         
@@ -113,39 +122,73 @@ class DataPipeline:
         self,
         scraper_config: Dict,
         search_params: Dict
-    ) -> List[str]:
-        """Execute search and extract all case IDs"""
-        
-        case_ids = []
-        
+    ) -> Tuple[List[str], Optional[List[Dict]]]:
+        """Execute search and extract all case IDs. Supports legacy (row_selector + case_id_selector) and rich result_table (primaryId, rowFilter, extractColumns). Returns (case_ids, rows_data or None)."""
+        extraction_rules = scraper_config.get('extraction_rules') or {}
+        table_config = (
+            scraper_config.get('results_table')
+            or extraction_rules.get('results_table')
+        )
+        if not table_config:
+            raise ValueError(
+                "scraper_config must have results_table (or extraction_rules.results_table)"
+            )
+
+        case_ids: List[str] = []
+        rows_data: Optional[List[Dict]] = None
+        vars_dict = {k: str(v) for k, v in (search_params or {}).items()}
+
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
             page = await browser.new_page()
-            
+
             # Execute navigation steps
-            nav_steps = scraper_config['navigation_steps']
+            nav_steps = scraper_config.get('navigation_steps') or []
             for step in nav_steps:
-                await self._execute_step(page, step, search_params)
-            
-            # Wait for results
+                await self._execute_step(page, step, search_params or {})
+
             await page.wait_for_timeout(2000)
-            
-            # Extract case IDs from results table
-            table_config = scraper_config['extraction_rules']['results_table']
-            rows = await page.locator(table_config['row_selector']).all()
-            
-            for row in rows:
-                case_id_cell = await row.locator(
-                    table_config['case_id_selector']
-                ).inner_text()
-                case_ids.append(case_id_cell.strip())
-            
-            # Handle pagination if needed
-            # TODO: Add pagination logic
-            
+
+            # Resolve root: page or frame (for result table)
+            if table_config.get('iframe'):
+                frame_elem = page.locator(table_config['iframe']).first
+                root = await frame_elem.content_frame()
+                if root is None:
+                    raise ValueError(
+                        f"Could not get frame for iframe selector: {table_config['iframe']}"
+                    )
+            else:
+                root = page
+
+            if is_rich_result_config(table_config):
+                # Rich schema: row filters, nested filters, extractColumns
+                case_ids, rows_data = await extract_from_result_table_async(
+                    page,
+                    root,
+                    table_config,
+                    vars_dict=vars_dict,
+                    log=lambda msg: None,  # optional: pass a logger
+                )
+            else:
+                # Legacy: simple row_selector + case_id_selector
+                row_selector = table_config.get('row_selector', 'tbody tr')
+                case_id_selector = table_config.get('case_id_selector')
+                if not case_id_selector:
+                    raise ValueError(
+                        "Legacy results_table must have case_id_selector"
+                    )
+                rows = await root.locator(row_selector).all()
+                for row in rows:
+                    try:
+                        cell = await row.locator(case_id_selector).first.inner_text()
+                        if cell and cell.strip():
+                            case_ids.append(cell.strip())
+                    except Exception:
+                        pass
+
             await browser.close()
-        
-        return case_ids
+
+        return case_ids, rows_data
     
     # ========================================
     # STEP 2: Scrape Individual Cases

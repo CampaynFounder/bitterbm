@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/admin/PageComponents';
 import { TitleBlock, Hint, SectionBlock, Card } from '@/components/admin/AdminComponents';
+import { ResultTableEnrichForm, type ResultTableConfig, defaultResultTableConfig } from '@/components/admin/ResultTableEnrichForm';
 
 type County = {
   id: string;
@@ -31,6 +32,9 @@ export default function CodegenPage() {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message?: string; config_id?: string; error?: string; needs_review?: string[] } | null>(null);
   const [savedConfig, setSavedConfig] = useState<SavedConfig | null>(null);
+  const [resultsTable, setResultsTable] = useState<ResultTableConfig | null>(null);
+  const [loadingResultsTable, setLoadingResultsTable] = useState(false);
+  const [saveResultsTableStatus, setSaveResultsTableStatus] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.from('scraper_counties').select('id, name, state, base_url').order('state').order('name').then(({ data }) => {
@@ -46,15 +50,36 @@ export default function CodegenPage() {
   useEffect(() => {
     if (!countyId) {
       setSavedConfig(null);
+      setResultsTable(null);
       return;
     }
     supabase
       .from('scraper_configs')
-      .select('id, config_type, is_validated, codegen_source, created_at')
+      .select('id, config_type, is_validated, codegen_source, created_at, results_table')
       .eq('county_id', countyId)
       .eq('config_type', configType)
       .maybeSingle()
-      .then(({ data }) => setSavedConfig((data as SavedConfig | null) ?? null));
+      .then(({ data }) => {
+        const cfg = data as (SavedConfig & { results_table?: any }) | null;
+        if (!cfg) {
+          setSavedConfig(null);
+          setResultsTable(null);
+          return;
+        }
+        setSavedConfig({
+          id: cfg.id,
+          config_type: cfg.config_type,
+          is_validated: cfg.is_validated,
+          codegen_source: cfg.codegen_source,
+          created_at: cfg.created_at,
+        });
+        if (configType === 'superset') {
+          const rt = (cfg as any).results_table as ResultTableConfig | null;
+          setResultsTable(rt && typeof rt === 'object' ? rt : { ...defaultResultTableConfig });
+        } else {
+          setResultsTable(null);
+        }
+      });
   }, [countyId, configType]);
 
   const handleConvert = async () => {
@@ -89,6 +114,13 @@ export default function CodegenPage() {
         codegen_source: code.trim(),
         created_at: new Date().toISOString(),
       });
+      if (configType === 'superset') {
+        // Initialize results table from converter output if present; otherwise default
+        const rt = data.config?.results_table as ResultTableConfig | null | undefined;
+        setResultsTable(rt && typeof rt === 'object' ? rt : { ...defaultResultTableConfig });
+      } else {
+        setResultsTable(null);
+      }
     } catch (e) {
       setResult({ success: false, error: e instanceof Error ? e.message : 'Convert failed' });
     } finally {
@@ -98,6 +130,32 @@ export default function CodegenPage() {
 
   const loadSavedCodegen = () => {
     if (savedConfig?.codegen_source) setCode(savedConfig.codegen_source);
+  };
+
+  const handleSaveResultsTable = async () => {
+    if (!countyId || configType !== 'superset' || !resultsTable) return;
+    setSaveResultsTableStatus(null);
+    setLoadingResultsTable(true);
+    try {
+      const res = await fetch('/api/pipeline/scraper-config/results-table', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          county_id: countyId,
+          config_type: configType,
+          results_table: resultsTable,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Save failed');
+      setSaveResultsTableStatus('Result table saved.');
+    } catch (e) {
+      setSaveResultsTableStatus(
+        e instanceof Error ? `Save failed: ${e.message}` : 'Save failed'
+      );
+    } finally {
+      setLoadingResultsTable(false);
+    }
   };
 
   return (
@@ -187,6 +245,41 @@ export default function CodegenPage() {
           </div>
         </Card>
       </SectionBlock>
+
+      {configType === 'superset' && savedConfig && (
+        <SectionBlock
+          title="Enrich result table (conditional logic + extraction)"
+          description="Define how to interpret the results table for this county (ID column or link, row filters, nested filters, extract columns). This config is used when generating supersets."
+        >
+          <Card className="max-w-3xl">
+            <div className="p-4 sm:p-6 space-y-4">
+              {!resultsTable && (
+                <p className="admin-text-muted text-sm">
+                  No result table config yet. Convert &amp; save first, or start from the default and save.
+                </p>
+              )}
+              {resultsTable && (
+                <ResultTableEnrichForm
+                  value={resultsTable}
+                  onChange={(v) => setResultsTable(v)}
+                />
+              )}
+              <div className="flex items-center gap-2 pt-2">
+                <Button
+                  size="sm"
+                  onClick={handleSaveResultsTable}
+                  disabled={loadingResultsTable || !resultsTable}
+                >
+                  {loadingResultsTable ? 'Saving…' : 'Save result table'}
+                </Button>
+                {saveResultsTableStatus && (
+                  <span className="text-sm admin-text-muted">{saveResultsTableStatus}</span>
+                )}
+              </div>
+            </div>
+          </Card>
+        </SectionBlock>
+      )}
     </div>
   );
 }

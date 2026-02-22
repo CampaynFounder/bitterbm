@@ -171,7 +171,10 @@ function CountyExecutionCard({
                     const res = await fetch('/api/pipeline/process-queue', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ superset_id: extractSupersetId, limit: 50 }),
+                      // Process queued case-extraction tasks. Currently this processes
+                      // all queued scrape_case tasks (across supersets); for focused
+                      // testing, run when only this superset has queued tasks.
+                      body: JSON.stringify({ task_type: 'scrape_case', limit: 50 }),
                     });
                     if (res.ok) onRefresh();
                   } catch (_) {}
@@ -209,9 +212,58 @@ function CountyExecutionCard({
               </div>
             ))}
             {supersets.length > 0 && (
-              <p className="text-sm mt-2 admin-text-muted">
-                {supersets.length} superset file(s): {supersets.map((s) => s.name || s.id.slice(0, 8)).join(', ')}
-              </p>
+              <div className="text-sm mt-2 admin-text-muted space-y-1">
+                <p>
+                  {supersets.length} superset file(s):
+                </p>
+                <ul className="space-y-1">
+                  {supersets.map((s) => (
+                    <li key={s.id} className="flex items-center gap-2">
+                      <span>
+                        {s.name || s.id.slice(0, 8)} ({s.total_cases} cases)
+                      </span>
+                      <button
+                        type="button"
+                        className="text-xs underline"
+                        onClick={async () => {
+                          try {
+                            const { data, error } = await supabase
+                              .from('scraper_supersets')
+                              .select('id, county_id, name, search_params, case_ids, total_cases, rows_data, created_at')
+                              .eq('id', s.id)
+                              .single();
+                            if (error || !data) {
+                              alert(error?.message || 'Superset not found');
+                              return;
+                            }
+                            const payload = {
+                              id: data.id,
+                              county_id: data.county_id,
+                              name: data.name,
+                              search_params: data.search_params,
+                              total_cases: data.total_cases,
+                              ids: (data.case_ids as string[]) ?? [],
+                              rows: (data.rows_data as unknown[]) ?? [],
+                              created_at: data.created_at,
+                            };
+                            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `superset-${(data.name || data.id) as string}.json`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                          } catch (e) {
+                            alert(e instanceof Error ? e.message : 'Download failed');
+                          }
+                        }}
+                      >
+                        Download JSON
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
           <div>

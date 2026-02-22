@@ -21,6 +21,7 @@ Configure in Cloudflare Pages dashboard (or `wrangler pages`):
 - `NEXT_PUBLIC_GA4_MEASUREMENT_ID` – GA4 measurement ID
 - `NEXT_PUBLIC_HERO_BG`, `NEXT_PUBLIC_PROBLEM_BG`, `NEXT_PUBLIC_AI_BG`, `NEXT_PUBLIC_PRICING_BG`, `NEXT_PUBLIC_FINAL_CTA_BG` – Custom background image URLs (optional; falls back to Unsplash if unset)
 - `NEXT_PUBLIC_MODAL_SCRAPER_URL` – Modal scraper HTTP endpoint (for admin scraper Validate/Run in production; scraper runs on Modal, not Cloudflare)
+- `PIPELINE_CONVERT_URL` – (Optional) Deployed Python pipeline base URL for codegen conversion. If unset, `POST /api/pipeline/convert-codegen` returns 503; use the app locally with `uvicorn api:app --port 8000` in `scraper/pipeline` to convert codegen.
 
 For local images: put files in `public/images/` and use `/images/hero.jpg` etc.
 
