@@ -113,8 +113,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         <div className="flex items-center gap-3">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="lg:hidden p-2 rounded-lg"
+            className="p-2 rounded-lg"
             aria-label="Toggle menu"
+            aria-expanded={sidebarOpen}
           >
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={sidebarOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
@@ -134,15 +135,15 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       <div className="flex h-[calc(100vh-3.5rem)]">
         {sidebarOpen && (
           <div
-            className="fixed inset-0 z-40 lg:hidden transition-all"
+            className="fixed inset-0 z-40 transition-all"
             style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
             onClick={() => setSidebarOpen(false)}
             aria-hidden
           />
         )}
 
-        <aside className={`admin-sidebar fixed lg:static inset-y-0 left-0 top-14 z-40 w-64 transform transition-transform duration-200 overflow-y-auto ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
-          <div style={{ padding: 'var(--space-md)', display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
+        <aside className={`admin-sidebar admin-sidebar--drawer fixed inset-y-0 left-0 top-14 z-40 w-64 transform transition-transform duration-200 overflow-y-auto ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+          <div className="admin-sidebar__inner" style={{ padding: 'var(--space-md)', display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
             {navigation.map((section, idx) => (
               <div key={idx}>
                 <h2 className="admin-nav-section" style={{ marginBottom: 'var(--space-sm)', paddingLeft: 'var(--space-sm)' }}>

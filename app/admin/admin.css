@@ -127,6 +127,11 @@
   margin-bottom: 0;
 }
 
+/* Sidebar as drawer only (hamburger menu); same hierarchy on all breakpoints */
+.admin-pages .admin-sidebar--drawer {
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
+}
+
 .admin-pages main section {
   display: block;
   width: 100%;
@@ -136,10 +141,30 @@
  * Admin component classes (used by components/admin/* and pages)
  * ----------------------------------------------------------------------------- */
 
+/* Centered in web and mobile; responsive */
 .admin-title-block {
   border-bottom: 1px solid var(--border);
   padding-bottom: var(--space-lg);
   margin-bottom: var(--space-lg);
+  text-align: center;
+  max-width: 100%;
+}
+
+.admin-title-block > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+@media (min-width: 640px) {
+  .admin-title-block > div {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
 }
 
 .admin-title-block h1 {
@@ -147,6 +172,11 @@
   font-weight: 700;
   color: var(--text-primary);
   margin-bottom: var(--space-xs);
+  justify-content: center;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
 }
 
 .admin-title-block .admin-title-badge {
@@ -156,7 +186,7 @@
   border-radius: 9999px;
   background: var(--accent-cyan);
   color: var(--bg-primary);
-  margin-left: var(--space-sm);
+  margin-left: 0;
 }
 
 .admin-title-block p {
@@ -164,6 +194,9 @@
   color: var(--text-secondary);
   margin-bottom: 0;
   max-width: 42ch;
+  text-align: center;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .admin-hint {
@@ -206,17 +239,40 @@
   margin-right: auto;
 }
 
+.admin-section-block {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .admin-section-block h2 {
   font-size: 1rem;
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: var(--space-sm);
+  text-align: center;
 }
 
 .admin-section-block p {
   font-size: 0.875rem;
   color: var(--text-secondary);
   margin-bottom: var(--space-md);
+  text-align: center;
+}
+
+/* Buttons / card row centered in web view; breakpoints from Tailwind (grid-cols-1, sm:grid-cols-2, lg:grid-cols-4) */
+.admin-section-block .grid {
+  width: 100%;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+}
+
+/* Primary action row (e.g. buttons) centered */
+.admin-section-block .flex.flex-col,
+.admin-section-block .flex.flex-row {
+  justify-content: center;
+  flex-wrap: wrap;
 }
 
 .admin-card {
@@ -224,6 +280,24 @@
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: var(--space-lg);
+}
+
+/* Heading and subtext centered when used in admin-card (e.g. .admin-card.p-0.mt-4) */
+.admin-card .admin-heading-1,
+.admin-card .admin-heading-2,
+.admin-card h2.admin-heading-1 {
+  text-align: center;
+  width: 100%;
+}
+
+.admin-card .admin-heading-1 + p,
+.admin-card .admin-heading-1 + .admin-text-secondary,
+.admin-card .admin-heading-2 + p,
+.admin-card .admin-heading-2 + .admin-text-secondary,
+.admin-card h2.admin-heading-1 + p {
+  text-align: center;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .admin-card-title {
