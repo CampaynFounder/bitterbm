@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { PageHeader, Section, StatsGrid, StatCard, ContentCard, Tabs, Button } from '@/components/admin/PageComponents';
 
 /**
  * Data Pipeline Dashboard
@@ -100,91 +101,61 @@ export default function DataPipelinePage() {
     setQueue(data || []);
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Page Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-              <span className="text-2xl">🏛️</span>
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                County Data Pipeline
-              </h1>
-              <p className="text-gray-600 mt-1">
-                Configure counties, generate supersets, and monitor extraction
-              </p>
-            </div>
-          </div>
-        </div>
+  const tabs = [
+    { id: 'counties', label: 'Counties', badge: counties.length },
+    { id: 'supersets', label: 'Supersets', badge: supersets.length },
+    { id: 'queue', label: 'Processing Queue', badge: queue.filter(q => q.status === 'queued').length },
+    { id: 'review', label: 'Review Queue', badge: reviewItems.length },
+    { id: 'analytics', label: 'Analytics' }
+  ];
 
-        {/* Stats Overview - Modern Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+  return (
+    <div>
+      <PageHeader
+        title="County Data Pipeline"
+        description="Configure counties, generate supersets, and monitor data extraction"
+        icon="🏛️"
+        badge="New"
+      />
+
+      <Section>
+        {/* Stats Overview */}
+        <StatsGrid>
           <StatCard
             title="Counties"
             value={counties.length}
             icon="🏛️"
             color="blue"
+            trend={{ value: '+2 this week', direction: 'up' }}
           />
           <StatCard
             title="Active Supersets"
             value={supersets.filter(s => s.status === 'processing').length}
             icon="📦"
             color="green"
+            trend={{ value: 'Processing', direction: 'neutral' }}
           />
           <StatCard
             title="Queue"
             value={queue.filter(q => q.status === 'queued').length}
             icon="⏳"
             color="yellow"
+            onClick={() => setActiveTab('queue')}
           />
           <StatCard
             title="Needs Review"
             value={reviewItems.length}
             icon="👁️"
             color="red"
+            onClick={() => setActiveTab('review')}
           />
-        </div>
+        </StatsGrid>
+      </Section>
 
-        {/* Tabs - Modern Design */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="border-b border-gray-200 bg-gray-50 p-1">
-            <nav className="flex gap-1 overflow-x-auto">
-              <Tab
-                label="Counties"
-                active={activeTab === 'counties'}
-                onClick={() => setActiveTab('counties')}
-                badge={counties.length}
-              />
-              <Tab
-                label="Supersets"
-                active={activeTab === 'supersets'}
-                onClick={() => setActiveTab('supersets')}
-                badge={supersets.length}
-              />
-              <Tab
-                label="Processing Queue"
-                active={activeTab === 'queue'}
-                onClick={() => setActiveTab('queue')}
-                badge={queue.filter(q => q.status === 'queued').length}
-              />
-              <Tab
-                label="Review Queue"
-                active={activeTab === 'review'}
-                onClick={() => setActiveTab('review')}
-                badge={reviewItems.length}
-              />
-              <Tab
-                label="Analytics"
-                active={activeTab === 'analytics'}
-                onClick={() => setActiveTab('analytics')}
-              />
-            </nav>
-          </div>
+      <Section className="py-0">
+        <ContentCard noPadding>
+          <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
-          {/* Tab Content */}
           <div className="p-6">
             {activeTab === 'counties' && <CountiesTab counties={counties} onUpdate={loadData} />}
             {activeTab === 'supersets' && <SupersetsTab supersets={supersets} counties={counties} onUpdate={loadData} />}
@@ -192,8 +163,8 @@ export default function DataPipelinePage() {
             {activeTab === 'review' && <ReviewTab items={reviewItems} onUpdate={loadData} />}
             {activeTab === 'analytics' && <AnalyticsTab />}
           </div>
-        </div>
-      </div>
+        </ContentCard>
+      </Section>
     </div>
   );
 }
@@ -223,21 +194,19 @@ function CountiesTab({ counties, onUpdate }: { counties: County[]; onUpdate: () 
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Configured Counties</h2>
-        <button
+        <Button
           onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-sm hover:shadow-md font-medium"
+          variant="primary"
+          icon="+"
         >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
           Add County
-        </button>
+        </Button>
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl p-6 mb-6 shadow-sm">
+        <form onSubmit={handleSubmit} className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-2xl p-6 mb-6 shadow-sm">
           <h3 className="text-xl font-bold text-gray-900 mb-5">New County Configuration</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <input
@@ -245,7 +214,7 @@ function CountiesTab({ counties, onUpdate }: { counties: County[]; onUpdate: () 
               placeholder="County Name"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+              className="px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
               required
             />
             <input
@@ -253,13 +222,13 @@ function CountiesTab({ counties, onUpdate }: { counties: County[]; onUpdate: () 
               placeholder="State (e.g., GA)"
               value={formData.state}
               onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-              className="px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+              className="px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
               required
             />
             <select
               value={formData.court_type}
               onChange={(e) => setFormData({ ...formData, court_type: e.target.value })}
-              className="px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+              className="px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
             >
               <option value="family">Family Court</option>
               <option value="superior">Superior Court</option>
@@ -270,32 +239,36 @@ function CountiesTab({ counties, onUpdate }: { counties: County[]; onUpdate: () 
               placeholder="Base URL"
               value={formData.base_url}
               onChange={(e) => setFormData({ ...formData, base_url: e.target.value })}
-              className="px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+              className="px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
               required
             />
           </div>
           <div className="mt-6 flex gap-3">
-            <button
-              type="submit"
-              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-sm hover:shadow-md font-medium"
-            >
+            <Button type="submit" variant="primary">
               Save County
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={() => setShowForm(false)}
-              className="px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all font-medium"
+              variant="secondary"
             >
               Cancel
-            </button>
+            </Button>
           </div>
         </form>
       )}
 
       <div className="space-y-4">
-        {counties.map((county) => (
-          <CountyCard key={county.id} county={county} onUpdate={onUpdate} />
-        ))}
+        {counties.length === 0 ? (
+          <div className="text-center py-12 text-gray-500">
+            <p className="text-lg mb-2">No counties configured yet</p>
+            <p className="text-sm">Click "Add County" to get started</p>
+          </div>
+        ) : (
+          counties.map((county) => (
+            <CountyCard key={county.id} county={county} onUpdate={onUpdate} />
+          ))
+        )}
       </div>
     </div>
   );
@@ -719,80 +692,3 @@ function AnalyticsTab() {
 // Helper Components
 // ========================================
 
-function StatCard({ title, value, icon, color }: { 
-  title: string; 
-  value: number; 
-  icon: string; 
-  color: 'blue' | 'green' | 'yellow' | 'red';
-}) {
-  const colors = {
-    blue: {
-      bg: 'from-blue-50 to-blue-100',
-      border: 'border-blue-200',
-      text: 'text-blue-700',
-      icon: 'bg-blue-500'
-    },
-    green: {
-      bg: 'from-green-50 to-green-100',
-      border: 'border-green-200',
-      text: 'text-green-700',
-      icon: 'bg-green-500'
-    },
-    yellow: {
-      bg: 'from-yellow-50 to-yellow-100',
-      border: 'border-yellow-200',
-      text: 'text-yellow-700',
-      icon: 'bg-yellow-500'
-    },
-    red: {
-      bg: 'from-red-50 to-red-100',
-      border: 'border-red-200',
-      text: 'text-red-700',
-      icon: 'bg-red-500'
-    }
-  };
-
-  const colorScheme = colors[color];
-
-  return (
-    <div className={`bg-gradient-to-br ${colorScheme.bg} border ${colorScheme.border} rounded-xl p-5 shadow-sm hover:shadow-md transition-all duration-200`}>
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <p className={`text-sm font-medium ${colorScheme.text} opacity-80`}>{title}</p>
-          <p className={`text-3xl font-bold ${colorScheme.text} mt-2`}>{value}</p>
-        </div>
-        <div className={`w-12 h-12 ${colorScheme.icon} bg-opacity-20 rounded-xl flex items-center justify-center`}>
-          <span className="text-2xl">{icon}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Tab({ label, active, badge, onClick }: { 
-  label: string; 
-  active: boolean; 
-  badge?: number; 
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`
-        relative px-4 py-2 font-medium text-sm rounded-lg transition-all duration-200 whitespace-nowrap
-        ${
-          active
-            ? 'bg-white text-blue-600 shadow-sm'
-            : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
-        }
-      `}
-    >
-      {label}
-      {badge !== undefined && badge > 0 && (
-        <span className="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold shadow-sm">
-          {badge}
-        </span>
-      )}
-    </button>
-  );
-}
