@@ -418,7 +418,7 @@ export default function AdminDashboardPage() {
 
   if (!user || loading) {
     return (
-      <div className="admin-dashboard-light flex items-center justify-center" style={{ minHeight: "80vh" }}>
+      <div className="flex items-center justify-center" style={{ minHeight: "80vh" }}>
         <p style={{ color: "var(--text-muted)" }}>Loading…</p>
       </div>
     )
@@ -428,7 +428,7 @@ export default function AdminDashboardPage() {
   const labelStyle = { display: "block", fontSize: "0.8125rem", marginBottom: "var(--space-xs)", color: "var(--text-secondary)" } as const
 
   return (
-    <div className="admin-dashboard-light" style={{ minHeight: "100%", background: "var(--bg-primary)", color: "var(--text-primary)" }}>
+    <div style={{ minHeight: "100%", background: "var(--bg-primary)", color: "var(--text-primary)" }}>
       <header
         className="sticky top-0 z-10"
         style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-elevated)" }}
@@ -498,7 +498,7 @@ export default function AdminDashboardPage() {
         {/* Data creation & scraping pipelines — primary entry for testing */}
         <div
           className="mb-8 p-6 rounded-2xl border-2"
-          style={{ background: "var(--bg-card)", borderColor: "var(--accent-primary)" }}
+          style={{ background: "var(--bg-card)", borderColor: "var(--accent-primary)", marginBottom: "var(--space-2xl)", padding: "var(--space-lg)", borderRadius: "16px" }}
         >
           <h2 style={{ fontSize: "1.25rem", fontWeight: 700, marginBottom: "var(--space-sm)", color: "var(--text-primary)" }}>
             Data creation &amp; scraping pipelines
@@ -506,11 +506,11 @@ export default function AdminDashboardPage() {
           <p style={{ fontSize: "0.9375rem", color: "var(--text-secondary)", marginBottom: "var(--space-lg)" }}>
             Configure counties, build supersets, run scrapers, and monitor extraction. Use these for end-to-end testing.
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" style={{ gap: "var(--space-md)" }}>
             <Link
               href="/admin/data-pipeline"
-              className="block p-5 rounded-xl border-2 border-blue-200 hover:border-blue-400 hover:shadow-lg transition-all"
-              style={{ background: "linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)", textDecoration: "none", color: "inherit" }}
+              className="block p-5 rounded-xl border-2 transition-all"
+              style={{ background: "var(--bg-elevated)", borderColor: "var(--accent-primary)", textDecoration: "none", color: "inherit", padding: "var(--space-lg)", borderRadius: "12px" }}
             >
               <span style={{ fontSize: "1.5rem", display: "block", marginBottom: "var(--space-sm)" }}>🏛️</span>
               <strong style={{ fontSize: "1rem", color: "var(--text-primary)" }}>County Data Pipeline</strong>
@@ -520,8 +520,8 @@ export default function AdminDashboardPage() {
             </Link>
             <Link
               href="/admin/scrape"
-              className="block p-5 rounded-xl border-2 border-gray-200 hover:border-gray-400 hover:shadow-lg transition-all"
-              style={{ background: "var(--bg-elevated)", textDecoration: "none", color: "inherit" }}
+              className="block p-5 rounded-xl border-2 transition-all"
+              style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", textDecoration: "none", color: "inherit", padding: "var(--space-lg)", borderRadius: "12px" }}
             >
               <span style={{ fontSize: "1.5rem", display: "block", marginBottom: "var(--space-sm)" }}>⚡</span>
               <strong style={{ fontSize: "1rem", color: "var(--text-primary)" }}>Scraper</strong>
@@ -531,8 +531,8 @@ export default function AdminDashboardPage() {
             </Link>
             <Link
               href="/admin/superset"
-              className="block p-5 rounded-xl border-2 border-gray-200 hover:border-gray-400 hover:shadow-lg transition-all"
-              style={{ background: "var(--bg-elevated)", textDecoration: "none", color: "inherit" }}
+              className="block p-5 rounded-xl border-2 transition-all"
+              style={{ background: "var(--bg-elevated)", borderColor: "var(--border)", textDecoration: "none", color: "inherit", padding: "var(--space-lg)", borderRadius: "12px" }}
             >
               <span style={{ fontSize: "1.5rem", display: "block", marginBottom: "var(--space-sm)" }}>📦</span>
               <strong style={{ fontSize: "1rem", color: "var(--text-primary)" }}>Superset</strong>
@@ -546,7 +546,7 @@ export default function AdminDashboardPage() {
         {error && (
           <div
             className="mb-4 p-4 rounded-xl"
-            style={{ background: "rgba(239, 68, 68, 0.1)", color: "#b91c1c", border: "1px solid rgba(239, 68, 68, 0.3)" }}
+            style={{ background: "rgba(239, 68, 68, 0.12)", color: "#fca5a5", border: "1px solid rgba(239, 68, 68, 0.35)" }}
           >
             {error}
           </div>

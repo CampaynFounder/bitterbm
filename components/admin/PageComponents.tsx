@@ -259,19 +259,19 @@ export function Button({
     lg: 'px-6 py-3.5 text-base min-h-[48px] sm:min-h-[52px]'
   };
 
+  const useDesignSystem = variant === 'primary' || variant === 'secondary';
+  const baseClass = variant === 'primary' ? 'btn-primary' : variant === 'secondary' ? 'btn-secondary' : '';
+
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`
-        ${variants[variant]}
-        ${sizes[size]}
-        font-semibold rounded-xl transition-all duration-200
-        disabled:opacity-50 disabled:cursor-not-allowed
-        flex items-center justify-center gap-2 outline-none
-        ${className}
-      `}
+      className={useDesignSystem
+        ? `${baseClass} ${sizes[size]} disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${className}`
+        : `font-semibold rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 outline-none ${variants[variant]} ${sizes[size]} ${className}`
+      }
+      style={variant === 'success' ? { background: 'var(--accent-cyan)', color: 'var(--bg-primary)', border: 'none' } : undefined}
     >
       {icon && <span>{icon}</span>}
       {children}

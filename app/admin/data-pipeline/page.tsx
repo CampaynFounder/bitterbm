@@ -228,8 +228,8 @@ function CountiesTab({ counties, onUpdate }: { counties: County[]; onUpdate: () 
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 mb-6">
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Configured Counties</h2>
+      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 mb-6" style={{ gap: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
+        <h2 className="admin-heading-1">Configured Counties</h2>
         <Button
           onClick={() => setShowForm(!showForm)}
           variant="primary"
@@ -242,15 +242,15 @@ function CountiesTab({ counties, onUpdate }: { counties: County[]; onUpdate: () 
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-2xl p-6 mb-6 shadow-sm">
-          <h3 className="text-xl font-bold text-gray-900 mb-5">New County Configuration</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="admin-card mb-6" style={{ marginBottom: 'var(--space-lg)', borderWidth: '2px', borderColor: 'var(--accent-primary)' }}>
+          <h3 className="admin-heading-2 mb-5" style={{ marginBottom: 'var(--space-md)' }}>New County Configuration</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4" style={{ gap: 'var(--space-md)' }}>
             <input
               type="text"
               placeholder="County Name"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+              className="admin-input"
               required
             />
             <input
@@ -258,13 +258,13 @@ function CountiesTab({ counties, onUpdate }: { counties: County[]; onUpdate: () 
               placeholder="State (e.g., GA)"
               value={formData.state}
               onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-              className="px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+              className="admin-input"
               required
             />
             <select
               value={formData.court_type}
               onChange={(e) => setFormData({ ...formData, court_type: e.target.value })}
-              className="px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+              className="admin-input"
             >
               <option value="family">Family Court</option>
               <option value="superior">Superior Court</option>
@@ -275,11 +275,11 @@ function CountiesTab({ counties, onUpdate }: { counties: County[]; onUpdate: () 
               placeholder="Base URL"
               value={formData.base_url}
               onChange={(e) => setFormData({ ...formData, base_url: e.target.value })}
-              className="px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+              className="admin-input"
               required
             />
           </div>
-          <div className="mt-6 flex flex-col sm:flex-row gap-3">
+          <div className="mt-6 flex flex-col sm:flex-row gap-3" style={{ marginTop: 'var(--space-lg)', gap: 'var(--space-md)' }}>
             <Button type="submit" variant="primary" size="lg" className="w-full sm:w-auto min-h-[48px]">
               Save County
             </Button>
@@ -321,31 +321,32 @@ function CountiesTab({ counties, onUpdate }: { counties: County[]; onUpdate: () 
 function CountyCard({ county, onUpdate }: { county: County; onUpdate: () => void }) {
   const [expanded, setExpanded] = useState(false);
 
-  const statusColors: Record<string, string> = {
-    draft: 'bg-gray-200 text-gray-900',
-    configured: 'bg-amber-200 text-amber-900',
-    active: 'bg-green-200 text-green-900',
-    paused: 'bg-red-200 text-red-900'
+  const statusClass: Record<string, string> = {
+    draft: 'admin-status-pill--draft',
+    configured: 'admin-status-pill--ready',
+    active: 'admin-status-pill--done',
+    paused: 'admin-status-pill--failed'
   };
 
   return (
-    <div className="bg-white border-2 border-gray-200 rounded-xl p-4 sm:p-5 hover:shadow-md transition-all duration-200">
-      <div className="flex items-center justify-between gap-3">
+    <div className="admin-card border-2 rounded-xl transition-all duration-200" style={{ borderColor: 'var(--border)' }}>
+      <div className="flex items-center justify-between gap-3" style={{ gap: 'var(--space-md)' }}>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-lg sm:text-xl font-bold text-gray-900">{county.name}, {county.state}</h3>
-            <span className={`px-2.5 py-1 text-xs font-bold rounded-full ${statusColors[county.status] || statusColors.draft}`}>
+          <div className="flex items-center gap-2 flex-wrap" style={{ gap: 'var(--space-sm)' }}>
+            <h3 className="admin-heading-3">{county.name}, {county.state}</h3>
+            <span className={`admin-status-pill ${statusClass[county.status] || statusClass.draft}`}>
               {county.status.toUpperCase()}
             </span>
           </div>
-          <p className="text-sm text-gray-700 mt-1 truncate">
+          <p className="admin-text-secondary mt-1 truncate" style={{ marginTop: 'var(--space-xs)' }}>
             <span className="font-medium">{county.court_type}</span> • {county.base_url}
           </p>
         </div>
         <button
           type="button"
           onClick={() => setExpanded(!expanded)}
-          className="flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]"
+          style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}
           aria-expanded={expanded}
         >
           <svg className={`w-6 h-6 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -355,26 +356,15 @@ function CountyCard({ county, onUpdate }: { county: County; onUpdate: () => void
       </div>
 
       {expanded && (
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <button
-              type="button"
-              onClick={() => window.location.href = `/admin/scraper-config?county=${county.id}`}
-              className="flex items-center justify-center gap-2 min-h-[48px] px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-semibold shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
+        <div className="mt-4 pt-4 border-t" style={{ marginTop: 'var(--space-md)', paddingTop: 'var(--space-md)', borderTop: '1px solid var(--border)' }}>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" style={{ gap: 'var(--space-md)' }}>
+            <button type="button" onClick={() => window.location.href = `/admin/scraper-config?county=${county.id}`} className="btn-primary flex items-center justify-center gap-2 min-h-[48px]">
               <span>📝</span> Configure Scraper
             </button>
-            <button
-              type="button"
-              onClick={() => window.location.href = `/admin/visual-builder?county=${county.id}`}
-              className="flex items-center justify-center gap-2 min-h-[48px] px-4 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 font-semibold shadow-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
-            >
+            <button type="button" onClick={() => window.location.href = `/admin/visual-builder?county=${county.id}`} className="btn-secondary flex items-center justify-center gap-2 min-h-[48px]">
               <span>🎨</span> Visual Builder
             </button>
-            <button
-              type="button"
-              className="flex items-center justify-center gap-2 min-h-[48px] px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 font-semibold shadow-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-            >
+            <button type="button" style={{ background: 'var(--accent-cyan)', color: 'var(--bg-primary)', border: 'none', minHeight: 48, borderRadius: 8, padding: 'var(--space-sm) var(--space-md)', fontWeight: 600 }} className="flex items-center justify-center gap-2">
               <span>▶️</span> Test Scraper
             </button>
           </div>
@@ -423,8 +413,8 @@ function SupersetsTab({ supersets, counties, onUpdate }: {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 mb-6">
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Supersets</h2>
+      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 mb-6" style={{ gap: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
+        <h2 className="admin-heading-1">Supersets</h2>
         <Button
           onClick={() => setShowForm(!showForm)}
           variant="success"
@@ -442,13 +432,13 @@ function SupersetsTab({ supersets, counties, onUpdate }: {
       )}
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-gray-50 border-2 border-gray-200 rounded-2xl p-4 sm:p-6 mb-6">
-          <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">Generate New Superset</h3>
-          <div className="space-y-4">
+        <form onSubmit={handleSubmit} className="admin-card mb-6" style={{ marginBottom: 'var(--space-lg)' }}>
+          <h3 className="admin-heading-2 mb-4" style={{ marginBottom: 'var(--space-md)' }}>Generate New Superset</h3>
+          <div className="space-y-4" style={{ gap: 'var(--space-md)' }}>
             <select
               value={formData.county_id}
               onChange={(e) => setFormData({ ...formData, county_id: e.target.value })}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-green-500 focus:border-green-500 min-h-[48px]"
+              className="admin-input w-full min-h-[48px]"
               required
             >
               <option value="">Select County</option>
@@ -463,7 +453,7 @@ function SupersetsTab({ supersets, counties, onUpdate }: {
               placeholder="Superset Name (e.g., Family Cases 2020-2024)"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-green-500 focus:border-green-500 min-h-[48px]"
+              className="admin-input w-full min-h-[48px]"
               required
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -471,14 +461,14 @@ function SupersetsTab({ supersets, counties, onUpdate }: {
                 type="date"
                 value={formData.date_from}
                 onChange={(e) => setFormData({ ...formData, date_from: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-green-500 min-h-[48px]"
+                className="admin-input w-full min-h-[48px]"
                 required
               />
               <input
                 type="date"
                 value={formData.date_to}
                 onChange={(e) => setFormData({ ...formData, date_to: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-green-500 min-h-[48px]"
+                className="admin-input w-full min-h-[48px]"
                 required
               />
             </div>
@@ -487,7 +477,7 @@ function SupersetsTab({ supersets, counties, onUpdate }: {
               placeholder="Party Name (use % for wildcard)"
               value={formData.party_name}
               onChange={(e) => setFormData({ ...formData, party_name: e.target.value })}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl bg-white text-gray-900 focus:ring-2 focus:ring-green-500 min-h-[48px]"
+              className="admin-input w-full min-h-[48px]"
             />
           </div>
           <div className="mt-6 flex flex-col sm:flex-row gap-3">
@@ -524,37 +514,32 @@ function SupersetsTab({ supersets, counties, onUpdate }: {
 }
 
 function SupersetCard({ superset }: { superset: Superset }) {
-  const statusColors: Record<string, string> = {
-    pending: 'bg-gray-100 text-gray-800',
-    collecting: 'bg-blue-100 text-blue-800',
-    processing: 'bg-yellow-100 text-yellow-800',
-    complete: 'bg-green-100 text-green-800',
-    failed: 'bg-red-100 text-red-800'
+  const statusClass: Record<string, string> = {
+    pending: 'admin-status-pill--draft',
+    collecting: 'admin-status-pill--running',
+    processing: 'admin-status-pill--running',
+    complete: 'admin-status-pill--done',
+    failed: 'admin-status-pill--failed'
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-lg font-semibold">{superset.name}</h3>
-        <span className={`px-2 py-1 text-xs rounded-full ${statusColors[superset.status] || statusColors.pending}`}>
+    <div className="admin-card rounded-lg">
+      <div className="flex items-center justify-between mb-2" style={{ marginBottom: 'var(--space-sm)' }}>
+        <h3 className="admin-heading-3">{superset.name}</h3>
+        <span className={`admin-status-pill ${statusClass[superset.status] || statusClass.pending}`}>
           {superset.status}
         </span>
       </div>
-      
-      <div className="text-sm text-gray-600 space-y-1">
+      <div className="admin-text-secondary space-y-1">
         <p>📍 {superset.counties?.name}, {superset.counties?.state}</p>
         <p>📅 {superset.search_params?.date_from} → {superset.search_params?.date_to}</p>
         <p>📊 {superset.total_cases} cases</p>
-        
         {superset.status === 'processing' && (
-          <div className="mt-3">
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div
-                className="bg-blue-600 h-2 rounded-full transition-all"
-                style={{ width: `${superset.progress}%` }}
-              />
+          <div style={{ marginTop: 'var(--space-md)' }}>
+            <div className="w-full rounded-full h-2" style={{ background: 'var(--bg-elevated)' }}>
+              <div className="h-2 rounded-full transition-all" style={{ width: `${superset.progress}%`, background: 'var(--accent-primary)' }} />
             </div>
-            <p className="text-xs text-gray-700 mt-1">{superset.progress}% complete</p>
+            <p className="admin-text-muted mt-1" style={{ marginTop: 'var(--space-xs)' }}>{superset.progress}% complete</p>
           </div>
         )}
       </div>
@@ -576,51 +561,51 @@ function QueueTab({ queue }: { queue: QueueItem[] }) {
 
   return (
     <div>
-      <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">Processing Queue</h2>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-        <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4">
-          <p className="text-sm font-semibold text-amber-800">Queued</p>
-          <p className="text-2xl font-bold text-amber-900">{stats.queued}</p>
+      <h2 className="admin-heading-1 mb-4" style={{ marginBottom: 'var(--space-md)' }}>Processing Queue</h2>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6" style={{ gap: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
+        <div className="admin-card border-2 rounded-xl" style={{ borderColor: 'var(--accent-gold)' }}>
+          <p className="admin-text-muted text-sm font-semibold">Queued</p>
+          <p className="admin-overview-value text-2xl">{stats.queued}</p>
         </div>
-        <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
-          <p className="text-sm font-semibold text-blue-800">Processing</p>
-          <p className="text-2xl font-bold text-blue-900">{stats.processing}</p>
+        <div className="admin-card border-2 rounded-xl" style={{ borderColor: 'var(--accent-primary)' }}>
+          <p className="admin-text-muted text-sm font-semibold">Processing</p>
+          <p className="admin-overview-value text-2xl">{stats.processing}</p>
         </div>
-        <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4">
-          <p className="text-sm font-semibold text-green-800">Complete</p>
-          <p className="text-2xl font-bold text-green-900">{stats.complete}</p>
+        <div className="admin-card border-2 rounded-xl" style={{ borderColor: 'var(--accent-cyan)' }}>
+          <p className="admin-text-muted text-sm font-semibold">Complete</p>
+          <p className="admin-overview-value text-2xl">{stats.complete}</p>
         </div>
-        <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4">
-          <p className="text-sm font-semibold text-red-800">Failed</p>
-          <p className="text-2xl font-bold text-red-900">{stats.failed}</p>
+        <div className="admin-card border-2 rounded-xl" style={{ borderColor: '#f87171' }}>
+          <p className="admin-text-muted text-sm font-semibold">Failed</p>
+          <p className="admin-overview-value text-2xl">{stats.failed}</p>
         </div>
       </div>
-      <div className="bg-white border-2 border-gray-200 rounded-xl overflow-hidden overflow-x-auto">
-        <table className="w-full min-w-[400px]">
-          <thead className="bg-gray-100 border-b-2 border-gray-200">
+      <div className="admin-card rounded-xl overflow-hidden overflow-x-auto border-2" style={{ borderColor: 'var(--border)' }}>
+        <table className="admin-table w-full min-w-[400px]">
+          <thead>
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Task</th>
-              <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
-              <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Queued</th>
-              <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Attempts</th>
+              <th>Task</th>
+              <th>Status</th>
+              <th>Queued</th>
+              <th>Attempts</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
+          <tbody>
             {queue.slice(0, 50).map((task) => (
-              <tr key={task.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 text-sm font-medium text-gray-900">{task.task_type}</td>
-                <td className="px-4 py-3">
-                  <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${
-                    task.status === 'queued' ? 'bg-amber-200 text-amber-900' :
-                    task.status === 'processing' ? 'bg-blue-200 text-blue-900' :
-                    task.status === 'complete' ? 'bg-green-200 text-green-900' :
-                    'bg-red-200 text-red-900'
+              <tr key={task.id}>
+                <td className="font-medium">{task.task_type}</td>
+                <td>
+                  <span className={`admin-status-pill ${
+                    task.status === 'queued' ? 'admin-status-pill--draft' :
+                    task.status === 'processing' ? 'admin-status-pill--running' :
+                    task.status === 'complete' ? 'admin-status-pill--done' :
+                    'admin-status-pill--failed'
                   }`}>
                     {task.status}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-700">{new Date(task.queued_at).toLocaleString()}</td>
-                <td className="px-4 py-3 text-sm text-gray-700">{task.attempts} / {task.max_attempts}</td>
+                <td className="admin-text-secondary">{new Date(task.queued_at).toLocaleString()}</td>
+                <td className="admin-text-secondary">{task.attempts} / {task.max_attempts}</td>
               </tr>
             ))}
           </tbody>
@@ -657,57 +642,48 @@ function ReviewTab({ items, onUpdate }: { items: ReviewItem[]; onUpdate: () => v
 
   return (
     <div>
-      <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">Review Queue ({items.length})</h2>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="space-y-3">
+      <h2 className="admin-heading-1 mb-4" style={{ marginBottom: 'var(--space-md)' }}>Review Queue ({items.length})</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" style={{ gap: 'var(--space-lg)' }}>
+        <div className="space-y-3" style={{ gap: 'var(--space-md)' }}>
           {items.map((item) => (
             <button
               key={item.id}
               type="button"
               onClick={() => setSelectedItem(item)}
-              className={`w-full text-left bg-white border-2 rounded-xl p-4 min-h-[56px] transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                selectedItem?.id === item.id ? 'border-blue-600 ring-2 ring-blue-200' : 'border-gray-200 hover:border-gray-300'
-              }`}
+              className="w-full text-left admin-card rounded-xl p-4 min-h-[56px] transition-all focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] border-2"
+              style={{ borderColor: selectedItem?.id === item.id ? 'var(--accent-primary)' : 'var(--border)' }}
             >
-              <div className="flex items-center justify-between gap-2 mb-1">
-                <span className="text-sm font-semibold text-gray-900">{item.review_type}</span>
-                <span className="text-xs text-gray-600">{new Date(item.created_at).toLocaleDateString()}</span>
+              <div className="flex items-center justify-between gap-2 mb-1" style={{ marginBottom: 'var(--space-xs)' }}>
+                <span className="admin-card-title">{item.review_type}</span>
+                <span className="admin-text-muted text-xs">{new Date(item.created_at).toLocaleDateString()}</span>
               </div>
-              <p className="text-sm text-gray-700">Case: {item.cases?.case_number ?? '—'}</p>
+              <p className="admin-text-secondary text-sm">Case: {item.cases?.case_number ?? '—'}</p>
             </button>
           ))}
         </div>
         {selectedItem && (
-          <div className="bg-white border-2 border-gray-200 rounded-2xl p-4 sm:p-6 lg:sticky lg:top-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Review Details</h3>
-            <div className="space-y-4">
+          <div className="admin-card rounded-2xl p-4 sm:p-6 lg:sticky lg:top-6 border-2" style={{ borderColor: 'var(--border)' }}>
+            <h3 className="admin-heading-2 mb-4" style={{ marginBottom: 'var(--space-md)' }}>Review Details</h3>
+            <div className="space-y-4" style={{ gap: 'var(--space-md)' }}>
               <div>
-                <label className="text-sm font-semibold text-gray-700 block mb-1">Type</label>
-                <p className="text-sm text-gray-900">{selectedItem.review_type}</p>
+                <label className="admin-input-label">Type</label>
+                <p className="admin-text-secondary text-sm">{selectedItem.review_type}</p>
               </div>
               <div>
-                <label className="text-sm font-semibold text-gray-700 block mb-1">Case</label>
-                <p className="text-sm text-gray-900">{selectedItem.cases?.case_number ?? '—'}</p>
+                <label className="admin-input-label">Case</label>
+                <p className="admin-text-secondary text-sm">{selectedItem.cases?.case_number ?? '—'}</p>
               </div>
               <div>
-                <label className="text-sm font-semibold text-gray-700 block mb-1">Data to Review</label>
-                <pre className="mt-1 p-3 bg-gray-100 border border-gray-200 rounded-xl text-xs overflow-auto max-h-64 text-gray-800">
+                <label className="admin-input-label">Data to Review</label>
+                <pre className="mt-1 p-3 rounded-xl text-xs overflow-auto max-h-64 font-mono" style={{ marginTop: 'var(--space-xs)', padding: 'var(--space-md)', background: 'var(--bg-elevated)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}>
                   {JSON.stringify(selectedItem.data_to_review, null, 2)}
                 </pre>
               </div>
-              <div className="flex flex-col sm:flex-row gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => handleApprove(selectedItem)}
-                  className="flex-1 min-h-[48px] px-4 py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                >
+              <div className="flex flex-col sm:flex-row gap-3 pt-4" style={{ gap: 'var(--space-md)', paddingTop: 'var(--space-md)' }}>
+                <button type="button" onClick={() => handleApprove(selectedItem)} className="btn-primary flex-1 min-h-[48px]">
                   ✅ Approve
                 </button>
-                <button
-                  type="button"
-                  onClick={() => handleReject(selectedItem)}
-                  className="flex-1 min-h-[48px] px-4 py-3 bg-red-600 text-white font-semibold rounded-xl hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-                >
+                <button type="button" onClick={() => handleReject(selectedItem)} className="flex-1 min-h-[48px] font-semibold rounded-xl border-2" style={{ background: 'rgba(248,113,113,0.2)', color: '#fca5a5', borderColor: '#f87171' }}>
                   ❌ Reject
                 </button>
               </div>
@@ -726,8 +702,8 @@ function ReviewTab({ items, onUpdate }: { items: ReviewItem[]; onUpdate: () => v
 function AnalyticsTab() {
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-4">Analytics</h2>
-      <p className="text-gray-600">Coming soon: Judge statistics, attorney performance, case outcome trends</p>
+      <h2 className="admin-heading-2 mb-4" style={{ marginBottom: 'var(--space-md)' }}>Analytics</h2>
+      <p className="admin-text-secondary">Coming soon: Judge statistics, attorney performance, case outcome trends</p>
     </div>
   );
 }

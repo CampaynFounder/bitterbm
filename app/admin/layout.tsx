@@ -6,8 +6,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import { ReactNode, useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 
-const MVP_CSS_URL = 'https://unpkg.com/mvp.css@1.17.2/mvp.css';
-
 interface AdminLayoutProps {
   children: ReactNode;
 }
@@ -92,19 +90,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     });
   }, [isPublicPath, pathname, router]);
 
-  // MVP.css for admin pages only (when authenticated, not on login/callback)
-  useEffect(() => {
-    if (isPublicPath || authStatus !== 'authenticated') return;
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = MVP_CSS_URL;
-    link.setAttribute('data-admin-mvp', 'true');
-    document.head.appendChild(link);
-    return () => {
-      document.querySelector('link[data-admin-mvp="true"]')?.remove();
-    };
-  }, [isPublicPath, authStatus]);
-
   // Public auth pages: no sidebar, no dashboard links — only the auth form
   if (isPublicPath) {
     return <>{children}</>;
@@ -113,22 +98,22 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   // Protected routes: wait for auth check, never show cockpit until authenticated
   if (authStatus === 'checking' || authStatus === 'unauthenticated') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
+      <div className="admin-pages min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-primary)' }}>
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600 font-medium">Checking authentication…</p>
+          <div className="w-12 h-12 border-4 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin mx-auto mb-4" style={{ borderColor: 'var(--accent-primary)', borderTopColor: 'transparent' }} />
+          <p className="font-medium" style={{ color: 'var(--text-secondary)' }}>Checking authentication…</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="admin-pages min-h-screen bg-gray-50">
-      <header className="admin-header sticky top-0 z-50 h-14 bg-white border-b border-gray-200">
+    <div className="admin-pages min-h-screen">
+      <header className="admin-header sticky top-0 z-50 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="lg:hidden p-2 text-gray-600 hover:bg-gray-100 rounded"
+            className="lg:hidden p-2 rounded-lg"
             aria-label="Toggle menu"
           >
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -137,32 +122,33 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </button>
           <div className="flex items-center gap-2">
             <span className="text-2xl" aria-hidden>⚖️</span>
-            <span className="font-semibold text-gray-900">Admin</span>
+            <span className="admin-brand">Admin</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="hidden sm:inline text-xs font-medium text-gray-600">Pipeline</span>
-          <span className="w-2 h-2 rounded-full bg-green-600" aria-hidden title="Active" />
+          <span className="admin-status-label hidden sm:inline">Pipeline</span>
+          <span className="w-2 h-2 rounded-full" aria-hidden title="Active" style={{ backgroundColor: 'var(--accent-cyan)' }} />
         </div>
       </header>
 
       <div className="flex h-[calc(100vh-3.5rem)]">
-        {/* Mobile Overlay */}
         {sidebarOpen && (
           <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden transition-all"
+            className="fixed inset-0 z-40 lg:hidden transition-all"
+            style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
             onClick={() => setSidebarOpen(false)}
+            aria-hidden
           />
         )}
 
-        <aside className={`admin-sidebar fixed lg:static inset-y-0 left-0 top-14 z-40 w-64 bg-white border-r border-gray-200 transform transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} overflow-y-auto`}>
-          <div className="p-4 space-y-4">
+        <aside className={`admin-sidebar fixed lg:static inset-y-0 left-0 top-14 z-40 w-64 transform transition-transform duration-200 overflow-y-auto ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+          <div style={{ padding: 'var(--space-md)', display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
             {navigation.map((section, idx) => (
               <div key={idx}>
-                <h2 className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2 px-2">
+                <h2 className="admin-nav-section" style={{ marginBottom: 'var(--space-sm)', paddingLeft: 'var(--space-sm)' }}>
                   {section.section}
                 </h2>
-                <nav className="space-y-0.5">
+                <nav style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                   {section.items.map((item) => {
                     const isActive = pathname === item.href;
                     return (
@@ -170,16 +156,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                         key={item.href}
                         href={item.href}
                         onClick={() => setSidebarOpen(false)}
-                        className={`flex items-center gap-2 px-3 py-2.5 rounded text-sm font-medium min-h-[44px] ${
-                          isActive ? 'bg-blue-600 text-white' : 'text-gray-800 hover:bg-gray-100'
-                        }`}
+                        className="admin-nav-link flex items-center gap-2"
+                        data-active={isActive}
                       >
-                        <span className="text-lg">{item.icon}</span>
+                        <span className="text-lg" aria-hidden>{item.icon}</span>
                         <span className="flex-1">{item.name}</span>
                         {item.badge && (
-                          <span className={`text-xs px-1.5 py-0.5 rounded ${isActive ? 'bg-white/20' : 'bg-amber-100 text-amber-800'}`}>
-                            {item.badge}
-                          </span>
+                          <span className="admin-nav-badge">{item.badge}</span>
                         )}
                       </Link>
                     );
