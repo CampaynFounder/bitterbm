@@ -1,16 +1,25 @@
 /**
  * Admin-only styles. Used with MVP.css (loaded only in admin layout).
  * Scopes and overrides so admin stays centered, consistent, and usable.
- * MVP.css is loaded via link in admin layout; this file is imported there.
+ * Contrast: background and text meet WCAG AA (4.5:1 normal, 3:1 large).
  */
 
-/* Center and constrain admin content (works with MVP's --width-content) */
+/* Page background: solid light gray for contrast with white content areas */
+.admin-pages {
+  background-color: #f3f4f6; /* gray-200 */
+  color: #111827; /* gray-900 */
+}
+
+/* Center and constrain admin content; white content area for readability */
 .admin-pages main {
   display: block;
   max-width: var(--width-content, 1080px);
   margin-left: auto;
   margin-right: auto;
   padding: 1.5rem 1rem;
+  background-color: #ffffff;
+  color: #111827;
+  min-height: 100%;
 }
 
 @media (min-width: 640px) {
@@ -25,7 +34,7 @@
   }
 }
 
-/* Header: keep flex layout, no centered text */
+/* Header: keep flex layout; ensure contrast */
 .admin-pages .admin-header {
   display: flex;
   align-items: center;
@@ -34,6 +43,22 @@
   padding: 0 1rem;
   margin: 0;
   max-width: none;
+  background-color: #ffffff;
+  color: #111827;
+}
+
+.admin-pages .admin-header span:not([aria-hidden]) {
+  color: inherit;
+}
+
+/* Sidebar: white background, dark text for contrast */
+.admin-pages .admin-sidebar {
+  background-color: #ffffff;
+  color: #374151;
+}
+
+.admin-pages .admin-sidebar a {
+  color: inherit;
 }
 
 /* Sidebar nav: override MVP's large nav margin */

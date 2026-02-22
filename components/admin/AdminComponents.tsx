@@ -47,7 +47,7 @@ export function TitleBlock({ title, description, badge, primaryAction, icon }: T
               )}
             </h1>
             {description && (
-              <p className="mt-1.5 text-sm text-gray-600 max-w-2xl">
+              <p className="mt-1.5 text-sm text-gray-700 max-w-2xl">
                 {description}
               </p>
             )}
@@ -77,7 +77,7 @@ interface HintProps {
 export function Hint({ children, icon = '💡', className = '' }: HintProps) {
   return (
     <div
-      className={`flex gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-900 ${className}`}
+      className={`flex gap-3 p-4 rounded-xl bg-amber-100 border border-amber-300 text-sm text-amber-950 ${className}`}
       role="status"
     >
       <span className="flex-shrink-0 text-base" aria-hidden>{icon}</span>
@@ -105,7 +105,7 @@ export function EmptyState({ icon = '📭', title, description, action, classNam
     >
       <div className="text-4xl sm:text-5xl mb-4" aria-hidden>{icon}</div>
       <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
-      <p className="text-sm text-gray-600 max-w-sm mx-auto mb-6">{description}</p>
+      <p className="text-sm text-gray-700 max-w-sm mx-auto mb-6">{description}</p>
       {action && <div className="flex justify-center">{action}</div>}
     </div>
   );
@@ -128,7 +128,7 @@ export function SectionBlock({ title, description, children, className = '' }: S
       {(title || description) && (
         <div className="mb-4">
           {title && <h2 className="text-base font-semibold text-gray-900">{title}</h2>}
-          {description && <p className="mt-1 text-sm text-gray-600">{description}</p>}
+          {description && <p className="mt-1 text-sm text-gray-700">{description}</p>}
         </div>
       )}
       {children}
@@ -152,11 +152,11 @@ interface OverviewCardProps {
 }
 
 const overviewVariants = {
-  blue: 'bg-blue-50 border-blue-200 text-blue-800',
-  green: 'bg-emerald-50 border-emerald-200 text-emerald-800',
-  amber: 'bg-amber-50 border-amber-200 text-amber-800',
-  red: 'bg-red-50 border-red-200 text-red-800',
-  gray: 'bg-gray-50 border-gray-200 text-gray-800',
+  blue: 'bg-blue-50 border-blue-300 text-blue-900',
+  green: 'bg-emerald-50 border-emerald-300 text-emerald-900',
+  amber: 'bg-amber-50 border-amber-300 text-amber-900',
+  red: 'bg-red-50 border-red-300 text-red-900',
+  gray: 'bg-gray-100 border-gray-300 text-gray-900',
 };
 
 export function OverviewCard({ title, hint, value, icon, onClick, variant = 'gray' }: OverviewCardProps) {
@@ -175,8 +175,8 @@ export function OverviewCard({ title, hint, value, icon, onClick, variant = 'gra
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold opacity-90">{title}</p>
-          {hint && <p className="text-xs mt-0.5 opacity-80">{hint}</p>}
+          <p className="text-sm font-semibold">{title}</p>
+          {hint && <p className="text-xs mt-0.5 opacity-90">{hint}</p>}
           <p className="text-2xl sm:text-3xl font-bold mt-2">{value}</p>
         </div>
         <span className="text-2xl sm:text-3xl flex-shrink-0" aria-hidden>{icon}</span>
@@ -226,7 +226,7 @@ export function TabBar({ tabs, activeId, onChange, label = 'Section' }: TabBarPr
   return (
     <div className="border-b border-gray-200">
       {label && (
-        <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">{label}</p>
+        <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">{label}</p>
       )}
       <nav className="flex gap-1 overflow-x-auto pb-px" aria-label={label}>
         {tabs.map((tab) => (
@@ -239,8 +239,8 @@ export function TabBar({ tabs, activeId, onChange, label = 'Section' }: TabBarPr
               relative min-h-[44px] px-4 py-2.5 font-medium text-sm rounded-t-lg whitespace-nowrap
               focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
               ${activeId === tab.id
-                ? 'bg-white text-blue-600 border border-b-0 border-gray-200 -mb-px'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 border border-transparent'
+                ? 'bg-white text-blue-700 border border-b-0 border-gray-200 -mb-px'
+                : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50 border border-transparent'
               }
             `}
           >

@@ -554,7 +554,7 @@ function SupersetCard({ superset }: { superset: Superset }) {
                 style={{ width: `${superset.progress}%` }}
               />
             </div>
-            <p className="text-xs text-gray-500 mt-1">{superset.progress}% complete</p>
+            <p className="text-xs text-gray-700 mt-1">{superset.progress}% complete</p>
           </div>
         )}
       </div>

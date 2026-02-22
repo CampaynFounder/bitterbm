@@ -141,8 +141,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="hidden sm:inline text-xs text-gray-500">Pipeline</span>
-          <span className="w-2 h-2 rounded-full bg-green-500" aria-hidden />
+          <span className="hidden sm:inline text-xs font-medium text-gray-600">Pipeline</span>
+          <span className="w-2 h-2 rounded-full bg-green-600" aria-hidden title="Active" />
         </div>
       </header>
 
@@ -159,7 +159,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <div className="p-4 space-y-4">
             {navigation.map((section, idx) => (
               <div key={idx}>
-                <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-2">
+                <h2 className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2 px-2">
                   {section.section}
                 </h2>
                 <nav className="space-y-0.5">
@@ -171,7 +171,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                         href={item.href}
                         onClick={() => setSidebarOpen(false)}
                         className={`flex items-center gap-2 px-3 py-2.5 rounded text-sm font-medium min-h-[44px] ${
-                          isActive ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
+                          isActive ? 'bg-blue-600 text-white' : 'text-gray-800 hover:bg-gray-100'
                         }`}
                       >
                         <span className="text-lg">{item.icon}</span>
