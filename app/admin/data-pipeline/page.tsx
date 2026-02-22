@@ -2,17 +2,20 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { PageHeader, Section, StatsGrid, StatCard, ContentCard, Tabs, Button } from '@/components/admin/PageComponents';
+import { Button } from '@/components/admin/PageComponents';
+import {
+  TitleBlock,
+  Hint,
+  SectionBlock,
+  OverviewCard,
+  Card,
+  TabBar,
+  EmptyState,
+} from '@/components/admin/AdminComponents';
 
 /**
- * Data Pipeline Dashboard
- * 
- * Workflow:
- * 1. Configure County (one-time setup)
- * 2. Create Superset (define search criteria)
- * 3. Monitor Processing (view queue status)
- * 4. Review Low-Confidence Extractions
- * 5. View Analytics
+ * County Data Pipeline
+ * Workflow: Counties → Supersets → Queue → Review → Analytics
  */
 
 // Type definitions
@@ -104,58 +107,89 @@ export default function DataPipelinePage() {
   const tabs = [
     { id: 'counties', label: 'Counties', badge: counties.length },
     { id: 'supersets', label: 'Supersets', badge: supersets.length },
-    { id: 'queue', label: 'Processing Queue', badge: queue.filter(q => q.status === 'queued').length },
-    { id: 'review', label: 'Review Queue', badge: reviewItems.length },
-    { id: 'analytics', label: 'Analytics' }
+    { id: 'queue', label: 'Queue', badge: queue.filter(q => q.status === 'queued').length },
+    { id: 'review', label: 'Review', badge: reviewItems.length },
+    { id: 'analytics', label: 'Analytics' },
   ];
+
+  const queuedCount = queue.filter(q => q.status === 'queued').length;
+  const processingSupersets = supersets.filter(s => s.status === 'processing').length;
 
   return (
     <div className="w-full min-w-0">
-      <PageHeader
-        title="County Data Pipeline"
-        description="Configure counties, generate supersets, and monitor data extraction"
+      <TitleBlock
         icon="🏛️"
+        title="County Data Pipeline"
+        description="Collect and process family court case data from county court portals."
         badge="New"
+        primaryAction={
+          <Button
+            size="lg"
+            onClick={() => setActiveTab('counties')}
+            icon="+"
+          >
+            Add county
+          </Button>
+        }
       />
 
-      <Section>
-        {/* Stats Overview */}
-        <StatsGrid>
-          <StatCard
+      <div className="mt-6">
+        <Hint>
+          Add a county and its court URL, then create a superset to define your search. The queue processes cases and flags items for review when needed.
+        </Hint>
+      </div>
+
+      <SectionBlock
+        title="Pipeline at a glance"
+        description="Summary of your pipeline. Click a card to jump to that section."
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+          <OverviewCard
             title="Counties"
+            hint="Court sources configured"
             value={counties.length}
             icon="🏛️"
-            color="blue"
-            trend={{ value: '+2 this week', direction: 'up' }}
+            variant="blue"
+            onClick={() => setActiveTab('counties')}
           />
-          <StatCard
-            title="Active Supersets"
-            value={supersets.filter(s => s.status === 'processing').length}
+          <OverviewCard
+            title="Active supersets"
+            hint="Search definitions running"
+            value={processingSupersets}
             icon="📦"
-            color="green"
-            trend={{ value: 'Processing', direction: 'neutral' }}
+            variant="green"
+            onClick={() => setActiveTab('supersets')}
           />
-          <StatCard
-            title="Queue"
-            value={queue.filter(q => q.status === 'queued').length}
+          <OverviewCard
+            title="Queued"
+            hint="Tasks waiting to run"
+            value={queuedCount}
             icon="⏳"
-            color="yellow"
+            variant="amber"
             onClick={() => setActiveTab('queue')}
           />
-          <StatCard
-            title="Needs Review"
+          <OverviewCard
+            title="Needs review"
+            hint="Items for your decision"
             value={reviewItems.length}
             icon="👁️"
-            color="red"
+            variant="red"
             onClick={() => setActiveTab('review')}
           />
-        </StatsGrid>
-      </Section>
+        </div>
+      </SectionBlock>
 
-      <Section className="py-0">
-        <ContentCard noPadding>
-          <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
-
+      <SectionBlock
+        title="Workflow"
+        description="Configure counties, create supersets, and manage the processing queue. Use the tabs below to switch steps."
+      >
+        <Card noPadding className="mt-4">
+          <TabBar
+            label="Pipeline steps"
+            tabs={tabs}
+            activeId={activeTab}
+            onChange={setActiveTab}
+          />
           <div className="p-4 sm:p-6">
             {activeTab === 'counties' && <CountiesTab counties={counties} onUpdate={loadData} />}
             {activeTab === 'supersets' && <SupersetsTab supersets={supersets} counties={counties} onUpdate={loadData} />}
@@ -163,8 +197,8 @@ export default function DataPipelinePage() {
             {activeTab === 'review' && <ReviewTab items={reviewItems} onUpdate={loadData} />}
             {activeTab === 'analytics' && <AnalyticsTab />}
           </div>
-        </ContentCard>
-      </Section>
+        </Card>
+      </SectionBlock>
     </div>
   );
 }
@@ -264,10 +298,16 @@ function CountiesTab({ counties, onUpdate }: { counties: County[]; onUpdate: () 
 
       <div className="space-y-4">
         {counties.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            <p className="text-lg mb-2">No counties configured yet</p>
-            <p className="text-sm">Click "Add County" to get started</p>
-          </div>
+          <EmptyState
+            icon="🏛️"
+            title="No counties yet"
+            description="Add your first county (court system and base URL) to start collecting case data."
+            action={
+              <Button size="lg" onClick={() => setShowForm(true)} icon="+">
+                Add your first county
+              </Button>
+            }
+          />
         ) : (
           counties.map((county) => (
             <CountyCard key={county.id} county={county} onUpdate={onUpdate} />
@@ -379,6 +419,8 @@ function SupersetsTab({ supersets, counties, onUpdate }: {
     }
   };
 
+  const hasActiveCounties = counties.some(c => c.status === 'active');
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 mb-6">
@@ -390,9 +432,14 @@ function SupersetsTab({ supersets, counties, onUpdate }: {
           icon="+"
           className="w-full sm:w-auto min-h-[48px]"
         >
-          Generate Superset
+          Generate superset
         </Button>
       </div>
+      {!hasActiveCounties && counties.length > 0 && (
+        <Hint icon="⚠️" className="mb-4">
+          No counties are active yet. Activate a county in the Counties tab before generating a superset.
+        </Hint>
+      )}
 
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-gray-50 border-2 border-gray-200 rounded-2xl p-4 sm:p-6 mb-6">
@@ -454,11 +501,24 @@ function SupersetsTab({ supersets, counties, onUpdate }: {
         </form>
       )}
 
-      <div className="space-y-3">
-        {supersets.map((superset) => (
-          <SupersetCard key={superset.id} superset={superset} />
-        ))}
-      </div>
+      {supersets.length === 0 ? (
+        <EmptyState
+          icon="📦"
+          title="No supersets yet"
+          description="Create a superset to define a search (county, date range, party). The pipeline will collect case IDs and process them."
+          action={
+            <Button size="lg" variant="success" onClick={() => setShowForm(true)} icon="+">
+              Create first superset
+            </Button>
+          }
+        />
+      ) : (
+        <div className="space-y-3">
+          {supersets.map((superset) => (
+            <SupersetCard key={superset.id} superset={superset} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
