@@ -70,7 +70,7 @@ const navigation = [
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [authStatus, setAuthStatus] = useState<'checking' | 'authenticated' | 'unauthenticated'>('checking');
 
   const isPublicPath = PUBLIC_ADMIN_PATHS.includes(pathname ?? '');
@@ -89,6 +89,15 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       }
     });
   }, [isPublicPath, pathname, router]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [menuOpen]);
 
   // Public auth pages: no sidebar, no dashboard links — only the auth form
   if (isPublicPath) {
@@ -112,13 +121,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       <header className="admin-header sticky top-0 z-50 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
+            onClick={() => setMenuOpen(!menuOpen)}
             className="p-2 rounded-lg"
-            aria-label="Toggle menu"
-            aria-expanded={sidebarOpen}
+            aria-label="Open admin menu"
+            aria-expanded={menuOpen}
+            aria-haspopup="true"
           >
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={sidebarOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={menuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
             </svg>
           </button>
           <div className="flex items-center gap-2">
@@ -133,46 +143,50 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       </header>
 
       <div className="flex h-[calc(100vh-3.5rem)]">
-        {sidebarOpen && (
-          <div
-            className="fixed inset-0 z-40 transition-all"
-            style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
-            onClick={() => setSidebarOpen(false)}
-            aria-hidden
-          />
-        )}
-
-        <aside className={`admin-sidebar admin-sidebar--drawer fixed inset-y-0 left-0 top-14 z-40 w-64 transform transition-transform duration-200 overflow-y-auto ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-          <div className="admin-sidebar__inner" style={{ padding: 'var(--space-md)', display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
-            {navigation.map((section, idx) => (
-              <div key={idx}>
-                <h2 className="admin-nav-section" style={{ marginBottom: 'var(--space-sm)', paddingLeft: 'var(--space-sm)' }}>
-                  {section.section}
-                </h2>
-                <nav style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  {section.items.map((item) => {
-                    const isActive = pathname === item.href;
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={() => setSidebarOpen(false)}
-                        className="admin-nav-link flex items-center gap-2"
-                        data-active={isActive}
-                      >
-                        <span className="text-lg" aria-hidden>{item.icon}</span>
-                        <span className="flex-1">{item.name}</span>
-                        {item.badge && (
-                          <span className="admin-nav-badge">{item.badge}</span>
-                        )}
-                      </Link>
-                    );
-                  })}
-                </nav>
+        {menuOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-40 transition-all"
+              style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+              onClick={() => setMenuOpen(false)}
+              aria-hidden
+            />
+            <div
+              role="dialog"
+              aria-label="Admin navigation"
+              className={`admin-menu fixed inset-y-0 left-0 top-14 z-50 w-72 transform transition-transform duration-200 overflow-y-auto ${menuOpen ? 'translate-x-0' : '-translate-x-full'}`}
+            >
+              <div className="admin-menu__content">
+                <p className="admin-menu__title">Menu</p>
+                {navigation.map((section, idx) => (
+                  <div key={idx} className="admin-menu__group">
+                    <h2 className="admin-menu__section">{section.section}</h2>
+                    <nav className="admin-menu__nav" aria-label={section.section}>
+                      {section.items.map((item) => {
+                        const isActive = pathname === item.href;
+                        return (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            onClick={() => setMenuOpen(false)}
+                            className="admin-menu__link"
+                            data-active={isActive}
+                          >
+                            <span className="admin-menu__icon" aria-hidden>{item.icon}</span>
+                            <span className="admin-menu__label">{item.name}</span>
+                            {item.badge && (
+                              <span className="admin-menu__badge">{item.badge}</span>
+                            )}
+                          </Link>
+                        );
+                      })}
+                    </nav>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </aside>
+            </div>
+          </>
+        )}
 
         <main className="flex-1 overflow-y-auto min-w-0">
           {children}
