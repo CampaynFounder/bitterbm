@@ -121,14 +121,15 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       <header className="admin-header sticky top-0 z-50 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
+            type="button"
             onClick={() => setMenuOpen(!menuOpen)}
-            className="p-2 rounded-lg"
-            aria-label="Open admin menu"
+            className="admin-header__menu-btn p-2 rounded-lg"
+            aria-label={menuOpen ? 'Close admin menu' : 'Open admin menu'}
             aria-expanded={menuOpen}
             aria-haspopup="true"
           >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={menuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
+            <svg className="w-6 h-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d={menuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
             </svg>
           </button>
           <div className="flex items-center gap-2">

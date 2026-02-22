@@ -50,11 +50,16 @@
 
 .admin-pages .admin-header button {
   font-family: var(--font-display);
-  color: var(--text-secondary);
+  color: var(--text-primary);
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .admin-pages .admin-header button:hover {
-  color: var(--text-primary);
+  color: var(--accent-muted);
   background: var(--bg-card);
 }
 

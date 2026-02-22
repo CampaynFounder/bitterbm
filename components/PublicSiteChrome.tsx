@@ -13,7 +13,7 @@ export function PublicSiteChrome({ children }: { children: React.ReactNode }) {
   const isAdmin = pathname?.startsWith('/admin');
 
   if (isAdmin) {
-    return <>{children}</>;
+    return <div className="admin-routes-wrapper" style={{ minHeight: '100vh', width: '100%' }}>{children}</div>;
   }
 
   return (
