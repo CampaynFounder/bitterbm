@@ -284,7 +284,7 @@ function CountiesTab({ counties, onUpdate }: { counties: County[]; onUpdate: () 
 function CountyCard({ county, onUpdate }: { county: County; onUpdate: () => void }) {
   const [expanded, setExpanded] = useState(false);
 
-  const statusColors = {
+  const statusColors: Record<string, string> = {
     draft: 'bg-gray-100 text-gray-800',
     configured: 'bg-yellow-100 text-yellow-800',
     active: 'bg-green-100 text-green-800',
@@ -297,7 +297,7 @@ function CountyCard({ county, onUpdate }: { county: County; onUpdate: () => void
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h3 className="text-lg font-semibold">{county.name}, {county.state}</h3>
-            <span className={`px-2 py-1 text-xs rounded-full ${statusColors[county.status]}`}>
+            <span className={`px-2 py-1 text-xs rounded-full ${statusColors[county.status] || statusColors.draft}`}>
               {county.status}
             </span>
           </div>
@@ -466,7 +466,7 @@ function SupersetsTab({ supersets, counties, onUpdate }: {
 }
 
 function SupersetCard({ superset }: { superset: Superset }) {
-  const statusColors = {
+  const statusColors: Record<string, string> = {
     pending: 'bg-gray-100 text-gray-800',
     collecting: 'bg-blue-100 text-blue-800',
     processing: 'bg-yellow-100 text-yellow-800',
@@ -478,7 +478,7 @@ function SupersetCard({ superset }: { superset: Superset }) {
     <div className="bg-white border border-gray-200 rounded-lg p-4">
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-lg font-semibold">{superset.name}</h3>
-        <span className={`px-2 py-1 text-xs rounded-full ${statusColors[superset.status]}`}>
+        <span className={`px-2 py-1 text-xs rounded-full ${statusColors[superset.status] || statusColors.pending}`}>
           {superset.status}
         </span>
       </div>
