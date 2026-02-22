@@ -1,0 +1,50 @@
+/**
+ * Admin-only styles. Used with MVP.css (loaded only in admin layout).
+ * Scopes and overrides so admin stays centered, consistent, and usable.
+ * MVP.css is loaded via link in admin layout; this file is imported there.
+ */
+
+/* Center and constrain admin content (works with MVP's --width-content) */
+.admin-pages main {
+  display: block;
+  max-width: var(--width-content, 1080px);
+  margin-left: auto;
+  margin-right: auto;
+  padding: 1.5rem 1rem;
+}
+
+@media (min-width: 640px) {
+  .admin-pages main {
+    padding: 2rem 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .admin-pages main {
+    padding: 2rem 2rem;
+  }
+}
+
+/* Header: keep flex layout, no centered text */
+.admin-pages .admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+  padding: 0 1rem;
+  margin: 0;
+  max-width: none;
+}
+
+/* Sidebar nav: override MVP's large nav margin */
+.admin-pages .admin-sidebar nav {
+  margin-bottom: 0;
+  display: block;
+}
+
+/* Sections in admin: block layout so content stacks predictably */
+.admin-pages main section {
+  display: block;
+  justify-content: unset;
+  width: 100%;
+}
