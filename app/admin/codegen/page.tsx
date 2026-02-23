@@ -215,7 +215,7 @@ export default function CodegenPage() {
               <div className="flex items-center justify-between gap-2 mb-1">
                 <label className="block admin-heading-3">Playwright codegen output</label>
                 {savedConfig?.codegen_source && (
-                  <Button size="sm" variant="ghost" onClick={loadSavedCodegen} title="Restore saved code into the textarea (e.g. after editing)">
+                  <Button size="sm" variant="ghost" onClick={loadSavedCodegen}>
                     Reload saved codegen
                   </Button>
                 )}
