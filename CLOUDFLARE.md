@@ -21,7 +21,22 @@ Configure in Cloudflare Pages dashboard (or `wrangler pages`):
 - `NEXT_PUBLIC_GA4_MEASUREMENT_ID` – GA4 measurement ID
 - `NEXT_PUBLIC_HERO_BG`, `NEXT_PUBLIC_PROBLEM_BG`, `NEXT_PUBLIC_AI_BG`, `NEXT_PUBLIC_PRICING_BG`, `NEXT_PUBLIC_FINAL_CTA_BG` – Custom background image URLs (optional; falls back to Unsplash if unset)
 - `NEXT_PUBLIC_MODAL_SCRAPER_URL` – Modal scraper HTTP endpoint (for admin scraper Validate/Run in production; scraper runs on Modal, not Cloudflare)
-- `PIPELINE_CONVERT_URL` – (Optional) Deployed Python pipeline base URL for codegen conversion. If unset, `POST /api/pipeline/convert-codegen` returns 503; use the app locally with `uvicorn api:app --port 8000` in `scraper/pipeline` to convert codegen.
+- `PIPELINE_CONVERT_URL` – (Optional) Base URL for codegen conversion. If unset, `POST /api/pipeline/convert-codegen` returns 503. Use either:
+  - **Modal (recommended):** Deploy with `modal deploy modal_pipeline_convert.py` from repo root, then set this to the Modal web URL (e.g. `https://you--bitterbm-pipeline-convert-pipeline-convert-codegen.modal.run`). No secrets required.
+  - **Local:** Run `uvicorn api:app --port 8000` in `scraper/pipeline` and use the app via `npm run dev` (Next.js calls localhost:8000).
+
+## Codegen conversion on Modal (optional)
+
+To enable **Convert & save** on the Codegen admin page in production:
+
+1. From the repo root: `modal deploy modal_pipeline_convert.py`
+2. Copy the printed web URL (e.g. `https://you--bitterbm-pipeline-convert-pipeline-convert-codegen.modal.run`).
+3. In Cloudflare Pages → your project → **Settings** → **Environment variables**, add:
+   - **Variable name:** `PIPELINE_CONVERT_URL`
+   - **Value:** that URL (no trailing slash)
+4. Redeploy the Pages project so the Function sees the variable.
+
+No Modal secrets are required for the convert endpoint (it only parses code; Cloudflare saves to Supabase).
 
 For local images: put files in `public/images/` and use `/images/hero.jpg` etc.
 
