@@ -833,6 +833,25 @@ export function ResultTableEnrichForm({
                 />
                 Output in row
               </label>
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  fontSize: "0.8125rem",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={nc.filterParentWhenTrue ?? false}
+                  onChange={(e) => {
+                    const arr = [...(rt.nestedTableChecks ?? [])]
+                    arr[i] = { ...arr[i], filterParentWhenTrue: e.target.checked }
+                    update("nestedTableChecks", arr)
+                  }}
+                />
+                Filter parent when true
+              </label>
             </div>
             <button
               type="button"
