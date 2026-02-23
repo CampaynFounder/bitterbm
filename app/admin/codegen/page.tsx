@@ -74,8 +74,12 @@ export default function CodegenPage() {
           created_at: cfg.created_at,
         });
         if (configType === 'superset') {
-          const rt = (cfg as any).results_table as ResultTableConfig | null;
-          setResultsTable(rt && typeof rt === 'object' ? rt : { ...defaultResultTableConfig });
+          const rt = (cfg as any).results_table as ResultTableConfig | null | undefined;
+          const merged =
+            rt && typeof rt === 'object' && rt.primaryId != null && rt.tableSelector != null
+              ? rt
+              : { ...defaultResultTableConfig, ...(rt && typeof rt === 'object' ? rt : {}) };
+          setResultsTable(merged);
         } else {
           setResultsTable(null);
         }
@@ -115,9 +119,13 @@ export default function CodegenPage() {
         created_at: new Date().toISOString(),
       });
       if (configType === 'superset') {
-        // Initialize results table from converter output if present; otherwise default
+        // Merge converter output with defaults so the form never gets a partial object (avoids client crash when results_table is {})
         const rt = data.config?.results_table as ResultTableConfig | null | undefined;
-        setResultsTable(rt && typeof rt === 'object' ? rt : { ...defaultResultTableConfig });
+        const merged =
+          rt && typeof rt === 'object' && rt.primaryId != null && rt.tableSelector != null
+            ? rt
+            : { ...defaultResultTableConfig, ...(rt && typeof rt === 'object' ? rt : {}) };
+        setResultsTable(merged);
       } else {
         setResultsTable(null);
       }

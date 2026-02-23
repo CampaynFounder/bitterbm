@@ -143,34 +143,29 @@ class CodegenConverter:
         return None
     
     def _extract_selector(self, line: str) -> Optional[str]:
-        """Extract CSS/XPath selector from line"""
-        
-        # CSS selector in locator()
-        match = re.search(r'\.locator\(["\'](.+?)["\']\)', line)
-        if match:
-            return match.group(1)
-        
-        # get_by_role
-        match = re.search(r'\.get_by_role\(["\'](.+?)["\'](?:, name=["\'](.+?)["\'])?\)', line)
-        if match:
-            role = match.group(1)
-            name = match.group(2) if match.group(2) else ''
+        """Extract CSS/XPath selector from line. When line has .content_frame (iframe), use the innermost selector after it."""
+        # When there are multiple .locator(...) (e.g. page.locator("iframe").content_frame.locator("#tbSearch4")), use the last one
+        locator_matches = re.findall(r'\.locator\(["\'](.+?)["\']\)', line)
+        if locator_matches:
+            return locator_matches[-1]
+        # get_by_role (take last if multiple, e.g. after content_frame)
+        role_matches = list(re.finditer(r'\.get_by_role\(["\'](.+?)["\'](?:, name=["\'](.+?)["\'])?\)', line))
+        if role_matches:
+            m = role_matches[-1]
+            role = m.group(1)
+            name = m.group(2) if m.group(2) else ''
             return f'[role="{role}"][name*="{name}"]'
-        
         # get_by_text
-        match = re.search(r'\.get_by_text\(["\'](.+?)["\']\)', line)
-        if match:
-            return f':text("{match.group(1)}")'
-        
+        text_matches = re.findall(r'\.get_by_text\(["\'](.+?)["\']\)', line)
+        if text_matches:
+            return f':text("{text_matches[-1]}")'
         return None
     
     def _extract_iframe_selector(self, line: str) -> Optional[str]:
-        """Extract iframe selector"""
-        
-        match = re.search(r'\.locator\(["\']iframe([^\)]*?)["\']\)', line)
+        """Extract iframe selector (the first .locator("iframe...") in the chain)."""
+        match = re.search(r'\.locator\(["\'](iframe[^"\']*)["\']\)', line)
         if match:
-            return f'iframe{match.group(1)}'
-        
+            return match.group(1)
         return 'iframe'
     
     def _extract_navigation_steps(self) -> List[Dict]:

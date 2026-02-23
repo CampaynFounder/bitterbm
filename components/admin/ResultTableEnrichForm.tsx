@@ -80,7 +80,14 @@ export function ResultTableEnrichForm({
   value: ResultTableConfig
   onChange: (v: ResultTableConfig) => void
 }) {
-  const rt = value || defaultResultTableConfig
+  const rt: ResultTableConfig = {
+    ...defaultResultTableConfig,
+    ...(value && typeof value === 'object' ? value : {}),
+    primaryId:
+      value?.primaryId && typeof value.primaryId === 'object'
+        ? { ...defaultResultTableConfig.primaryId, ...value.primaryId }
+        : defaultResultTableConfig.primaryId,
+  }
   const columnNames = rt.columnNames ?? []
   const maxCol = Math.max(11, columnNames.length)
   const columnLabel = (idx: number) =>

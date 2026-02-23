@@ -85,22 +85,24 @@ class CodegenConverter:
         return None
 
     def _extract_selector(self, line: str) -> Optional[str]:
-        match = re.search(r'\.locator\(["\'](.+?)["\']\)', line)
-        if match:
-            return match.group(1)
-        match = re.search(r'\.get_by_role\(["\'](.+?)["\'](?:, name=["\'](.+?)["\'])?\)', line)
-        if match:
-            role, name = match.group(1), (match.group(2) or "")
+        # When line has .content_frame (iframe), use innermost selector (last .locator / .get_by_role / .get_by_text)
+        locator_matches = re.findall(r'\.locator\(["\'](.+?)["\']\)', line)
+        if locator_matches:
+            return locator_matches[-1]
+        role_matches = list(re.finditer(r'\.get_by_role\(["\'](.+?)["\'](?:, name=["\'](.+?)["\'])?\)', line))
+        if role_matches:
+            m = role_matches[-1]
+            role, name = m.group(1), (m.group(2) or "")
             return f'[role="{role}"][name*="{name}"]'
-        match = re.search(r'\.get_by_text\(["\'](.+?)["\']\)', line)
-        if match:
-            return f':text("{match.group(1)}")'
+        text_matches = re.findall(r'\.get_by_text\(["\'](.+?)["\']\)', line)
+        if text_matches:
+            return f':text("{text_matches[-1]}")'
         return None
 
     def _extract_iframe_selector(self, line: str) -> Optional[str]:
-        match = re.search(r'\.locator\(["\']iframe([^\)]*?)["\']\)', line)
+        match = re.search(r'\.locator\(["\'](iframe[^"\']*)["\']\)', line)
         if match:
-            return f"iframe{match.group(1)}"
+            return match.group(1)
         return "iframe"
 
     def _extract_navigation_steps(self) -> List[Dict]:
