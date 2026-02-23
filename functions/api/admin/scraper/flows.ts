@@ -89,7 +89,7 @@ export async function onRequestPost(context: { request: Request; env: Env }): Pr
     return json({ error: "name and flow_json required" }, 400)
   }
 
-  const allowedKinds = ["scraper", "superset_flow", "superset_site_config", "superset_result_config", "superset_e2e", "codegen_result_config", "retrieval_flow", "autoscrape_flow"]
+  const allowedKinds = ["scraper", "superset_flow", "superset_site_config", "superset_result_config", "superset_e2e", "codegen_result_config", "codegen_phase1", "retrieval_flow", "autoscrape_flow"]
   const flowKind = kind && allowedKinds.includes(kind) ? kind : null
 
   const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)

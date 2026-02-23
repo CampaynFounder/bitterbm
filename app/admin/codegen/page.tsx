@@ -9,6 +9,9 @@ import { ResultTableEnrichForm, type ResultTableConfig, defaultResultTableConfig
 
 type SavedPresetRow = { id: string; name: string; description?: string; flow_json: unknown; kind?: string };
 
+type CodegenNavStep = { type: string; url?: string; selector?: string; value?: string; iframe?: string; duration?: number };
+type Phase1Blob = { flow: { name: string; steps: Array<{ type: string; config?: Record<string, unknown> }> }; siteConfig: { resultTable: ResultTableConfig; siteId: string; baseUrl: string } };
+
 type County = {
   id: string;
   name: string;
@@ -50,6 +53,19 @@ export default function CodegenPage() {
   const [loadedPresetId, setLoadedPresetId] = useState<string | null>(null);
   const [loadedPresetName, setLoadedPresetName] = useState<string | null>(null);
   const [presetSearch, setPresetSearch] = useState('');
+  const [navigationSteps, setNavigationSteps] = useState<CodegenNavStep[]>([]);
+  const [loadedPhase1Preset, setLoadedPhase1Preset] = useState<Phase1Blob | null>(null);
+  const [savedPhase1List, setSavedPhase1List] = useState<SavedPresetRow[]>([]);
+  const [loadPhase1ModalOpen, setLoadPhase1ModalOpen] = useState(false);
+  const [savePhase1ModalOpen, setSavePhase1ModalOpen] = useState(false);
+  const [savePhase1Name, setSavePhase1Name] = useState('');
+  const [savePhase1Description, setSavePhase1Description] = useState('');
+  const [savePhase1Error, setSavePhase1Error] = useState<string | null>(null);
+  const [savePhase1Loading, setSavePhase1Loading] = useState(false);
+  const [phase1ListLoading, setPhase1ListLoading] = useState(false);
+  const [loadedPhase1Id, setLoadedPhase1Id] = useState<string | null>(null);
+  const [loadedPhase1Name, setLoadedPhase1Name] = useState<string | null>(null);
+  const [phase1Search, setPhase1Search] = useState('');
 
   useEffect(() => {
     supabase.from('scraper_counties').select('id, name, state, base_url').order('state').order('name').then(({ data }) => {
@@ -137,6 +153,8 @@ export default function CodegenPage() {
         codegen_source: code.trim(),
         created_at: new Date().toISOString(),
       });
+      setNavigationSteps(Array.isArray(data.config?.navigation_steps) ? data.config.navigation_steps : []);
+      setLoadedPhase1Preset(null);
       if (configType === 'superset') {
         // Merge converter output with defaults so the form never gets a partial object (avoids client crash when results_table is {})
         const rt = data.config?.results_table as ResultTableConfig | null | undefined;
@@ -177,6 +195,113 @@ export default function CodegenPage() {
     if (session?.access_token) h.Authorization = `Bearer ${session.access_token}`;
     if (adminSecret) h['X-Admin-Secret'] = adminSecret;
     return h;
+  }
+
+  function codegenStepsToPhase1Steps(steps: CodegenNavStep[]): Array<{ type: string; config?: Record<string, unknown> }> {
+    const out: Array<{ type: string; config?: Record<string, unknown> }> = [];
+    let iframeInserted = false;
+    for (const step of steps) {
+      if (step.iframe && !iframeInserted) {
+        out.push({ type: 'switch_frame', config: { selector: step.iframe || 'iframe' } });
+        iframeInserted = true;
+      }
+      switch (step.type) {
+        case 'navigate':
+          out.push({ type: 'navigate', config: { url: step.url ?? '' } });
+          break;
+        case 'fill':
+          out.push({ type: 'fill_field', config: { selector: step.selector ?? '', value: step.value ?? '', clearFirst: true } });
+          break;
+        case 'click':
+          out.push({ type: 'click', config: { selector: step.selector ?? '' } });
+          break;
+        case 'check':
+          out.push({ type: 'checkbox', config: { selector: step.selector ?? '', state: 'checked' } });
+          break;
+        case 'wait':
+          out.push({ type: 'delay', config: { ms: typeof step.duration === 'number' ? step.duration : 1000 } });
+          break;
+        default:
+          break;
+      }
+    }
+    return out;
+  }
+
+  function buildPhase1Blob(): Phase1Blob | null {
+    if (configType !== 'superset' || !resultsTable) return null;
+    const resultTable = { ...defaultResultTableConfig, ...resultsTable, primaryId: resultsTable.primaryId && typeof resultsTable.primaryId === 'object' ? { ...defaultResultTableConfig.primaryId, ...resultsTable.primaryId } : defaultResultTableConfig.primaryId };
+    if (loadedPhase1Preset) {
+      return {
+        flow: loadedPhase1Preset.flow,
+        siteConfig: { ...loadedPhase1Preset.siteConfig, resultTable },
+      };
+    }
+    const steps = codegenStepsToPhase1Steps(navigationSteps);
+    if (steps.length === 0) return null;
+    const firstNav = navigationSteps.find((s) => s.type === 'navigate');
+    const baseUrl = firstNav?.url ?? '';
+    return {
+      flow: { name: 'codegen-superset', steps },
+      siteConfig: { resultTable, siteId: countyId || 'codegen', baseUrl },
+    };
+  }
+
+  function downloadPhase1() {
+    const blob = buildPhase1Blob();
+    if (!blob) {
+      setResult({ success: false, error: 'Convert & save first and set result table, or load a Phase 1 preset.' });
+      return;
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify({ flow: blob.flow, siteConfig: blob.siteConfig }, null, 2)], { type: 'application/json' }));
+    a.download = 'superset-phase1.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  useEffect(() => {
+    if (loadPhase1ModalOpen && (adminSecret || session?.access_token)) {
+      setPhase1ListLoading(true);
+      fetch('/api/admin/scraper/flows?kind=codegen_phase1', { headers: authHeaders() })
+        .then((res) => res.json())
+        .then((data) => setSavedPhase1List(data.flows ?? []))
+        .catch(() => setSavedPhase1List([]))
+        .finally(() => setPhase1ListLoading(false));
+    }
+  }, [loadPhase1ModalOpen, adminSecret, session?.access_token]);
+
+  async function handleSavePhase1(overwrite: boolean) {
+    const blob = buildPhase1Blob();
+    if (!blob) { setSavePhase1Error('Convert & save and set result table first.'); return; }
+    if (!savePhase1Name.trim()) { setSavePhase1Error('Name required'); return; }
+    setSavePhase1Loading(true);
+    setSavePhase1Error(null);
+    const idToUpdate = overwrite && loadedPhase1Id ? loadedPhase1Id : undefined;
+    try {
+      const res = await fetch('/api/admin/scraper/flows', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          ...(idToUpdate ? { id: idToUpdate } : {}),
+          name: savePhase1Name.trim(),
+          description: savePhase1Description.trim() || undefined,
+          flow_json: { flow: blob.flow, siteConfig: blob.siteConfig },
+          kind: 'codegen_phase1',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Save failed');
+      setSavePhase1ModalOpen(false);
+      setSavePhase1Name('');
+      setSavePhase1Description('');
+      if (overwrite && loadedPhase1Id) setLoadedPhase1Name(savePhase1Name.trim());
+      else { setLoadedPhase1Id(null); setLoadedPhase1Name(null); }
+    } catch (e) {
+      setSavePhase1Error(e instanceof Error ? e.message : 'Save failed');
+    } finally {
+      setSavePhase1Loading(false);
+    }
   }
 
   const loadSavedCodegen = () => {
@@ -366,6 +491,17 @@ export default function CodegenPage() {
                 <Button size="sm" variant="ghost" onClick={() => { setSavePresetName(loadedPresetName ?? ''); setSavePresetDescription(''); setSavePresetError(null); setSavePresetModalOpen(true); }} disabled={!resultsTable}>
                   Save as preset
                 </Button>
+                <span style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 2px' }} />
+                <Button size="sm" variant="ghost" onClick={downloadPhase1}>
+                  Download for Phase 1
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setLoadPhase1ModalOpen(true)}>
+                  Load for Phase 1
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => { setSavePhase1Name(loadedPhase1Name ?? ''); setSavePhase1Description(''); setSavePhase1Error(null); setSavePhase1ModalOpen(true); }}>
+                  Save for Phase 1
+                </Button>
+                {loadedPhase1Preset && <span className="text-sm admin-text-muted">Phase 1 preset loaded</span>}
                 {saveResultsTableStatus && <span className="text-sm admin-text-muted">{saveResultsTableStatus}</span>}
               </div>
             </div>
@@ -438,6 +574,83 @@ export default function CodegenPage() {
                 <Button size="sm" onClick={() => handleSavePreset(false)} disabled={savePresetLoading}>{savePresetLoading ? 'Saving…' : 'Save'}</Button>
               )}
               <Button size="sm" variant="ghost" onClick={() => { setSavePresetModalOpen(false); setSavePresetError(null); }}>Cancel</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {loadPhase1ModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setLoadPhase1ModalOpen(false)}>
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="p-4 border-b border-[var(--border)]">
+              <h3 className="font-semibold text-base mb-2">Load Phase 1 preset</h3>
+              <p className="text-sm admin-text-muted mb-2">Load a saved superset config (flow + result table). Result table loads into the form; run Phase 1 locally with the downloaded file.</p>
+              <input type="text" value={phase1Search} onChange={(e) => setPhase1Search(e.target.value)} placeholder="Search by name…" className="admin-input w-full" />
+            </div>
+            <div className="overflow-auto flex-1 p-2">
+              {phase1ListLoading ? (
+                <p className="text-sm admin-text-muted">Loading…</p>
+              ) : savedPhase1List.filter((f) => !phase1Search.trim() || (f.name ?? '').toLowerCase().includes(phase1Search.trim().toLowerCase())).length === 0 ? (
+                <p className="text-sm admin-text-muted">No saved Phase 1 presets</p>
+              ) : (
+                <ul className="list-none p-0 m-0 space-y-1">
+                  {savedPhase1List
+                    .filter((f) => !phase1Search.trim() || (f.name ?? '').toLowerCase().includes(phase1Search.trim().toLowerCase()))
+                    .map((f) => {
+                      const raw = f.flow_json as Phase1Blob | null;
+                      return (
+                        <li key={f.id} className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            className="flex-1 text-left px-3 py-2 rounded-lg text-sm hover:bg-[var(--bg-elevated)]"
+                            onClick={() => {
+                              if (raw && typeof raw === 'object' && raw.siteConfig?.resultTable) {
+                                const rt = raw.siteConfig.resultTable;
+                                setResultsTable({ ...defaultResultTableConfig, ...rt, primaryId: rt.primaryId && typeof rt.primaryId === 'object' ? { ...defaultResultTableConfig.primaryId, ...rt.primaryId } : defaultResultTableConfig.primaryId });
+                                setLoadedPhase1Preset(raw);
+                                setLoadedPhase1Id(f.id);
+                                setLoadedPhase1Name(f.name ?? null);
+                              }
+                              setLoadPhase1ModalOpen(false);
+                              setPhase1Search('');
+                            }}
+                          >
+                            <span className="font-medium">{f.name}</span>
+                            {f.description && <span className="block text-xs admin-text-muted">{f.description}</span>}
+                          </button>
+                        </li>
+                      );
+                    })}
+                </ul>
+              )}
+            </div>
+            <div className="p-2 border-t border-[var(--border)]">
+              <Button size="sm" variant="ghost" onClick={() => setLoadPhase1ModalOpen(false)}>Cancel</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {savePhase1ModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => { setSavePhase1ModalOpen(false); setSavePhase1Error(null); }}>
+          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] max-w-md w-full p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold text-base mb-2">Save for Phase 1</h3>
+            <p className="text-sm admin-text-muted mb-3">Save the consolidated flow + result table so you can load it later and run Phase 1 locally.</p>
+            <label className="block admin-heading-3 mb-1">Name</label>
+            <input value={savePhase1Name} onChange={(e) => setSavePhase1Name(e.target.value)} placeholder="e.g. Cobb Phase 1" className="admin-input w-full mb-3" />
+            <label className="block admin-heading-3 mb-1">Description (optional)</label>
+            <input value={savePhase1Description} onChange={(e) => setSavePhase1Description(e.target.value)} className="admin-input w-full mb-3" />
+            {savePhase1Error && <p className="text-sm text-[var(--accent-gold)] mb-2">{savePhase1Error}</p>}
+            <div className="flex flex-wrap gap-2">
+              {loadedPhase1Id ? (
+                <>
+                  <Button size="sm" onClick={() => handleSavePhase1(true)} disabled={savePhase1Loading}>{savePhase1Loading ? 'Saving…' : 'Overwrite'}</Button>
+                  <Button size="sm" variant="ghost" onClick={() => handleSavePhase1(false)} disabled={savePhase1Loading}>Save as new copy</Button>
+                </>
+              ) : (
+                <Button size="sm" onClick={() => handleSavePhase1(false)} disabled={savePhase1Loading}>{savePhase1Loading ? 'Saving…' : 'Save'}</Button>
+              )}
+              <Button size="sm" variant="ghost" onClick={() => { setSavePhase1ModalOpen(false); setSavePhase1Error(null); }}>Cancel</Button>
             </div>
           </div>
         </div>

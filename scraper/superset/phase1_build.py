@@ -10,7 +10,7 @@ Usage:
   python phase1_build.py --flow flow.json --site-config site-config.json [--output superset.json]
 
 Config file (combined) shape: { "flow": { "name": "...", "steps": [...] }, "siteConfig": { ... } }
-Site config must include resultTable (tableSelector, rowSelector, primaryId, threshold, optional rowFilter, nestedRowFilters, nestedTableChecks, extractColumns).
+Site config must include resultTable (tableSelector, rowSelector, primaryId, threshold, optional rowFilter, nestedRowFilters, nestedTableChecks, extractColumns). Optional skipHiddenRows (default true): skip rows with display:none so only visible parent rows are processed; set false to process all rows.
 
 --- Nested tables: include/exclude rows and output exists/values ---
 
@@ -516,6 +516,7 @@ def main():
     row_filter_logic = rt.get("rowFilterLogic", "and")
     row_filter = rt.get("rowFilter") or []
     nested_row_filters = rt.get("nestedRowFilters") or []
+    skip_hidden_rows = rt.get("skipHiddenRows", True)
 
     if not table_selector or not steps:
         print("resultTable.tableSelector and flow.steps required", file=sys.stderr)
@@ -559,9 +560,20 @@ def main():
         primary_col = int(primary_id.get("columnIndex", 0)) if primary_id.get("source") == "column" else None
 
         data_row_num = 0  # 1-based count of data rows (matches visible row number, excludes header/detail)
+        skipped_hidden = 0
         try:
             for i in range(n_rows):
                 row_loc = rows_loc.nth(i)
+                if skip_hidden_rows:
+                    try:
+                        if not row_loc.first.is_visible():
+                            skipped_hidden += 1
+                            log(f"Processing table row {i + 1}/{n_rows} (hidden, skip) ...")
+                            continue
+                    except Exception:
+                        skipped_hidden += 1
+                        log(f"Processing table row {i + 1}/{n_rows} (hidden/unavailable, skip) ...")
+                        continue
                 if primary_col is not None:
                     id_cell_text = get_cell_text_for_column(row_loc, primary_col)
                     if not (id_cell_text or "").strip():
@@ -606,6 +618,8 @@ def main():
         finally:
             page.set_default_timeout(30000)  # restore default
 
+        if skip_hidden_rows and skipped_hidden > 0:
+            log(f"Skipped {skipped_hidden} hidden row(s).")
         log(f"Finished processing {n_rows} rows; {len(ids)} matched.")
         browser.close()
 
