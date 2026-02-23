@@ -10,16 +10,20 @@ import { ResultTableEnrichForm, type ResultTableConfig, defaultResultTableConfig
 type SavedPresetRow = { id: string; name: string; description?: string; flow_json: unknown; kind?: string };
 
 type CodegenNavStep = { type: string; url?: string; selector?: string; value?: string; iframe?: string; duration?: number };
-type Phase1Blob = { flow: { name: string; steps: Array<{ type: string; config?: Record<string, unknown> }> }; siteConfig: { resultTable: ResultTableConfig; siteId: string; baseUrl: string } };
+type Phase1Blob = { flow: { name: string; steps: Array<{ type: string; config?: Record<string, unknown>; label?: string }> }; siteConfig: { resultTable: ResultTableConfig; siteId: string; baseUrl: string } };
+type Phase1Step = Phase1Blob['flow']['steps'][number];
 
-const PHASE1_STEP_LABELS: Record<string, string> = {
-  navigate: 'Go to URL',
-  switch_frame: 'Switch to iframe',
-  fill_field: 'Fill text field',
-  click: 'Click',
-  checkbox: 'Check / uncheck box',
-  delay: 'Delay',
-};
+const PHASE1_STEP_TYPES: { value: string; label: string }[] = [
+  { value: 'navigate', label: 'Go to URL' },
+  { value: 'switch_frame', label: 'Switch to iframe' },
+  { value: 'switch_frame_main', label: 'Switch to main page' },
+  { value: 'wait', label: 'Wait for element' },
+  { value: 'fill_field', label: 'Fill text field' },
+  { value: 'date_range', label: 'Set date range' },
+  { value: 'checkbox', label: 'Check / uncheck box' },
+  { value: 'click', label: 'Click' },
+  { value: 'delay', label: 'Delay (ms)' },
+] as const;
 
 type County = {
   id: string;
@@ -75,6 +79,8 @@ export default function CodegenPage() {
   const [loadedPhase1Id, setLoadedPhase1Id] = useState<string | null>(null);
   const [loadedPhase1Name, setLoadedPhase1Name] = useState<string | null>(null);
   const [phase1Search, setPhase1Search] = useState('');
+  const [phase1FlowName, setPhase1FlowName] = useState('codegen-superset');
+  const [phase1Steps, setPhase1Steps] = useState<Phase1Step[]>([]);
 
   useEffect(() => {
     supabase.from('scraper_counties').select('id, name, state, base_url').order('state').order('name').then(({ data }) => {
@@ -162,7 +168,8 @@ export default function CodegenPage() {
         codegen_source: code.trim(),
         created_at: new Date().toISOString(),
       });
-      setNavigationSteps(Array.isArray(data.config?.navigation_steps) ? data.config.navigation_steps : []);
+      const navSteps: CodegenNavStep[] = Array.isArray(data.config?.navigation_steps) ? data.config.navigation_steps : [];
+      setNavigationSteps(navSteps);
       setLoadedPhase1Preset(null);
       if (configType === 'superset') {
         // Merge converter output with defaults so the form never gets a partial object (avoids client crash when results_table is {})
@@ -172,8 +179,12 @@ export default function CodegenPage() {
             ? rt
             : { ...defaultResultTableConfig, ...(rt && typeof rt === 'object' ? rt : {}) };
         setResultsTable(merged);
+        const initialPhase1 = codegenStepsToPhase1Steps(navSteps);
+        setPhase1FlowName('codegen-superset');
+        setPhase1Steps(initialPhase1);
       } else {
         setResultsTable(null);
+        setPhase1Steps([]);
       }
     } catch (e) {
       setResult({ success: false, error: e instanceof Error ? e.message : 'Convert failed' });
@@ -207,7 +218,7 @@ export default function CodegenPage() {
   }
 
   function codegenStepsToPhase1Steps(steps: CodegenNavStep[]): Array<{ type: string; config?: Record<string, unknown> }> {
-    const out: Array<{ type: string; config?: Record<string, unknown> }> = [];
+    const out: Phase1Step[] = [];
     let iframeInserted = false;
     for (const step of steps) {
       if (step.iframe && !iframeInserted) {
@@ -239,20 +250,20 @@ export default function CodegenPage() {
 
   function buildPhase1Blob(): Phase1Blob | null {
     if (configType !== 'superset' || !resultsTable) return null;
+    if (!phase1Steps.length) return null;
     const resultTable = { ...defaultResultTableConfig, ...resultsTable, primaryId: resultsTable.primaryId && typeof resultsTable.primaryId === 'object' ? { ...defaultResultTableConfig.primaryId, ...resultsTable.primaryId } : defaultResultTableConfig.primaryId };
-    if (loadedPhase1Preset) {
-      return {
-        flow: loadedPhase1Preset.flow,
-        siteConfig: { ...loadedPhase1Preset.siteConfig, resultTable },
-      };
-    }
-    const steps = codegenStepsToPhase1Steps(navigationSteps);
-    if (steps.length === 0) return null;
     const firstNav = navigationSteps.find((s) => s.type === 'navigate');
-    const baseUrl = firstNav?.url ?? '';
+    const baseUrlFromNav = firstNav?.url ?? '';
+    const baseSiteId = (loadedPhase1Preset?.siteConfig?.siteId ?? countyId) || 'codegen';
+    const baseUrl = loadedPhase1Preset?.siteConfig?.baseUrl ?? baseUrlFromNav;
     return {
-      flow: { name: 'codegen-superset', steps },
-      siteConfig: { resultTable, siteId: countyId || 'codegen', baseUrl },
+      flow: { name: phase1FlowName || 'codegen-superset', steps: phase1Steps },
+      siteConfig: {
+        ...(loadedPhase1Preset?.siteConfig ?? {}),
+        resultTable,
+        siteId: baseSiteId,
+        baseUrl,
+      },
     };
   }
 
@@ -490,46 +501,18 @@ export default function CodegenPage() {
                   onChange={(v) => setResultsTable(v)}
                 />
               )}
-              {(() => {
-                const phase1Steps = loadedPhase1Preset ? loadedPhase1Preset.flow.steps : codegenStepsToPhase1Steps(navigationSteps);
-                return phase1Steps.length > 0 ? (
-                  <div className="pt-4 border-t border-[var(--border)]">
-                    <h4 className="font-semibold text-sm mb-2" style={{ color: 'var(--text-primary)' }}>Review Phase 1 steps</h4>
-                    <p className="text-sm admin-text-muted mb-3">Confirm these steps before downloading or saving for Phase 1.</p>
-                    <ul className="list-none p-0 m-0 space-y-3">
-                      {phase1Steps.map((step, i) => {
-                        const cfg = step.config ?? {};
-                        const typeLabel = PHASE1_STEP_LABELS[step.type] ?? step.type;
-                        return (
-                          <li
-                            key={i}
-                            className="rounded-xl border border-[var(--border)] overflow-hidden"
-                            style={{ background: 'var(--bg-elevated)' }}
-                          >
-                            <div className="px-4 py-3 flex items-center gap-2">
-                              <span className="text-[var(--text-muted)] text-sm" style={{ transition: 'transform 0.2s' }}>▶</span>
-                              <span className="font-semibold text-[0.9375rem]">{i + 1}. {typeLabel}</span>
-                            </div>
-                            <div className="px-4 pb-3 pt-0 border-t border-[var(--border)] grid gap-2" style={{ fontSize: '0.875rem' }}>
-                              {step.type === 'navigate' && cfg.url != null && <div><span className="text-[var(--text-secondary)]">URL:</span> <code className="text-[var(--text-primary)] break-all">{String(cfg.url)}</code></div>}
-                              {step.type === 'switch_frame' && cfg.selector != null && <div><span className="text-[var(--text-secondary)]">Selector:</span> <code className="text-[var(--text-primary)] break-all">{String(cfg.selector)}</code></div>}
-                              {step.type === 'fill_field' && (
-                                <>
-                                  {cfg.selector != null && <div><span className="text-[var(--text-secondary)]">Selector:</span> <code className="text-[var(--text-primary)] break-all">{String(cfg.selector)}</code></div>}
-                                  {cfg.value != null && <div><span className="text-[var(--text-secondary)]">Value:</span> <code className="text-[var(--text-primary)] break-all">{String(cfg.value)}</code></div>}
-                                </>
-                              )}
-                              {(step.type === 'click' || step.type === 'checkbox') && cfg.selector != null && <div><span className="text-[var(--text-secondary)]">Selector:</span> <code className="text-[var(--text-primary)] break-all">{String(cfg.selector)}</code></div>}
-                              {step.type === 'checkbox' && cfg.state != null && <div><span className="text-[var(--text-secondary)]">State:</span> {String(cfg.state)}</div>}
-                              {step.type === 'delay' && cfg.ms != null && <div><span className="text-[var(--text-secondary)]">Delay:</span> {String(cfg.ms)} ms</div>}
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                ) : null;
-              })()}
+              <div className="pt-4 border-t border-[var(--border)]">
+                <h4 className="font-semibold text-sm mb-2" style={{ color: 'var(--text-primary)' }}>Phase 1 flow (editable)</h4>
+                <p className="text-sm admin-text-muted mb-3">
+                  Edit the unified Phase 1 steps before downloading or saving. Use this to fix or insert steps the converter may have missed.
+                </p>
+                <Phase1FlowEditor
+                  flowName={phase1FlowName}
+                  steps={phase1Steps}
+                  onFlowNameChange={setPhase1FlowName}
+                  onStepsChange={setPhase1Steps}
+                />
+              </div>
               <div className="flex flex-wrap items-center gap-2 pt-2">
                 <Button size="sm" onClick={handleSaveResultsTable} disabled={loadingResultsTable || !resultsTable}>
                   {loadingResultsTable ? 'Saving…' : 'Save to county'}
@@ -653,12 +636,23 @@ export default function CodegenPage() {
                             type="button"
                             className="flex-1 text-left px-3 py-2 rounded-lg text-sm hover:bg-[var(--bg-elevated)]"
                             onClick={() => {
-                              if (raw && typeof raw === 'object' && raw.siteConfig?.resultTable) {
-                                const rt = raw.siteConfig.resultTable;
-                                setResultsTable({ ...defaultResultTableConfig, ...rt, primaryId: rt.primaryId && typeof rt.primaryId === 'object' ? { ...defaultResultTableConfig.primaryId, ...rt.primaryId } : defaultResultTableConfig.primaryId });
+                              if (raw && typeof raw === 'object') {
+                                if (raw.siteConfig?.resultTable) {
+                                  const rt = raw.siteConfig.resultTable;
+                                  setResultsTable({
+                                    ...defaultResultTableConfig,
+                                    ...rt,
+                                    primaryId:
+                                      rt.primaryId && typeof rt.primaryId === 'object'
+                                        ? { ...defaultResultTableConfig.primaryId, ...rt.primaryId }
+                                        : defaultResultTableConfig.primaryId,
+                                  });
+                                }
                                 setLoadedPhase1Preset(raw);
                                 setLoadedPhase1Id(f.id);
                                 setLoadedPhase1Name(f.name ?? null);
+                                setPhase1FlowName(raw.flow?.name ?? 'codegen-superset');
+                                setPhase1Steps(Array.isArray(raw.flow?.steps) ? (raw.flow.steps as Phase1Step[]) : []);
                               }
                               setLoadPhase1ModalOpen(false);
                               setPhase1Search('');
@@ -702,6 +696,567 @@ export default function CodegenPage() {
               <Button size="sm" variant="ghost" onClick={() => { setSavePhase1ModalOpen(false); setSavePhase1Error(null); }}>Cancel</Button>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+type Phase1FlowEditorProps = {
+  flowName: string;
+  steps: Phase1Step[];
+  onFlowNameChange: (name: string) => void;
+  onStepsChange: (steps: Phase1Step[]) => void;
+};
+
+const phase1LabelStyle: React.CSSProperties = {
+  display: 'block',
+  fontSize: '0.875rem',
+  fontWeight: 500,
+  marginBottom: 'var(--space-xs)',
+  color: 'var(--text-secondary)',
+};
+
+const phase1InputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: 'var(--space-sm) var(--space-md)',
+  background: 'var(--bg-elevated)',
+  border: '1px solid var(--border)',
+  borderRadius: 8,
+  color: 'var(--text-primary)',
+  fontSize: '0.875rem',
+};
+
+const phase1BtnSecondary: React.CSSProperties = {
+  padding: 'var(--space-xs) var(--space-sm)',
+  minHeight: 36,
+  background: 'var(--bg-elevated)',
+  border: '1px solid var(--border)',
+  borderRadius: 6,
+  color: 'var(--text-secondary)',
+  cursor: 'pointer',
+  fontSize: '0.75rem',
+};
+
+function createBlankPhase1Step(type: string): Phase1Step {
+  const base: Phase1Step = { type, label: '', config: {} };
+  switch (type) {
+    case 'navigate':
+      return { ...base, config: { url: '', waitUntil: 'networkidle' } };
+    case 'switch_frame':
+      return { ...base, config: { selector: 'iframe#content' } };
+    case 'switch_frame_main':
+      return { ...base, config: {} };
+    case 'wait':
+      return { ...base, config: { selector: '', timeout: 10000 } };
+    case 'fill_field':
+      return { ...base, config: { selector: '', value: '', clearFirst: true } };
+    case 'date_range':
+      return {
+        ...base,
+        config: { fromSelector: '', toSelector: '', fromValue: '{{date_from}}', toValue: '{{date_to}}' },
+      };
+    case 'checkbox':
+      return { ...base, config: { selector: '', state: 'checked' } };
+    case 'click':
+      return { ...base, config: { selector: '', waitAfter: 1000 } };
+    case 'delay':
+      return { ...base, config: { ms: 1000 } };
+    default:
+      return base;
+  }
+}
+
+function Phase1FlowEditor({ flowName, steps, onFlowNameChange, onStepsChange }: Phase1FlowEditorProps) {
+  const [expandedSet, setExpandedSet] = useState<Set<number>>(() => new Set([0]));
+  const [insertAt, setInsertAt] = useState<number | null>(null);
+
+  const updateStep = (index: number, step: Phase1Step) => {
+    const next = [...steps];
+    next[index] = step;
+    onStepsChange(next);
+  };
+
+  const changeStepType = (index: number, newType: string) => {
+    const blank = createBlankPhase1Step(newType);
+    const prev = steps[index] as { config?: Record<string, unknown>; label?: string; type: string };
+    if (prev?.config && typeof prev.config === 'object') {
+      blank.config = { ...prev.config, ...(blank.config ?? {}) };
+    }
+    blank.label = prev.label ?? '';
+    updateStep(index, blank);
+  };
+
+  const insertStep = (at: number, type: string) => {
+    const next = [...steps];
+    next.splice(at, 0, createBlankPhase1Step(type));
+    onStepsChange(next);
+    setExpandedSet((s) => new Set(Array.from(s)).add(at));
+    setInsertAt(null);
+  };
+
+  const removeStep = (index: number) => {
+    const next = steps.filter((_, i) => i !== index);
+    onStepsChange(next);
+    setExpandedSet((s) => new Set(Array.from(s).filter((i) => i !== index).map((i) => (i >= index ? i - 1 : i))));
+  };
+
+  const moveStep = (index: number, dir: 'up' | 'down') => {
+    const next = [...steps];
+    const j = dir === 'up' ? index - 1 : index + 1;
+    if (j < 0 || j >= next.length) return;
+    [next[index], next[j]] = [next[j], next[index]];
+    onStepsChange(next);
+    setExpandedSet((s) => {
+      const out = new Set(Array.from(s));
+      out.delete(index);
+      out.delete(j);
+      out.add(j);
+      return out;
+    });
+  };
+
+  const duplicateStep = (index: number) => {
+    const next = [...steps];
+    next.splice(index + 1, 0, { ...steps[index] });
+    onStepsChange(next);
+    setExpandedSet((s) => new Set(Array.from(s)).add(index + 1));
+  };
+
+  return (
+    <div>
+      <div style={{ marginBottom: 'var(--space-md)' }}>
+        <label style={phase1LabelStyle}>Flow name</label>
+        <input
+          value={flowName}
+          onChange={(e) => onFlowNameChange(e.target.value)}
+          placeholder="codegen-superset"
+          style={{ ...phase1InputStyle, maxWidth: 320 }}
+        />
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 'var(--space-sm)',
+          marginBottom: 'var(--space-md)',
+          alignItems: 'center',
+        }}
+      >
+        <button type="button" onClick={() => setExpandedSet(new Set(steps.map((_, i) => i)))} style={phase1BtnSecondary}>
+          Expand all
+        </button>
+        <button type="button" onClick={() => setExpandedSet(new Set())} style={phase1BtnSecondary}>
+          Collapse all
+        </button>
+        <select
+          value=""
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v) {
+              insertStep(steps.length, v);
+              e.target.value = '';
+            }
+          }}
+          style={{ ...phase1InputStyle, maxWidth: 260 }}
+        >
+          <option value="">+ Add step at end</option>
+          {PHASE1_STEP_TYPES.map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      {steps.map((step, index) => (
+        <div key={index}>
+          {insertAt === index && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--space-sm)',
+                marginBottom: 'var(--space-sm)',
+                padding: 'var(--space-sm)',
+                background: 'var(--bg-elevated)',
+                borderRadius: 8,
+                border: '1px dashed var(--border)',
+              }}
+            >
+              <span style={{ fontSize: '0.8125rem' }}>Insert:</span>
+              <select
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v) insertStep(index, v);
+                }}
+                style={{ ...phase1InputStyle, maxWidth: 240 }}
+              >
+                <option value="">Choose type…</option>
+                {PHASE1_STEP_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+              <button type="button" onClick={() => setInsertAt(null)} style={phase1BtnSecondary}>
+                Cancel
+              </button>
+            </div>
+          )}
+          <Phase1StepCard
+            step={step}
+            index={index}
+            total={steps.length}
+            expanded={expandedSet.has(index)}
+            onToggle={() =>
+              setExpandedSet((s) => {
+                const n = new Set(Array.from(s));
+                if (n.has(index)) n.delete(index);
+                else n.add(index);
+                return n;
+              })
+            }
+            onChange={(s) => updateStep(index, s)}
+            onTypeChange={(newType) => changeStepType(index, newType)}
+            onRemove={() => removeStep(index)}
+            onInsertAbove={() => setInsertAt(index)}
+            onInsertBelow={() => setInsertAt(index + 1)}
+            onMoveUp={() => moveStep(index, 'up')}
+            onMoveDown={() => moveStep(index, 'down')}
+            onDuplicate={() => duplicateStep(index)}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+type Phase1StepCardProps = {
+  step: Phase1Step;
+  index: number;
+  total: number;
+  expanded: boolean;
+  onToggle: () => void;
+  onChange: (s: Phase1Step) => void;
+  onTypeChange: (newType: string) => void;
+  onRemove: () => void;
+  onInsertAbove: () => void;
+  onInsertBelow: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onDuplicate: () => void;
+};
+
+function Phase1StepCard({
+  step,
+  index,
+  total,
+  expanded,
+  onToggle,
+  onChange,
+  onTypeChange,
+  onRemove,
+  onInsertAbove,
+  onInsertBelow,
+  onMoveUp,
+  onMoveDown,
+  onDuplicate,
+}: Phase1StepCardProps) {
+  const cfg = (step as { config?: Record<string, unknown> }).config ?? {};
+  const update = (key: string, value: unknown) => {
+    onChange({ ...step, config: { ...cfg, [key]: value } } as Phase1Step);
+  };
+  const typeLabel = PHASE1_STEP_TYPES.find((t) => t.value === step.type)?.label ?? step.type;
+  const stepLabel = (step as { label?: string }).label ?? '';
+
+  return (
+    <div
+      style={{
+        borderRadius: 12,
+        background: 'var(--bg-elevated)',
+        border: '1px solid var(--border)',
+        marginBottom: 'var(--space-md)',
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 'var(--space-sm)',
+          padding: 'var(--space-md)',
+          cursor: 'pointer',
+        }}
+        onClick={onToggle}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', flex: 1, minWidth: 0 }}>
+          <span style={{ transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>▶</span>
+          <span style={{ fontWeight: 600, fontSize: '0.9375rem' }}>
+            {index + 1}. {typeLabel}
+          </span>
+          {stepLabel && (
+            <span
+              style={{
+                fontSize: '0.8125rem',
+                color: 'var(--text-secondary)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              — {stepLabel}
+            </span>
+          )}
+        </div>
+        <div
+          style={{ display: 'flex', gap: 'var(--space-xs)', flexWrap: 'wrap', alignItems: 'center' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button type="button" onClick={onInsertAbove} style={{ ...phase1BtnSecondary, borderColor: 'var(--accent-cyan)', color: 'var(--accent-cyan)' }}>
+            + above
+          </button>
+          <button type="button" onClick={onInsertBelow} style={{ ...phase1BtnSecondary, borderColor: 'var(--accent-cyan)', color: 'var(--accent-cyan)' }}>
+            + below
+          </button>
+          <button type="button" onClick={onDuplicate} style={phase1BtnSecondary}>
+            Duplicate
+          </button>
+          <button type="button" onClick={onMoveUp} disabled={index === 0} style={phase1BtnSecondary}>
+            ↑
+          </button>
+          <button type="button" onClick={onMoveDown} disabled={index >= total - 1} style={phase1BtnSecondary}>
+            ↓
+          </button>
+          <button type="button" onClick={onRemove} style={{ ...phase1BtnSecondary, color: 'var(--accent-gold)' }}>
+            Remove
+          </button>
+        </div>
+      </div>
+      {expanded && (
+        <div style={{ padding: '0 var(--space-md) var(--space-md)', borderTop: '1px solid var(--border)' }}>
+          <div style={{ marginBottom: 'var(--space-md)' }}>
+            <label style={phase1LabelStyle}>Step label (optional)</label>
+            <input
+              value={stepLabel}
+              onChange={(e) => onChange({ ...step, label: e.target.value } as Phase1Step)}
+              placeholder="e.g. Go to search page"
+              style={{ ...phase1InputStyle, maxWidth: 320 }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+          <div style={{ marginBottom: 'var(--space-md)' }}>
+            <label style={phase1LabelStyle}>Step type</label>
+            <select
+              value={step.type}
+              onChange={(e) => onTypeChange(e.target.value)}
+              style={{ ...phase1InputStyle, maxWidth: 280 }}
+            >
+              {PHASE1_STEP_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          {step.type === 'navigate' && (
+            <>
+              <div>
+                <label style={phase1LabelStyle}>URL</label>
+                <input
+                  value={String((cfg as any).url ?? '')}
+                  onChange={(e) => update('url', e.target.value)}
+                  placeholder="https://..."
+                  style={phase1InputStyle}
+                />
+              </div>
+              <div>
+                <label style={phase1LabelStyle}>Wait for page</label>
+                <select
+                  value={String((cfg as any).waitUntil ?? 'networkidle')}
+                  onChange={(e) => update('waitUntil', e.target.value)}
+                  style={phase1InputStyle}
+                >
+                  <option value="domcontentloaded">DOM ready</option>
+                  <option value="load">Load</option>
+                  <option value="networkidle">Network idle</option>
+                </select>
+              </div>
+            </>
+          )}
+          {step.type === 'switch_frame' && (
+            <>
+              <div>
+                <label style={phase1LabelStyle}>iframe CSS selector</label>
+                <input
+                  value={String((cfg as any).selector ?? '')}
+                  onChange={(e) => update('selector', e.target.value)}
+                  placeholder="iframe#content"
+                  style={phase1InputStyle}
+                />
+              </div>
+              <div>
+                <label style={phase1LabelStyle}>Or frame name</label>
+                <input
+                  value={String((cfg as any).name ?? '')}
+                  onChange={(e) => update('name', e.target.value)}
+                  style={phase1InputStyle}
+                />
+              </div>
+              <div>
+                <label style={phase1LabelStyle}>Or frame URL (partial)</label>
+                <input
+                  value={String((cfg as any).url ?? '')}
+                  onChange={(e) => update('url', e.target.value)}
+                  style={phase1InputStyle}
+                />
+              </div>
+            </>
+          )}
+          {step.type === 'switch_frame_main' && (
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Switches back to the top-level document.</p>
+          )}
+          {step.type === 'wait' && (
+            <>
+              <div>
+                <label style={phase1LabelStyle}>CSS selector</label>
+                <input
+                  value={String((cfg as any).selector ?? '')}
+                  onChange={(e) => update('selector', e.target.value)}
+                  placeholder="table tbody tr"
+                  style={phase1InputStyle}
+                />
+              </div>
+              <div>
+                <label style={phase1LabelStyle}>Wait until</label>
+                <select
+                  value={String((cfg as any).waitUntil ?? 'visible')}
+                  onChange={(e) => update('waitUntil', e.target.value)}
+                  style={phase1InputStyle}
+                >
+                  <option value="visible">Visible</option>
+                  <option value="hidden">Hidden</option>
+                  <option value="attached">Attached</option>
+                </select>
+              </div>
+              <div>
+                <label style={phase1LabelStyle}>Timeout (ms)</label>
+                <input
+                  type="number"
+                  value={Number((cfg as any).timeout ?? 10000)}
+                  onChange={(e) => update('timeout', parseInt(e.target.value, 10) || 10000)}
+                  style={phase1InputStyle}
+                />
+              </div>
+            </>
+          )}
+          {step.type === 'fill_field' && (
+            <>
+              <div>
+                <label style={phase1LabelStyle}>CSS selector</label>
+                <input
+                  value={String((cfg as any).selector ?? '')}
+                  onChange={(e) => update('selector', e.target.value)}
+                  placeholder="#search, input[name='q']"
+                  style={phase1InputStyle}
+                />
+              </div>
+              <div>
+                <label style={phase1LabelStyle}>Value (use {"{{var}}"})</label>
+                <input
+                  value={String((cfg as any).value ?? '')}
+                  onChange={(e) => update('value', e.target.value)}
+                  placeholder="{{search_term}}"
+                  style={phase1InputStyle}
+                />
+              </div>
+            </>
+          )}
+          {step.type === 'date_range' && (
+            <>
+              <div>
+                <label style={phase1LabelStyle}>From selector</label>
+                <input
+                  value={String((cfg as any).fromSelector ?? '')}
+                  onChange={(e) => update('fromSelector', e.target.value)}
+                  placeholder="#date-from"
+                  style={phase1InputStyle}
+                />
+              </div>
+              <div>
+                <label style={phase1LabelStyle}>To selector</label>
+                <input
+                  value={String((cfg as any).toSelector ?? '')}
+                  onChange={(e) => update('toSelector', e.target.value)}
+                  placeholder="#date-to"
+                  style={phase1InputStyle}
+                />
+              </div>
+              <div>
+                <label style={phase1LabelStyle}>From value</label>
+                <input
+                  value={String((cfg as any).fromValue ?? '')}
+                  onChange={(e) => update('fromValue', e.target.value)}
+                  placeholder="{{date_from}}"
+                  style={phase1InputStyle}
+                />
+              </div>
+              <div>
+                <label style={phase1LabelStyle}>To value</label>
+                <input
+                  value={String((cfg as any).toValue ?? '')}
+                  onChange={(e) => update('toValue', e.target.value)}
+                  placeholder="{{date_to}}"
+                  style={phase1InputStyle}
+                />
+              </div>
+            </>
+          )}
+          {step.type === 'checkbox' && (
+            <>
+              <div>
+                <label style={phase1LabelStyle}>Selector</label>
+                <input
+                  value={String((cfg as any).selector ?? '')}
+                  onChange={(e) => update('selector', e.target.value)}
+                  style={phase1InputStyle}
+                />
+              </div>
+              <div>
+                <label style={phase1LabelStyle}>State</label>
+                <select
+                  value={String((cfg as any).state ?? 'checked')}
+                  onChange={(e) => update('state', e.target.value)}
+                  style={phase1InputStyle}
+                >
+                  <option value="checked">Checked</option>
+                  <option value="unchecked">Unchecked</option>
+                </select>
+              </div>
+            </>
+          )}
+          {step.type === 'click' && (
+            <div>
+              <label style={phase1LabelStyle}>Selector</label>
+              <input
+                value={String((cfg as any).selector ?? '')}
+                onChange={(e) => update('selector', e.target.value)}
+                style={phase1InputStyle}
+              />
+            </div>
+          )}
+          {step.type === 'delay' && (
+            <div>
+              <label style={phase1LabelStyle}>Delay (ms)</label>
+              <input
+                type="number"
+                value={Number((cfg as any).ms ?? 1000)}
+                onChange={(e) => update('ms', parseInt(e.target.value, 10) || 1000)}
+                style={phase1InputStyle}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>
