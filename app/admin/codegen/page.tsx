@@ -248,6 +248,21 @@ export default function CodegenPage() {
     return out;
   }
 
+  /** Strip {{ }} from date_range fromValue/toValue so output JSON uses plain dates (e.g. 01/01/2019). */
+  function normalizeStepsForJson(steps: Phase1Step[]): Phase1Step[] {
+    return steps.map((step) => {
+      if (step.type !== 'date_range' || !step.config) return step;
+      const cfg = { ...step.config };
+      if (typeof cfg.fromValue === 'string') {
+        cfg.fromValue = cfg.fromValue.replace(/^\{\{?\s*/, '').replace(/\s*\}\}?$/, '');
+      }
+      if (typeof cfg.toValue === 'string') {
+        cfg.toValue = cfg.toValue.replace(/^\{\{?\s*/, '').replace(/\s*\}\}?$/, '');
+      }
+      return { ...step, config: cfg };
+    });
+  }
+
   function buildPhase1Blob(): Phase1Blob | null {
     if (configType !== 'superset' || !resultsTable) return null;
     if (!phase1Steps.length) return null;
@@ -256,8 +271,9 @@ export default function CodegenPage() {
     const baseUrlFromNav = firstNav?.url ?? '';
     const baseSiteId = (loadedPhase1Preset?.siteConfig?.siteId ?? countyId) || 'codegen';
     const baseUrl = loadedPhase1Preset?.siteConfig?.baseUrl ?? baseUrlFromNav;
+    const stepsForJson = normalizeStepsForJson(phase1Steps);
     return {
-      flow: { name: phase1FlowName || 'codegen-superset', steps: phase1Steps },
+      flow: { name: phase1FlowName || 'codegen-superset', steps: stepsForJson },
       siteConfig: {
         ...(loadedPhase1Preset?.siteConfig ?? {}),
         resultTable,
@@ -281,7 +297,7 @@ export default function CodegenPage() {
   }
 
   useEffect(() => {
-    if (loadPhase1ModalOpen && (adminSecret || session?.access_token)) {
+    if ((loadPhase1ModalOpen || savePhase1ModalOpen) && (adminSecret || session?.access_token)) {
       setPhase1ListLoading(true);
       fetch('/api/admin/scraper/flows?kind=codegen_phase1', { headers: authHeaders() })
         .then((res) => res.json())
@@ -289,7 +305,7 @@ export default function CodegenPage() {
         .catch(() => setSavedPhase1List([]))
         .finally(() => setPhase1ListLoading(false));
     }
-  }, [loadPhase1ModalOpen, adminSecret, session?.access_token]);
+  }, [loadPhase1ModalOpen, savePhase1ModalOpen, adminSecret, session?.access_token]);
 
   async function handleSavePhase1(slot: 'golden' | 'experimental') {
     const blob = buildPhase1Blob();
@@ -410,8 +426,6 @@ export default function CodegenPage() {
   const goldenConfig = countyCaseCrawlerConfigs.find((f) => (f.name ?? '').endsWith(' – Golden'));
   const experimentalConfig = countyCaseCrawlerConfigs.find((f) => (f.name ?? '').endsWith(' – Experimental'));
 
-  const btnClass = 'h-9 min-w-[88px] px-4 rounded-lg text-sm font-medium';
-
   return (
     <div className="w-full min-w-0">
       <TitleBlock
@@ -440,32 +454,33 @@ export default function CodegenPage() {
             </select>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button className={btnClass} variant="secondary" onClick={() => setLoadPhase1ModalOpen(true)}>
+            <Button variant="secondary" size="md" onClick={() => setLoadPhase1ModalOpen(true)}>
               Load Case Crawler config
             </Button>
-            <button type="button" className={`${btnClass} border border-[var(--border)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-card)]`} onClick={expandAll}>
+            <Button variant="secondary" size="md" onClick={expandAll}>
               Expand all
-            </button>
-            <button type="button" className={`${btnClass} border border-[var(--border)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-card)]`} onClick={collapseAll}>
+            </Button>
+            <Button variant="secondary" size="md" onClick={collapseAll}>
               Collapse all
-            </button>
+            </Button>
           </div>
         </div>
       </Card>
 
       {/* 1. Step Converter (Codegen) — collapsible, default collapsed */}
-      <div className="mt-4 max-w-3xl">
+      <div className="mt-4 max-w-3xl admin-accordion">
         <button
           type="button"
-          className="w-full flex items-center justify-between p-4 rounded-t-xl border border-b-0 border-[var(--border)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-card)] text-left"
+          className="admin-accordion__header"
+          aria-expanded={sectionExpanded.converter}
           onClick={() => setSectionExpanded((s) => ({ ...s, converter: !s.converter }))}
         >
-          <span className="font-semibold">Step Converter (from Playwright)</span>
-          <span className="text-[var(--text-muted)]" style={{ transform: sectionExpanded.converter ? 'rotate(90deg)' : 'none' }}>▶</span>
+          <span>Step Converter (from Playwright)</span>
+          <span className="admin-accordion__chevron" aria-hidden>▶</span>
         </button>
         {sectionExpanded.converter && (
-          <Card className="rounded-t-none border-t-0 max-w-3xl">
-            <div className="p-4 sm:p-6 space-y-4">
+          <div className="admin-accordion__body">
+            <div className="space-y-4">
               <div>
                 <label className="block admin-heading-3 mb-1">Config type</label>
                 <select
@@ -481,7 +496,7 @@ export default function CodegenPage() {
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <label className="block admin-heading-3">Playwright codegen output</label>
                   {savedConfig?.codegen_source && (
-                    <Button size="sm" variant="ghost" onClick={loadSavedCodegen} className={btnClass}>
+                    <Button size="sm" variant="ghost" onClick={loadSavedCodegen}>
                       Reload saved codegen
                     </Button>
                   )}
@@ -495,7 +510,7 @@ export default function CodegenPage() {
                 />
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Button className={btnClass} onClick={handleConvert} disabled={submitting}>
+                <Button size="md" onClick={handleConvert} disabled={submitting}>
                   {submitting ? 'Converting…' : 'Convert & save'}
                 </Button>
                 {result?.success && (
@@ -512,81 +527,79 @@ export default function CodegenPage() {
                 <p className="admin-text-muted text-sm">Saved for this county · {savedConfig.is_validated ? 'Validated' : 'Draft'}</p>
               )}
             </div>
-          </Card>
+          </div>
         )}
       </div>
 
       {/* 2. Step Editor (Case Crawler flow) — collapsible, default collapsed */}
       {configType === 'superset' && (
-        <div className="mt-2 max-w-3xl">
+        <div className="mt-2 max-w-3xl admin-accordion">
           <button
             type="button"
-            className="w-full flex items-center justify-between p-4 rounded-t-xl border border-b-0 border-[var(--border)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-card)] text-left"
+            className="admin-accordion__header"
+            aria-expanded={sectionExpanded.editor}
             onClick={() => setSectionExpanded((s) => ({ ...s, editor: !s.editor }))}
           >
-            <span className="font-semibold">Step Editor (Case Crawler flow)</span>
-            <span className="text-[var(--text-muted)]" style={{ transform: sectionExpanded.editor ? 'rotate(90deg)' : 'none' }}>▶</span>
+            <span>Step Editor (Case Crawler flow)</span>
+            <span className="admin-accordion__chevron" aria-hidden>▶</span>
           </button>
           {sectionExpanded.editor && (
-            <Card className="rounded-t-none border-t-0 max-w-3xl">
-              <div className="p-4 sm:p-6 space-y-4">
-                <p className="text-sm admin-text-muted">
-                  Auto-populated from codegen. Review and edit these steps to define how we reach the results table.
-                </p>
-                <Phase1FlowEditor
-                  flowName={phase1FlowName}
-                  steps={phase1Steps}
-                  onFlowNameChange={setPhase1FlowName}
-                  onStepsChange={setPhase1Steps}
-                />
-              </div>
-            </Card>
+            <div className="admin-accordion__body">
+              <p className="text-sm admin-text-muted mb-4">
+                Auto-populated from codegen. Review and edit these steps to define how we reach the results table.
+              </p>
+              <Phase1FlowEditor
+                flowName={phase1FlowName}
+                steps={phase1Steps}
+                onFlowNameChange={setPhase1FlowName}
+                onStepsChange={setPhase1Steps}
+              />
+            </div>
           )}
         </div>
       )}
 
       {/* 3. Case Crawler (Enrich results) — collapsible, default collapsed */}
       {configType === 'superset' && (
-        <div className="mt-2 max-w-3xl">
+        <div className="mt-2 max-w-3xl admin-accordion">
           <button
             type="button"
-            className="w-full flex items-center justify-between p-4 rounded-t-xl border border-b-0 border-[var(--border)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-card)] text-left"
+            className="admin-accordion__header"
+            aria-expanded={sectionExpanded.crawler}
             onClick={() => setSectionExpanded((s) => ({ ...s, crawler: !s.crawler }))}
           >
-            <span className="font-semibold">Case Crawler (enrich results)</span>
-            <span className="text-[var(--text-muted)]" style={{ transform: sectionExpanded.crawler ? 'rotate(90deg)' : 'none' }}>▶</span>
+            <span>Case Crawler (enrich results)</span>
+            <span className="admin-accordion__chevron" aria-hidden>▶</span>
           </button>
           {sectionExpanded.crawler && (
-            <Card className="rounded-t-none border-t-0 max-w-3xl rounded-b-xl border-b border-[var(--border)]">
-              <div className="p-4 sm:p-6 space-y-4">
-                {!resultsTable ? (
-                  <p className="admin-text-muted text-sm">Load a Case Crawler config above or convert first to get a starting result table.</p>
-                ) : (
-                  <ResultTableEnrichForm value={resultsTable} onChange={(v) => setResultsTable(v)} />
-                )}
-                <div className="pt-4 border-t border-[var(--border)] flex flex-wrap items-center gap-2">
-                  <Button className={btnClass} onClick={downloadPhase1} disabled={!buildPhase1Blob()}>
-                    Download Case Crawler JSON
-                  </Button>
-                  <Button className={btnClass} variant="secondary" onClick={() => setSavePhase1ModalOpen(true)} disabled={!buildPhase1Blob()}>
-                    Save Case Crawler config
-                  </Button>
-                  {saveResultsTableStatus && <span className="text-sm admin-text-muted">{saveResultsTableStatus}</span>}
-                </div>
-                <details className="mt-2">
-                  <summary className="text-sm cursor-pointer admin-text-muted hover:underline">Advanced: result table presets</summary>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <Button size="sm" variant="ghost" className={btnClass} onClick={handleSaveResultsTable} disabled={loadingResultsTable || !resultsTable}>
-                      {loadingResultsTable ? 'Saving…' : 'Save to county'}
-                    </Button>
-                    <Button size="sm" variant="ghost" className={btnClass} onClick={() => setLoadPresetModalOpen(true)}>Load preset</Button>
-                    <Button size="sm" variant="ghost" className={btnClass} onClick={() => { setSavePresetName(loadedPresetName ?? ''); setSavePresetDescription(''); setSavePresetError(null); setSavePresetModalOpen(true); }} disabled={!resultsTable}>
-                      Save as preset
-                    </Button>
-                  </div>
-                </details>
+            <div className="admin-accordion__body">
+              {!resultsTable ? (
+                <p className="admin-text-muted text-sm">Load a Case Crawler config above or convert first to get a starting result table.</p>
+              ) : (
+                <ResultTableEnrichForm value={resultsTable} onChange={(v) => setResultsTable(v)} />
+              )}
+              <div className="pt-4 border-t border-[var(--border)] flex flex-wrap items-center gap-2">
+                <Button size="md" onClick={downloadPhase1} disabled={!buildPhase1Blob()}>
+                  Download Case Crawler JSON
+                </Button>
+                <Button size="md" variant="secondary" onClick={() => setSavePhase1ModalOpen(true)} disabled={!buildPhase1Blob()}>
+                  Save Case Crawler config
+                </Button>
+                {saveResultsTableStatus && <span className="text-sm admin-text-muted">{saveResultsTableStatus}</span>}
               </div>
-            </Card>
+              <details className="mt-2">
+                <summary className="text-sm cursor-pointer admin-text-muted hover:underline">Advanced: result table presets</summary>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <Button size="sm" variant="ghost" onClick={handleSaveResultsTable} disabled={loadingResultsTable || !resultsTable}>
+                    {loadingResultsTable ? 'Saving…' : 'Save to county'}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setLoadPresetModalOpen(true)}>Load preset</Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setSavePresetName(loadedPresetName ?? ''); setSavePresetDescription(''); setSavePresetError(null); setSavePresetModalOpen(true); }} disabled={!resultsTable}>
+                    Save as preset
+                  </Button>
+                </div>
+              </details>
+            </div>
           )}
         </div>
       )}
@@ -840,7 +853,7 @@ function createBlankPhase1Step(type: string): Phase1Step {
     case 'date_range':
       return {
         ...base,
-        config: { fromSelector: '', toSelector: '', fromValue: '{{date_from}}', toValue: '{{date_to}}' },
+        config: { fromSelector: '', toSelector: '', fromValue: '', toValue: '' },
       };
     case 'checkbox':
       return { ...base, config: { selector: '', state: 'checked' } };

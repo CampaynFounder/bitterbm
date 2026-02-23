@@ -325,6 +325,52 @@
   padding: var(--space-lg);
 }
 
+/* Case Crawler accordion sections */
+.admin-accordion {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg-card);
+}
+
+.admin-accordion__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-md) var(--space-lg);
+  min-height: 48px;
+  cursor: pointer;
+  background: var(--bg-elevated);
+  border: none;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-align: left;
+  transition: background-color 0.15s ease;
+}
+
+.admin-accordion__header:hover {
+  background: var(--bg-card);
+}
+
+.admin-accordion__chevron {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+}
+
+.admin-accordion__header[aria-expanded="true"] .admin-accordion__chevron {
+  transform: rotate(90deg);
+}
+
+.admin-accordion__body {
+  padding: var(--space-lg);
+  border-top: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
 /* Heading and subtext centered when used in admin-card (e.g. .admin-card.p-0.mt-4) */
 .admin-card .admin-heading-1,
 .admin-card .admin-heading-2,

@@ -469,6 +469,86 @@ def run_nested_table_checks(row_locator, root, nested_checks, log):
     return out
 
 
+def run_nested_table_extract(row_locator, root, nested_extract_list, log):
+    """
+    Run nestedTableExtract: for each config, find nested table, filter rows by condition,
+    extract listed columns from matching rows. Returns dict of outputKey -> value (str or list).
+    """
+    out = {}
+    if not nested_extract_list:
+        return out
+
+    def _norm(s):
+        s = str(s).strip()
+        if len(s) >= 2 and s.startswith('\\"') and s.endswith('\\"'):
+            s = s[2:-2]
+        elif len(s) >= 2 and s[0] == '"' and s[-1] == '"':
+            s = s[1:-1]
+        return s.strip()
+
+    for ne in nested_extract_list:
+        scope = ne.get("scope", "row")
+        base = row_locator if scope == "row" else root
+        table_sel = (ne.get("tableSelector") or "").strip()
+        if not table_sel:
+            continue
+        row_sel = (ne.get("rowSelector") or "").strip() or "tr"
+        cond_col = max(0, int(ne.get("conditionColumnIndex", 0)))
+        cond_op = ne.get("conditionOperator", "equals")
+        cond_val = ne.get("conditionValue")
+        if cond_op == "in":
+            vals = cond_val if isinstance(cond_val, list) else [cond_val] if cond_val is not None else []
+            cond_vals = [_norm(v) for v in vals]
+        else:
+            cond_vals = [_norm(cond_val)] if cond_val is not None else []
+        extract_cols = ne.get("extractColumns") or []
+        multiple_rows = ne.get("multipleRows", "first")
+
+        try:
+            table_loc = base.locator(table_sel)
+            rows_loc = table_loc.locator(row_sel)
+            n = rows_loc.count()
+        except Exception:
+            n = 0
+
+        collected = []
+        for r in range(n):
+            try:
+                nested_row = rows_loc.nth(r)
+                cell_text = get_cell_text_for_column(nested_row, cond_col)
+                cell_norm = _norm(cell_text)
+                if cond_op == "equals":
+                    match = cond_vals and cell_norm == cond_vals[0]
+                else:
+                    match = cell_norm in cond_vals
+                if not match:
+                    continue
+                row_data = {}
+                for ec in extract_cols:
+                    idx = int(ec.get("columnIndex", 0))
+                    key = (ec.get("outputKey") or "").strip() or f"col_{idx}"
+                    try:
+                        row_data[key] = (nested_row.locator(f"td:nth-child({idx + 1}), th:nth-child({idx + 1})").first.inner_text() or "").strip()
+                    except Exception:
+                        row_data[key] = ""
+                collected.append(row_data)
+                if multiple_rows == "first":
+                    break
+            except Exception:
+                continue
+
+        for ec in extract_cols:
+            key = (ec.get("outputKey") or "").strip() or f"col_{ec.get('columnIndex', 0)}"
+            if multiple_rows == "array":
+                out[key] = [row.get(key, "") for row in collected]
+            elif multiple_rows == "concat":
+                out[key] = "; ".join(row.get(key, "") for row in collected if row.get(key, ""))
+            else:
+                out[key] = collected[0].get(key, "") if collected else ""
+
+    return out
+
+
 def extract_row_id_and_data(row_locator, result_table, rt):
     """Extract primary id and extractColumns from a row. Returns (id_str, extracted_dict)."""
     primary_id = rt.get("primaryId") or {}
@@ -499,6 +579,9 @@ def main():
     ap.add_argument("--site-config", help="Site config JSON (use with --flow)")
     ap.add_argument("--output", "-o", default="", help="Output JSON path (default: stdout)")
     ap.add_argument("--pattern", default="%", help="Pattern var for {{pattern}} (default: %)")
+    ap.add_argument("--from-date", default="", help="Date-from var for {{date_from}} (e.g. 01/01/2019)")
+    ap.add_argument("--to-date", default="", help="Date-to var for {{date_to}} (e.g. 01/01/2026)")
+    ap.add_argument("--search-text", default="", help="Search text var for {{search_text}}")
     ap.add_argument("--headless", action="store_true", help="Run browser headless")
     ap.add_argument("--debug-row-filter", action="store_true", help="Log main-table cell values for row filter columns on first few rows to troubleshoot 0 matched")
     args = ap.parse_args()
@@ -522,7 +605,14 @@ def main():
         print("resultTable.tableSelector and flow.steps required", file=sys.stderr)
         sys.exit(1)
 
-    vars_dict = {"pattern": args.pattern}
+    vars_dict = {"pattern": getattr(args, "pattern", "%")}
+    if getattr(args, "from_date", ""):
+        vars_dict["date_from"] = args.from_date
+    if getattr(args, "to_date", ""):
+        vars_dict["date_to"] = args.to_date
+    if getattr(args, "search_text", ""):
+        vars_dict["search_text"] = args.search_text
+    search_criteria_snapshot = dict(vars_dict)
 
     def log(msg):
         print(msg, file=sys.stderr)
@@ -610,7 +700,10 @@ def main():
                 nested_checks_result = run_nested_table_checks(
                     row_loc, root, rt.get("nestedTableChecks") or [], log
                 )
-                extracted = {**extracted, **nested_checks_result}
+                nested_extract_result = run_nested_table_extract(
+                    row_loc, root, rt.get("nestedTableExtract") or [], log
+                )
+                extracted = {**extracted, **nested_checks_result, **nested_extract_result}
                 if id_val:
                     ids.append(id_val)
                     rows_data.append({"id": id_val, **extracted})
@@ -637,7 +730,7 @@ def main():
         out = {
             "siteId": site_config.get("siteId", ""),
             "generatedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-            "searchConfigSnapshot": {"pattern": args.pattern},
+            "searchConfigSnapshot": search_criteria_snapshot,
             "ids": ids,
             "rows": rows_data,
         }

@@ -64,6 +64,18 @@ export type ResultTableConfig = {
     value?: string | string[]
     outputInRow?: boolean
   }>
+  /** Extract column values from nested tables when a row condition matches (e.g. when col 2 is A or B, extract col 1 and 2). */
+  nestedTableExtract?: Array<{
+    name: string
+    tableSelector: string
+    scope?: "row" | "page"
+    rowSelector?: string
+    conditionColumnIndex: number
+    conditionOperator: "equals" | "in"
+    conditionValue: string | string[]
+    extractColumns: Array<{ columnIndex: number; outputKey: string }>
+    multipleRows?: "first" | "concat" | "array"
+  }>
 }
 
 export const defaultResultTableConfig: ResultTableConfig = {
@@ -860,6 +872,216 @@ export function ResultTableEnrichForm({
           style={{ ...btnSecondary, marginTop: "var(--space-xs)" }}
         >
           + Add nested table check
+        </button>
+      </div>
+      <div style={{ marginTop: "var(--space-lg)" }}>
+        <label style={labelStyle}>
+          Nested table extract (extract column values when condition matches)
+        </label>
+        <p
+          style={{
+            fontSize: "0.75rem",
+            color: "var(--text-muted)",
+            marginBottom: "var(--space-sm)",
+          }}
+        >
+          When a nested table has a row where the condition column equals or is in the given value(s), extract the listed columns from that row (or all matching rows). Output keys are added to each result row (e.g. plaintiff_attorneys, defendant_attorneys).
+        </p>
+        {(rt.nestedTableExtract ?? []).map((ne, i) => (
+          <div
+            key={i}
+            style={{
+              marginBottom: "var(--space-sm)",
+              padding: "var(--space-sm)",
+              background: "var(--bg-elevated)",
+              borderRadius: 8,
+              border: "1px solid var(--border)",
+            }}
+          >
+            <div style={{ display: "flex", gap: "var(--space-sm)", flexWrap: "wrap", marginBottom: "var(--space-xs)" }}>
+              <input
+                value={ne.name}
+                onChange={(e) => {
+                  const arr = [...(rt.nestedTableExtract ?? [])]
+                  arr[i] = { ...arr[i], name: e.target.value }
+                  update("nestedTableExtract", arr)
+                }}
+                placeholder="Label (e.g. attorneys)"
+                style={{ ...inputStyle, width: 140 }}
+              />
+              <select
+                value={ne.scope ?? "row"}
+                onChange={(e) => {
+                  const arr = [...(rt.nestedTableExtract ?? [])]
+                  arr[i] = { ...arr[i], scope: e.target.value as "row" | "page" }
+                  update("nestedTableExtract", arr)
+                }}
+                style={{ ...inputStyle, width: 100 }}
+              >
+                <option value="row">row</option>
+                <option value="page">page</option>
+              </select>
+              <input
+                value={ne.tableSelector}
+                onChange={(e) => {
+                  const arr = [...(rt.nestedTableExtract ?? [])]
+                  arr[i] = { ...arr[i], tableSelector: e.target.value }
+                  update("nestedTableExtract", arr)
+                }}
+                placeholder="Table CSS (e.g. table#Attorneys)"
+                style={{ ...inputStyle, flex: 1, minWidth: 160 }}
+              />
+              <input
+                value={ne.rowSelector ?? ""}
+                onChange={(e) => {
+                  const arr = [...(rt.nestedTableExtract ?? [])]
+                  arr[i] = { ...arr[i], rowSelector: e.target.value.trim() || undefined }
+                  update("nestedTableExtract", arr)
+                }}
+                placeholder="Row selector (e.g. tbody tr)"
+                style={{ ...inputStyle, width: 120 }}
+              />
+            </div>
+            <div style={{ display: "flex", gap: "var(--space-sm)", flexWrap: "wrap", alignItems: "center", marginBottom: "var(--space-xs)" }}>
+              <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>When column</span>
+              <input
+                type="number"
+                min={0}
+                value={ne.conditionColumnIndex}
+                onChange={(e) => {
+                  const arr = [...(rt.nestedTableExtract ?? [])]
+                  arr[i] = { ...arr[i], conditionColumnIndex: Math.max(0, parseInt(e.target.value, 10) || 0) }
+                  update("nestedTableExtract", arr)
+                }}
+                style={{ ...inputStyle, width: 56 }}
+              />
+              <select
+                value={ne.conditionOperator}
+                onChange={(e) => {
+                  const arr = [...(rt.nestedTableExtract ?? [])]
+                  arr[i] = { ...arr[i], conditionOperator: e.target.value as "equals" | "in" }
+                  update("nestedTableExtract", arr)
+                }}
+                style={{ ...inputStyle, width: 88 }}
+              >
+                <option value="equals">equals</option>
+                <option value="in">in</option>
+              </select>
+              <input
+                value={Array.isArray(ne.conditionValue) ? (ne.conditionValue as string[]).join(", ") : String(ne.conditionValue ?? "")}
+                onChange={(e) => {
+                  const v = e.target.value
+                  const arr = [...(rt.nestedTableExtract ?? [])]
+                  arr[i] = {
+                    ...arr[i],
+                    conditionValue: ne.conditionOperator === "in" ? v.split(",").map((s) => s.trim()).filter(Boolean) : v,
+                  }
+                  update("nestedTableExtract", arr)
+                }}
+                placeholder={ne.conditionOperator === "in" ? "A, B, C" : "value"}
+                style={{ ...inputStyle, width: 140 }}
+              />
+              <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Multiple rows:</span>
+              <select
+                value={ne.multipleRows ?? "first"}
+                onChange={(e) => {
+                  const arr = [...(rt.nestedTableExtract ?? [])]
+                  arr[i] = { ...arr[i], multipleRows: e.target.value as "first" | "concat" | "array" }
+                  update("nestedTableExtract", arr)
+                }}
+                style={{ ...inputStyle, width: 100 }}
+              >
+                <option value="first">first match</option>
+                <option value="concat">concat (; )</option>
+                <option value="array">array</option>
+              </select>
+            </div>
+            <div style={{ marginBottom: "var(--space-xs)" }}>
+              <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Extract columns (column index → output key):</span>
+              {(ne.extractColumns ?? []).map((ec, j) => (
+                <div key={j} style={{ display: "flex", gap: "var(--space-sm)", flexWrap: "wrap", alignItems: "center", marginTop: 4 }}>
+                  <input
+                    type="number"
+                    min={0}
+                    value={ec.columnIndex}
+                    onChange={(e) => {
+                      const arr = [...(rt.nestedTableExtract ?? [])]
+                      const ex = [...(arr[i].extractColumns ?? [])]
+                      ex[j] = { ...ex[j], columnIndex: Math.max(0, parseInt(e.target.value, 10) || 0) }
+                      arr[i] = { ...arr[i], extractColumns: ex }
+                      update("nestedTableExtract", arr)
+                    }}
+                    style={{ ...inputStyle, width: 56 }}
+                    placeholder="Col"
+                  />
+                  <input
+                    value={ec.outputKey}
+                    onChange={(e) => {
+                      const arr = [...(rt.nestedTableExtract ?? [])]
+                      const ex = [...(arr[i].extractColumns ?? [])]
+                      ex[j] = { ...ex[j], outputKey: e.target.value.trim() }
+                      arr[i] = { ...arr[i], extractColumns: ex }
+                      update("nestedTableExtract", arr)
+                    }}
+                    placeholder="Output key"
+                    style={{ ...inputStyle, width: 120 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const arr = [...(rt.nestedTableExtract ?? [])]
+                      arr[i] = { ...arr[i], extractColumns: (arr[i].extractColumns ?? []).filter((_, k) => k !== j) }
+                      update("nestedTableExtract", arr)
+                    }}
+                    style={btnSecondary}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => {
+                  const arr = [...(rt.nestedTableExtract ?? [])]
+                  const ex = [...(arr[i].extractColumns ?? []), { columnIndex: 0, outputKey: "" }]
+                  arr[i] = { ...arr[i], extractColumns: ex }
+                  update("nestedTableExtract", arr)
+                }}
+                style={{ ...btnSecondary, marginTop: 4 }}
+              >
+                + Add column
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => update("nestedTableExtract", (rt.nestedTableExtract ?? []).filter((_, j) => j !== i))}
+              style={btnSecondary}
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={() =>
+            update("nestedTableExtract", [
+              ...(rt.nestedTableExtract ?? []),
+              {
+                name: "Nested extract 1",
+                tableSelector: "table.nested",
+                scope: "row",
+                rowSelector: "tbody tr",
+                conditionColumnIndex: 0,
+                conditionOperator: "in",
+                conditionValue: [],
+                extractColumns: [{ columnIndex: 0, outputKey: "" }, { columnIndex: 1, outputKey: "" }],
+                multipleRows: "concat",
+              },
+            ])
+          }
+          style={{ ...btnSecondary, marginTop: "var(--space-xs)" }}
+        >
+          + Add nested table extract
         </button>
       </div>
     </div>

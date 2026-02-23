@@ -155,6 +155,85 @@ async def _extract_row_id_and_data_async(row_locator, rt: Dict) -> Tuple[str, Di
     return id_val, extracted
 
 
+async def _run_nested_table_extract_async(
+    row_locator, root: Root, nested_extract_list: List[Dict], log: Optional[Callable[[str], None]] = None
+) -> Dict[str, Any]:
+    """
+    Run nestedTableExtract: for each config, find nested table, filter rows by condition,
+    extract listed columns from matching rows. Returns dict of outputKey -> value (str or list).
+    """
+    out: Dict[str, Any] = {}
+    if not nested_extract_list:
+        return out
+
+    def _log(msg: str) -> None:
+        if log:
+            log(msg)
+
+    for ne in nested_extract_list:
+        scope = ne.get("scope", "row")
+        base = row_locator if scope == "row" else root
+        table_sel = (ne.get("tableSelector") or "").strip()
+        if not table_sel:
+            continue
+        row_sel = (ne.get("rowSelector") or "").strip() or "tr"
+        cond_col = max(0, int(ne.get("conditionColumnIndex", 0)))
+        cond_op = ne.get("conditionOperator", "equals")
+        cond_val = ne.get("conditionValue")
+        if cond_op == "in":
+            vals = cond_val if isinstance(cond_val, list) else [cond_val] if cond_val is not None else []
+            cond_vals = [_norm_val(v) for v in vals]
+        else:
+            cond_vals = [_norm_val(cond_val)] if cond_val is not None else []
+        extract_cols = ne.get("extractColumns") or []
+        multiple_rows = ne.get("multipleRows", "first")
+
+        try:
+            table_loc = base.locator(table_sel)
+            rows_loc = table_loc.locator(row_sel)
+            n = rows_loc.count()
+        except Exception:
+            n = 0
+
+        collected: List[Dict[str, str]] = []
+        for r in range(n):
+            try:
+                nested_row = rows_loc.nth(r)
+                cell_text = await _get_cell_text_for_column_async(nested_row, cond_col)
+                cell_norm = _norm_val(cell_text)
+                if cond_op == "equals":
+                    match = cond_vals and cell_norm == cond_vals[0]
+                else:
+                    match = cell_norm in cond_vals
+                if not match:
+                    continue
+                row_data: Dict[str, str] = {}
+                for ec in extract_cols:
+                    idx = int(ec.get("columnIndex", 0))
+                    key = (ec.get("outputKey") or "").strip() or f"col_{idx}"
+                    try:
+                        text = await _get_cell_text_for_column_async(nested_row, idx)
+                        row_data[key] = text
+                    except Exception:
+                        row_data[key] = ""
+                collected.append(row_data)
+                if multiple_rows == "first":
+                    break
+            except Exception:
+                continue
+
+        for ec in extract_cols:
+            key = (ec.get("outputKey") or "").strip() or f"col_{ec.get('columnIndex', 0)}"
+            if multiple_rows == "array":
+                out[key] = [row.get(key, "") for row in collected]
+            elif multiple_rows == "concat":
+                out[key] = "; ".join(row.get(key, "") for row in collected if row.get(key, ""))
+            else:
+                out[key] = collected[0].get(key, "") if collected else ""
+
+    return out
+
+
 async def extract_from_result_table_async(
     page,
     root: Root,
@@ -183,6 +262,7 @@ async def extract_from_result_table_async(
     nested_row_filters = rt.get("nestedRowFilters") or []
     # Nested table checks (simplified: we skip expand/collapse for pipeline; can add later)
     nested_table_checks = rt.get("nestedTableChecks") or []
+    nested_table_extract = rt.get("nestedTableExtract") or []
 
     def _log(msg: str) -> None:
         if log:
@@ -216,6 +296,9 @@ async def extract_from_result_table_async(
         if not await _nested_filter_passes_async(row_loc, nested_row_filters):
             continue
         id_val, extracted = await _extract_row_id_and_data_async(row_loc, rt)
+        # Nested table extract: extract column values from nested tables when condition matches
+        nested_extracted = await _run_nested_table_extract_async(row_loc, root, nested_table_extract, _log)
+        extracted = {**extracted, **nested_extracted}
         # Optional: run nested table checks (exists only for now; no expand)
         for nc in nested_table_checks:
             if not nc.get("outputInRow"):
