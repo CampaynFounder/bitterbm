@@ -786,30 +786,21 @@ export function ResultTableEnrichForm({
               />
               <input
                 value={
-                  Array.isArray(nc.value)
-                    ? (nc.value as string[]).map((s) => {
-                        let x = String(s).trim()
-                        if (x.startsWith('\\"') && x.endsWith('\\"')) x = x.slice(2, -2)
-                        else if (x.startsWith('"') && x.endsWith('"'))
-                          x = x.slice(1, -1)
-                        return x
-                      }).join(", ")
-                    : String(nc.value ?? "")
+                  typeof nc.value === "string"
+                    ? nc.value
+                    : Array.isArray(nc.value)
+                      ? (nc.value as string[]).map((s) => {
+                          let x = String(s).trim()
+                          if (x.startsWith('\\"') && x.endsWith('\\"')) x = x.slice(2, -2)
+                          else if (x.startsWith('"') && x.endsWith('"')) x = x.slice(1, -1)
+                          return x
+                        }).join(", ")
+                      : ""
                 }
                 onChange={(e) => {
                   const v = e.target.value
                   const arr = [...(rt.nestedTableChecks ?? [])]
-                  arr[i] = {
-                    ...arr[i],
-                    value:
-                      (nc.operator ?? "equals") === "in" ||
-                      (nc.operator ?? "equals") === "all_in"
-                        ? v
-                            .split(",")
-                            .map((s) => s.trim())
-                            .filter(Boolean)
-                        : v,
-                  }
+                  arr[i] = { ...arr[i], value: v }
                   update("nestedTableChecks", arr)
                 }}
                 placeholder={
@@ -968,17 +959,20 @@ export function ResultTableEnrichForm({
                 <option value="in">in</option>
               </select>
               <input
-                value={Array.isArray(ne.conditionValue) ? (ne.conditionValue as string[]).join(", ") : String(ne.conditionValue ?? "")}
+                value={
+                  typeof ne.conditionValue === "string"
+                    ? ne.conditionValue
+                    : Array.isArray(ne.conditionValue)
+                      ? (ne.conditionValue as string[]).join(", ")
+                      : ""
+                }
                 onChange={(e) => {
                   const v = e.target.value
                   const arr = [...(rt.nestedTableExtract ?? [])]
-                  arr[i] = {
-                    ...arr[i],
-                    conditionValue: ne.conditionOperator === "in" ? v.split(",").map((s) => s.trim()).filter(Boolean) : v,
-                  }
+                  arr[i] = { ...arr[i], conditionValue: v }
                   update("nestedTableExtract", arr)
                 }}
-                placeholder={ne.conditionOperator === "in" ? "A, B, C" : "value"}
+                placeholder={ne.conditionOperator === "in" ? "A, B, C (comma-separated)" : "value"}
                 style={{ ...inputStyle, width: 140 }}
               />
               <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Multiple rows:</span>

@@ -263,10 +263,36 @@ export default function CodegenPage() {
     });
   }
 
+  /** Parse comma-separated string to array for export; leaves arrays and non-strings unchanged. */
+  function parseCommaList(v: string | string[] | undefined): string[] {
+    if (Array.isArray(v)) return v;
+    if (typeof v !== 'string') return [];
+    return v.split(',').map((s) => s.trim()).filter(Boolean);
+  }
+
+  /** Normalize resultTable for export: comma-separated strings → arrays for "in"/"all_in". */
+  function normalizeResultTableForJson(rt: ResultTableConfig): ResultTableConfig {
+    const out = JSON.parse(JSON.stringify(rt)) as ResultTableConfig;
+    (out.nestedTableExtract ?? []).forEach((ne) => {
+      if (ne.conditionOperator === 'in' && typeof ne.conditionValue === 'string') {
+        ne.conditionValue = parseCommaList(ne.conditionValue);
+      }
+    });
+    (out.nestedTableChecks ?? []).forEach((nc) => {
+      const op = nc.operator ?? 'equals';
+      if ((op === 'in' || op === 'all_in') && typeof nc.value === 'string') {
+        nc.value = parseCommaList(nc.value);
+      }
+    });
+    return out;
+  }
+
   function buildPhase1Blob(): Phase1Blob | null {
     if (configType !== 'superset' || !resultsTable) return null;
     if (!phase1Steps.length) return null;
-    const resultTable = { ...defaultResultTableConfig, ...resultsTable, primaryId: resultsTable.primaryId && typeof resultsTable.primaryId === 'object' ? { ...defaultResultTableConfig.primaryId, ...resultsTable.primaryId } : defaultResultTableConfig.primaryId };
+    const resultTable = normalizeResultTableForJson(
+      { ...defaultResultTableConfig, ...resultsTable, primaryId: resultsTable.primaryId && typeof resultsTable.primaryId === 'object' ? { ...defaultResultTableConfig.primaryId, ...resultsTable.primaryId } : defaultResultTableConfig.primaryId }
+    );
     const firstNav = navigationSteps.find((s) => s.type === 'navigate');
     const baseUrlFromNav = firstNav?.url ?? '';
     const baseSiteId = (loadedPhase1Preset?.siteConfig?.siteId ?? countyId) || 'codegen';
