@@ -480,7 +480,7 @@ export default function CodegenPage() {
             </select>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="secondary" size="md" onClick={() => setLoadPhase1ModalOpen(true)}>
+            <Button variant="secondary" size="md" onClick={() => setLoadPhase1ModalOpen(true)} disabled={!countyId}>
               Load Case Crawler config
             </Button>
             <Button variant="secondary" size="md" onClick={expandAll}>
@@ -704,18 +704,24 @@ export default function CodegenPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setLoadPhase1ModalOpen(false)}>
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border)] max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="p-4 border-b border-[var(--border)]">
-              <h3 className="font-semibold text-base mb-2">Load Phase 1 preset</h3>
-              <p className="text-sm admin-text-muted mb-2">Load a saved superset config (flow + result table). Result table loads into the form; run Phase 1 locally with the downloaded file.</p>
-              <input type="text" value={phase1Search} onChange={(e) => setPhase1Search(e.target.value)} placeholder="Search by name…" className="admin-input w-full" />
+              <h3 className="font-semibold text-base mb-2">Load Case Crawler config</h3>
+              <p className="text-sm admin-text-muted mb-2">Load a saved config for the selected county (flow + result table + codegen). Shows only configs for the county chosen above.</p>
+              {!countyId ? (
+                <p className="text-sm text-[var(--accent-gold)]">Select a county above first.</p>
+              ) : (
+                <input type="text" value={phase1Search} onChange={(e) => setPhase1Search(e.target.value)} placeholder="Search by name…" className="admin-input w-full mt-2" />
+              )}
             </div>
             <div className="overflow-auto flex-1 p-2">
-              {phase1ListLoading ? (
+              {!countyId ? (
+                <p className="text-sm admin-text-muted">Select a county in the top bar to see its saved configs.</p>
+              ) : phase1ListLoading ? (
                 <p className="text-sm admin-text-muted">Loading…</p>
-              ) : savedPhase1List.filter((f) => !phase1Search.trim() || (f.name ?? '').toLowerCase().includes(phase1Search.trim().toLowerCase())).length === 0 ? (
-                <p className="text-sm admin-text-muted">No saved Case Crawler configs</p>
+              ) : countyCaseCrawlerConfigs.filter((f) => !phase1Search.trim() || (f.name ?? '').toLowerCase().includes(phase1Search.trim().toLowerCase())).length === 0 ? (
+                <p className="text-sm admin-text-muted">No saved Case Crawler configs for this county</p>
               ) : (
                 <ul className="list-none p-0 m-0 space-y-1">
-                  {savedPhase1List
+                  {countyCaseCrawlerConfigs
                     .filter((f) => !phase1Search.trim() || (f.name ?? '').toLowerCase().includes(phase1Search.trim().toLowerCase()))
                     .map((f) => {
                       const raw = f.flow_json as Phase1Blob | null;
@@ -726,7 +732,8 @@ export default function CodegenPage() {
                             className="flex-1 text-left px-3 py-2 rounded-lg text-sm hover:bg-[var(--bg-elevated)]"
                             onClick={() => {
                               if (raw && typeof raw === 'object') {
-                                if (raw.siteConfig?.siteId) setCountyId(raw.siteConfig.siteId);
+                                const siteId = raw.siteConfig?.siteId ?? countyId;
+                                if (siteId) setCountyId(siteId);
                                 if (raw.siteConfig?.resultTable) {
                                   const rt = raw.siteConfig.resultTable;
                                   setResultsTable({
@@ -743,6 +750,16 @@ export default function CodegenPage() {
                                 setLoadedPhase1Name(f.name ?? null);
                                 setPhase1FlowName(raw.flow?.name ?? 'codegen-superset');
                                 setPhase1Steps(Array.isArray(raw.flow?.steps) ? (raw.flow.steps as Phase1Step[]) : []);
+                                // Populate Step Converter with this county's codegen source
+                                supabase
+                                  .from('scraper_configs')
+                                  .select('codegen_source')
+                                  .eq('county_id', siteId)
+                                  .eq('config_type', 'superset')
+                                  .maybeSingle()
+                                  .then(({ data }) => {
+                                    setCode((data as { codegen_source?: string } | null)?.codegen_source ?? '');
+                                  });
                               }
                               setLoadPhase1ModalOpen(false);
                               setPhase1Search('');
