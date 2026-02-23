@@ -765,6 +765,9 @@ export default function AdminSupersetPage() {
   const [selectedConfigIds, setSelectedConfigIds] = useState<Set<string>>(new Set())
   const [selectedResultConfigIds, setSelectedResultConfigIds] = useState<Set<string>>(new Set())
   const [selectedE2EIds, setSelectedE2EIds] = useState<Set<string>>(new Set())
+  /** When user loaded a superset (e2e) preset, we track id/name so Save can offer Overwrite */
+  const [loadedE2EId, setLoadedE2EId] = useState<string | null>(null)
+  const [loadedE2EName, setLoadedE2EName] = useState<string | null>(null)
 
   useEffect(() => {
     if (loadFlowModalOpen && (adminSecret || session?.access_token)) {
@@ -889,21 +892,34 @@ export default function AdminSupersetPage() {
   function getE2EBlob() {
     return { flow: { name: flowName, steps }, siteConfig }
   }
-  async function handleSaveE2E() {
+  async function handleSaveE2E(overwrite: boolean) {
     if (!saveName.trim()) { setSaveError("Name required"); return }
     setSaveLoading(true)
     setSaveError(null)
+    const idToUpdate = overwrite && loadedE2EId ? loadedE2EId : undefined
     try {
       const res = await fetch("/api/admin/scraper/flows", {
         method: "POST",
         headers: authHeaders(),
-        body: JSON.stringify({ name: saveName.trim(), description: saveDescription.trim() || undefined, flow_json: getE2EBlob(), kind: "superset_e2e" }),
+        body: JSON.stringify({
+          ...(idToUpdate ? { id: idToUpdate } : {}),
+          name: saveName.trim(),
+          description: saveDescription.trim() || undefined,
+          flow_json: getE2EBlob(),
+          kind: "superset_e2e",
+        }),
       })
       const data = (await res.json()) as { error?: string }
       if (!res.ok) throw new Error(data.error ?? "Save failed")
       setSaveE2EModalOpen(false)
       setSaveName("")
       setSaveDescription("")
+      if (overwrite && loadedE2EId) {
+        setLoadedE2EName(saveName.trim())
+      } else {
+        setLoadedE2EId(null)
+        setLoadedE2EName(null)
+      }
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Save failed")
     } finally {
@@ -1114,8 +1130,8 @@ export default function AdminSupersetPage() {
             <button type="button" onClick={() => setSectionExpanded({ flow: true, results: true, siteConfig: true })} style={btnSecondary}>Expand all</button>
             <button type="button" onClick={() => setSectionExpanded({ flow: false, results: false, siteConfig: false })} style={btnSecondary}>Collapse all</button>
             <span style={{ width: "1px", height: 20, background: "var(--border)", margin: "0 var(--space-xs)" }} />
-            <button type="button" onClick={() => { setSaveName(flowName); setSaveDescription(""); setSaveError(null); setSaveE2EModalOpen(true) }} style={btnSecondary} title="Save flow + site config as one superset preset">Save superset (e2e)</button>
-            <button type="button" onClick={() => setLoadE2EModalOpen(true)} style={btnSecondary} title="Load a full superset preset (flow + site config)">Load superset (e2e)</button>
+            <button type="button" onClick={() => { setSaveName(loadedE2EName ?? flowName); setSaveDescription(""); setSaveError(null); setSaveE2EModalOpen(true) }} style={btnSecondary} title="Save flow + site config as one superset preset">Save superset (e2e)</button>
+            <button type="button" onClick={() => setLoadE2EModalOpen(true)} style={btnSecondary} title="Load a saved superset to edit; then use Overwrite when saving">Load superset (e2e)</button>
             <button type="button" onClick={() => { try { downloadJson("superset-phase1.json", getE2EBlob()) } catch { setRetrievalResult((r) => ({ ...r, error: "Invalid flow or config" })) } }} style={btnSecondary} title="Download single file for phase1_build.py --config superset-phase1.json">Download superset (e2e)</button>
           </div>
 
@@ -1242,17 +1258,24 @@ export default function AdminSupersetPage() {
           </div>
         )}
         {saveE2EModalOpen && (
-          <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", padding: "var(--space-md)" }} onClick={() => setSaveE2EModalOpen(false)}>
+          <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", padding: "var(--space-md)" }} onClick={() => { setSaveE2EModalOpen(false); setSaveError(null) }}>
             <div style={{ background: "var(--bg-card)", borderRadius: 12, border: "1px solid var(--border)", padding: "var(--space-md)", maxWidth: 400, width: "100%" }} onClick={(e) => e.stopPropagation()}>
               <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "var(--space-sm)" }}>Save superset (e2e)</h3>
-              <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginBottom: "var(--space-sm)" }}>Saves current flow and site config as one preset.</p>
+              <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginBottom: "var(--space-sm)" }}>Saves current flow and site config as one preset. Load a preset first to overwrite it.</p>
               <label style={labelStyle}>Name</label>
               <input value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder="e.g. cobb-superset" style={{ ...inputStyle, marginBottom: "var(--space-sm)" }} />
               <label style={labelStyle}>Description (optional)</label>
               <input value={saveDescription} onChange={(e) => setSaveDescription(e.target.value)} style={{ ...inputStyle, marginBottom: "var(--space-sm)" }} />
               {saveError && <p style={{ fontSize: "0.875rem", color: "var(--accent-gold)", marginBottom: "var(--space-sm)" }}>{saveError}</p>}
-              <div style={{ display: "flex", gap: "var(--space-sm)" }}>
-                <button type="button" onClick={handleSaveE2E} disabled={saveLoading} className="btn-primary" style={{ padding: "var(--space-xs) var(--space-sm)" }}>{saveLoading ? "Saving…" : "Save"}</button>
+              <div style={{ display: "flex", gap: "var(--space-sm)", flexWrap: "wrap" }}>
+                {loadedE2EId ? (
+                  <>
+                    <button type="button" onClick={() => handleSaveE2E(true)} disabled={saveLoading} className="btn-primary" style={{ padding: "var(--space-xs) var(--space-sm)" }}>{saveLoading ? "Saving…" : "Overwrite"}</button>
+                    <button type="button" onClick={() => handleSaveE2E(false)} disabled={saveLoading} style={btnSecondary}>Save as new copy</button>
+                  </>
+                ) : (
+                  <button type="button" onClick={() => handleSaveE2E(false)} disabled={saveLoading} className="btn-primary" style={{ padding: "var(--space-xs) var(--space-sm)" }}>{saveLoading ? "Saving…" : "Save"}</button>
+                )}
                 <button type="button" onClick={() => { setSaveE2EModalOpen(false); setSaveError(null) }} style={btnSecondary}>Cancel</button>
               </div>
             </div>
@@ -1370,7 +1393,7 @@ export default function AdminSupersetPage() {
             <div style={{ background: "var(--bg-card)", borderRadius: 12, border: "1px solid var(--border)", maxWidth: 480, width: "100%", maxHeight: "80vh", overflow: "hidden", display: "flex", flexDirection: "column" }} onClick={(e) => e.stopPropagation()}>
               <div style={{ padding: "var(--space-md)", borderBottom: "1px solid var(--border)" }}>
                 <h3 style={{ fontSize: "1rem", fontWeight: 600, marginBottom: "var(--space-sm)" }}>Load superset (e2e)</h3>
-                <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginBottom: "var(--space-sm)" }}>Load a full preset: flow + site config.</p>
+                <p style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginBottom: "var(--space-sm)" }}>Load a saved preset to edit. After editing, use Save superset (e2e) and choose Overwrite to update it.</p>
                 <input type="text" value={e2ESearch} onChange={(e) => setE2ESearch(e.target.value)} placeholder="Search by name…" style={inputStyle} />
                 {saveError && <p style={{ fontSize: "0.875rem", color: "var(--accent-gold)", marginTop: "var(--space-sm)" }}>{saveError}</p>}
               </div>
@@ -1386,7 +1409,7 @@ export default function AdminSupersetPage() {
                       const cfg = e2e?.siteConfig
                       return (
                         <li key={f.id} style={{ display: "flex", alignItems: "center", gap: "var(--space-xs)", marginBottom: "var(--space-xs)" }}>
-                          <button type="button" onClick={() => { setFlowName(name ?? "superset-search"); setSteps(stepsArr); if (cfg && typeof cfg === "object") setSiteConfig(cfg); setLoadE2EModalOpen(false); setE2ESearch("") }} style={{ flex: 1, padding: "var(--space-sm)", textAlign: "left", background: "none", border: "none", borderRadius: 8, cursor: "pointer", fontSize: "0.875rem", color: "var(--text-primary)" }} className="hover:bg-[var(--bg-elevated)]">
+                          <button type="button" onClick={() => { setFlowName(name ?? "superset-search"); setSteps(stepsArr); if (cfg && typeof cfg === "object") setSiteConfig(cfg); setLoadedE2EId(f.id); setLoadedE2EName(f.name ?? null); setLoadE2EModalOpen(false); setE2ESearch("") }} style={{ flex: 1, padding: "var(--space-sm)", textAlign: "left", background: "none", border: "none", borderRadius: 8, cursor: "pointer", fontSize: "0.875rem", color: "var(--text-primary)" }} className="hover:bg-[var(--bg-elevated)]">
                             <span style={{ fontWeight: 500 }}>{f.name}</span>
                             {f.description && <span style={{ display: "block", fontSize: "0.75rem", color: "var(--text-muted)" }}>{f.description}</span>}
                           </button>

@@ -104,7 +104,8 @@ class CodegenConverter:
         # Click
         elif '.click()' in line:
             selector = self._extract_selector(line)
-            if selector:
+            # Skip noisy "click iframe" / "check iframe" steps (selector same as iframe)
+            if selector and selector != (self.current_iframe or ''):
                 return {
                     'type': 'click',
                     'selector': selector,
@@ -114,7 +115,7 @@ class CodegenConverter:
         # Check checkbox
         elif '.check()' in line:
             selector = self._extract_selector(line)
-            if selector:
+            if selector and selector != (self.current_iframe or ''):
                 return {
                     'type': 'check',
                     'selector': selector,
@@ -211,25 +212,55 @@ class CodegenConverter:
         
         return form_fields
     
+    def _detect_nested_table_checks(self) -> List[Dict]:
+        """If expand/icon clicks suggest a nested table, return one nestedTableChecks entry for the JSON."""
+        for step in self.steps:
+            sel = step.get('selector', '')
+            if step['type'] != 'click':
+                continue
+            if 'img' in sel or 'icon' in sel.lower():
+                if 'add.png' in sel or 'expand' in sel.lower() or 'EventGrid' in sel:
+                    return [{
+                        'name': 'Events',
+                        'tableSelector': 'table#EventGrid',
+                        'scope': 'row',
+                        'rowSelector': 'tbody tr',
+                        'operator': 'exists',
+                        'outputInRow': True,
+                    }]
+            # Cobb-style: img with numeric id often toggles nested table
+            if sel.startswith('#img') or (re.search(r'img\d+', sel) and 'tr:nth-child' not in sel):
+                return [{
+                    'name': 'Events',
+                    'tableSelector': 'table#EventGrid',
+                    'scope': 'row',
+                    'rowSelector': 'tbody tr',
+                    'operator': 'exists',
+                    'outputInRow': True,
+                }]
+        return []
+
     def _extract_results_table(self) -> Dict:
-        """Identify results table structure"""
-        
-        # Look for table row clicks
+        """Identify results table structure with full schema (primaryId, nestedRowFilters, nestedTableChecks)."""
+        iframe = None
         for step in self.steps:
             if step['type'] == 'click' and 'tr:nth-child' in step.get('selector', ''):
-                # Extract table selector
-                selector = step['selector']
-                
-                # Parse to get base table selector
-                # e.g., "tr:nth-child(17) > td:nth-child(5)" -> "table tbody tr"
-                
-                return {
-                    'table_selector': 'table',
-                    'row_selector': 'tbody tr',
-                    'iframe': step.get('iframe')
-                }
-        
-        return {}
+                iframe = step.get('iframe')
+                break
+
+        base = {
+            'table_selector': 'table',
+            'row_selector': 'tbody tr',
+            'tableSelector': 'table',
+            'rowSelector': 'tbody tr',
+            'primaryId': {'source': 'column', 'columnIndex': 1},
+            'threshold': 5,
+            'nestedRowFilters': [],
+            'nestedTableChecks': self._detect_nested_table_checks(),
+        }
+        if iframe is not None:
+            base['iframe'] = iframe
+        return base
     
     def _extract_extraction_rules(self) -> Dict:
         """

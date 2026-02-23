@@ -51,6 +51,7 @@ export default function CodegenPage() {
     if (!countyId) {
       setSavedConfig(null);
       setResultsTable(null);
+      setCode('');
       return;
     }
     supabase
@@ -64,6 +65,7 @@ export default function CodegenPage() {
         if (!cfg) {
           setSavedConfig(null);
           setResultsTable(null);
+          setCode('');
           return;
         }
         setSavedConfig({
@@ -73,6 +75,8 @@ export default function CodegenPage() {
           codegen_source: cfg.codegen_source,
           created_at: cfg.created_at,
         });
+        if (cfg.codegen_source) setCode(cfg.codegen_source);
+        else setCode('');
         if (configType === 'superset') {
           const rt = (cfg as any).results_table as ResultTableConfig | null | undefined;
           const merged =
@@ -177,7 +181,7 @@ export default function CodegenPage() {
         Run <code className="px-1.5 py-0.5 rounded bg-[var(--bg-elevated)]">python3 -m playwright codegen &lt;court-url&gt;</code>, record your flow, then paste the generated code below and click Convert &amp; save.
       </Hint>
 
-      <SectionBlock title="Convert and save" description="Select county and config type, paste codegen, then convert.">
+      <SectionBlock title="Convert and save" description="Select county and config type; any saved conversion for that county loads automatically (code + result table). Paste new codegen and Convert & save to overwrite.">
         <Card className="max-w-3xl">
           <div className="p-4 sm:p-6 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -211,8 +215,8 @@ export default function CodegenPage() {
               <div className="flex items-center justify-between gap-2 mb-1">
                 <label className="block admin-heading-3">Playwright codegen output</label>
                 {savedConfig?.codegen_source && (
-                  <Button size="sm" variant="ghost" onClick={loadSavedCodegen}>
-                    Load saved codegen
+                  <Button size="sm" variant="ghost" onClick={loadSavedCodegen} title="Restore saved code into the textarea (e.g. after editing)">
+                    Reload saved codegen
                   </Button>
                 )}
               </div>

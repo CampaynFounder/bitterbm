@@ -68,11 +68,11 @@ class CodegenConverter:
                 return {"type": "fill", "selector": selector, "value": value_match.group(1), "iframe": self.current_iframe}
         elif ".click()" in line:
             selector = self._extract_selector(line)
-            if selector:
+            if selector and selector != (self.current_iframe or ""):
                 return {"type": "click", "selector": selector, "iframe": self.current_iframe}
         elif ".check()" in line:
             selector = self._extract_selector(line)
-            if selector:
+            if selector and selector != (self.current_iframe or ""):
                 return {"type": "check", "selector": selector, "iframe": self.current_iframe}
         elif "wait_for_timeout" in line:
             timeout = re.search(r"wait_for_timeout\((\d+)\)", line)
@@ -133,15 +133,57 @@ class CodegenConverter:
                     break
         return form_fields
 
+    def _detect_nested_table_checks(self) -> List[Dict]:
+        for step in self.steps:
+            sel = step.get("selector", "")
+            if step["type"] != "click":
+                continue
+            if "img" in sel or "icon" in sel.lower():
+                if "add.png" in sel or "expand" in sel.lower() or "EventGrid" in sel:
+                    return [
+                        {
+                            "name": "Events",
+                            "tableSelector": "table#EventGrid",
+                            "scope": "row",
+                            "rowSelector": "tbody tr",
+                            "operator": "exists",
+                            "outputInRow": True,
+                        }
+                    ]
+            if sel.startswith("#img") or (
+                re.search(r"img\d+", sel) and "tr:nth-child" not in sel
+            ):
+                return [
+                    {
+                        "name": "Events",
+                        "tableSelector": "table#EventGrid",
+                        "scope": "row",
+                        "rowSelector": "tbody tr",
+                        "operator": "exists",
+                        "outputInRow": True,
+                    }
+                ]
+        return []
+
     def _extract_results_table(self) -> Dict:
+        iframe = None
         for step in self.steps:
             if step["type"] == "click" and "tr:nth-child" in step.get("selector", ""):
-                return {
-                    "table_selector": "table",
-                    "row_selector": "tbody tr",
-                    "iframe": step.get("iframe"),
-                }
-        return {}
+                iframe = step.get("iframe")
+                break
+        base = {
+            "table_selector": "table",
+            "row_selector": "tbody tr",
+            "tableSelector": "table",
+            "rowSelector": "tbody tr",
+            "primaryId": {"source": "column", "columnIndex": 1},
+            "threshold": 5,
+            "nestedRowFilters": [],
+            "nestedTableChecks": self._detect_nested_table_checks(),
+        }
+        if iframe is not None:
+            base["iframe"] = iframe
+        return base
 
     def _extract_extraction_rules(self) -> Dict:
         rules: Dict = {}
