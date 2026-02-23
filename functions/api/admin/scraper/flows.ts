@@ -47,12 +47,15 @@ export async function onRequestGet(context: { request: Request; env: Env }): Pro
   const { env } = context
   const url = new URL(context.request.url)
   const q = url.searchParams.get("q")?.trim().toLowerCase() || ""
+  const kind = url.searchParams.get("kind")?.trim() || ""
 
   const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
-  const { data, error } = await supabase
+  let query = supabase
     .from("scraper_flows")
-    .select("id, name, description, flow_json, created_at, updated_at")
+    .select("id, name, description, flow_json, kind, created_at, updated_at")
     .order("updated_at", { ascending: false })
+  if (kind) query = query.eq("kind", kind)
+  const { data, error } = await query
 
   if (error) return json({ error: error.message }, 500)
 
@@ -74,25 +77,29 @@ export async function onRequestPost(context: { request: Request; env: Env }): Pr
   }
 
   const { env } = context
-  let body: { id?: string; name?: string; description?: string; flow_json?: object }
+  let body: { id?: string; name?: string; description?: string; flow_json?: object; kind?: string }
   try {
     body = await context.request.json()
   } catch {
     return json({ error: "Invalid JSON" }, 400)
   }
 
-  const { id, name, description, flow_json } = body
+  const { id, name, description, flow_json, kind } = body
   if (!name?.trim() || !flow_json || typeof flow_json !== "object") {
     return json({ error: "name and flow_json required" }, 400)
   }
 
+  const allowedKinds = ["scraper", "superset_flow", "superset_site_config", "superset_result_config", "superset_e2e", "codegen_result_config", "retrieval_flow", "autoscrape_flow"]
+  const flowKind = kind && allowedKinds.includes(kind) ? kind : null
+
   const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
-  const payload = {
+  const payload: { name: string; description: string | null; flow_json: object; updated_at: string; kind?: string } = {
     name: name.trim(),
     description: description?.trim() || null,
     flow_json,
     updated_at: new Date().toISOString(),
   }
+  if (flowKind) (payload as Record<string, unknown>).kind = flowKind
 
   if (id) {
     const { data, error } = await supabase
