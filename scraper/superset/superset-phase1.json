@@ -29,12 +29,12 @@
       },
       {
         "type": "form_fill",
-        "label": "enter name",
+        "label": "enter case",
         "config": {
           "fields": [
             {
-              "value": "Lowther",
-              "selector": "input#tbPersonSearch.TextBox"
+              "value": "18107412",
+              "selector": "input#tbCaseNumber.TextBox"
             }
           ],
           "submit": ""
