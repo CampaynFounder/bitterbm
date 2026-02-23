@@ -270,9 +270,12 @@ export default function CodegenPage() {
     return v.split(',').map((s) => s.trim()).filter(Boolean);
   }
 
-  /** Normalize resultTable for export: comma-separated strings → arrays for "in"/"all_in". */
+  /** Normalize resultTable for export: comma-separated strings → arrays for "in"/"all_in", columnNames. */
   function normalizeResultTableForJson(rt: ResultTableConfig): ResultTableConfig {
     const out = JSON.parse(JSON.stringify(rt)) as ResultTableConfig;
+    if (typeof out.columnNames === 'string') {
+      out.columnNames = parseCommaList(out.columnNames);
+    }
     (out.nestedTableExtract ?? []).forEach((ne) => {
       if (ne.conditionOperator === 'in' && typeof ne.conditionValue === 'string') {
         ne.conditionValue = parseCommaList(ne.conditionValue);

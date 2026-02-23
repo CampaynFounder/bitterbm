@@ -41,7 +41,7 @@ export type ResultTableConfig = {
   }
   signatureColumns?: number[]
   threshold: number
-  columnNames?: string[]
+  columnNames?: string[] | string
   rowFilterLogic?: "and" | "or"
   rowFilter?: Array<{ columnIndex: number; operator: "equals" | "in"; value: string | string[]; not?: boolean }>
   extractColumns?: Array<{ columnIndex: number; outputKey?: string }>
@@ -63,6 +63,8 @@ export type ResultTableConfig = {
     operator?: "exists" | "equals" | "in" | "all_in"
     value?: string | string[]
     outputInRow?: boolean
+    /** When true, only include parent row in superset output when this check's exists is true. */
+    filterParentWhenTrue?: boolean
   }>
   /** Extract column values from nested tables when a row condition matches (e.g. when col 2 is A or B, extract col 1 and 2). */
   nestedTableExtract?: Array<{
@@ -100,10 +102,12 @@ export function ResultTableEnrichForm({
         ? { ...defaultResultTableConfig.primaryId, ...value.primaryId }
         : defaultResultTableConfig.primaryId,
   }
-  const columnNames = rt.columnNames ?? []
-  const maxCol = Math.max(11, columnNames.length)
+  const columnNamesArray = typeof rt.columnNames === "string"
+    ? rt.columnNames.split(",").map((s) => s.trim()).filter(Boolean)
+    : (rt.columnNames ?? [])
+  const maxCol = Math.max(11, columnNamesArray.length)
   const columnLabel = (idx: number) =>
-    columnNames[idx] != null ? `${columnNames[idx]} (column ${idx})` : `Column ${idx}`
+    columnNamesArray[idx] != null ? `${columnNamesArray[idx]} (column ${idx})` : `Column ${idx}`
 
   const update = (path: string, val: unknown) => {
     const keys = path.split(".")
@@ -141,16 +145,14 @@ export function ResultTableEnrichForm({
       <div style={{ marginBottom: "var(--space-sm)" }}>
         <label style={labelStyle}>Column names (optional, comma-separated)</label>
         <input
-          value={columnNames.join(", ")}
-          onChange={(e) =>
-            update(
-              "columnNames",
-              e.target.value
-                .split(",")
-                .map((s) => s.trim())
-                .filter(Boolean)
-            )
+          value={
+            typeof rt.columnNames === "string"
+              ? rt.columnNames
+              : Array.isArray(rt.columnNames)
+                ? rt.columnNames.join(", ")
+                : ""
           }
+          onChange={(e) => update("columnNames", e.target.value)}
           placeholder="Case #, Status, Case Type, …"
           style={inputStyle}
         />

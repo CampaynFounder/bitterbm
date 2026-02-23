@@ -710,6 +710,18 @@ def main():
                     row_loc, root, rt.get("nestedTableExtract") or [], log
                 )
                 extracted = {**extracted, **nested_checks_result, **nested_extract_result}
+                # If any nested table check has filterParentWhenTrue and returned exists: false, skip this row
+                skip_parent = False
+                for nc in (rt.get("nestedTableChecks") or []):
+                    if not nc.get("filterParentWhenTrue"):
+                        continue
+                    name = (nc.get("name") or "nested").strip() or "nested"
+                    if not nested_checks_result.get(name, {}).get("exists", False):
+                        skip_parent = True
+                        log(f"  [skip] parent row excluded: nested check '{name}' filterParentWhenTrue and exists=false")
+                        break
+                if skip_parent:
+                    continue
                 if id_val:
                     ids.append(id_val)
                     rows_data.append({"id": id_val, **extracted})

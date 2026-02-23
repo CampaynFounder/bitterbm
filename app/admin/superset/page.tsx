@@ -143,6 +143,8 @@ export type SiteConfigState = {
       value?: string | string[]
       /** If set, output includes: name, exists (boolean), tableSelector, columnIndex, rowIndex (nth row match). */
       outputInRow?: boolean
+      /** When true, only include parent row in superset output when this check's exists is true. */
+      filterParentWhenTrue?: boolean
     }>
   }
   pagination: { mode: string }
@@ -619,6 +621,7 @@ function SiteConfigForm({ config, onChange, onlySections }: { config: SiteConfig
                   <input type="number" min={0} value={Math.max(0, nc.columnIndex ?? 0)} onChange={(e) => { const v = Math.max(0, parseInt(e.target.value, 10) || 0); const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], columnIndex: v }; update("resultTable.nestedTableChecks", arr) }} style={{ ...inputStyle, width: 56 }} title="Column in the nested table to check (0 = first)" />
                   <input value={typeof nc.value === "string" ? nc.value : Array.isArray(nc.value) ? (nc.value as string[]).map((s) => { let x = String(s).trim(); if (x.startsWith('\\"') && x.endsWith('\\"')) x = x.slice(2, -2); else if (x.startsWith('"') && x.endsWith('"')) x = x.slice(1, -1); return x; }).join(", ") : ""} onChange={(e) => { const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], value: e.target.value }; update("resultTable.nestedTableChecks", arr) }} placeholder={((nc.operator ?? "equals") === "in" || (nc.operator ?? "equals") === "all_in") ? "A, B, C (comma-separated)" : "Value"} style={{ ...inputStyle, width: 200 }} title="One value for equals; for 'in' or 'all_in', type several values separated by commas" />
                   <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.8125rem" }}><input type="checkbox" checked={nc.outputInRow ?? false} onChange={(e) => { const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], outputInRow: e.target.checked }; update("resultTable.nestedTableChecks", arr) }} />Output in row</label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.8125rem" }}><input type="checkbox" checked={nc.filterParentWhenTrue ?? false} onChange={(e) => { const arr = [...(rt.nestedTableChecks ?? [])]; arr[i] = { ...arr[i], filterParentWhenTrue: e.target.checked }; update("resultTable.nestedTableChecks", arr) }} />Filter parent when true</label>
                 </div>
                 <button type="button" onClick={() => update("resultTable.nestedTableChecks", (rt.nestedTableChecks ?? []).filter((_, j) => j !== i))} style={btnSecondary}>Remove</button>
               </div>

@@ -400,7 +400,16 @@ async def extract_from_result_table_async(
         # Nested table checks: exists, or equals/in/all_in (value in column)
         nested_checks_result = await _run_nested_table_checks_async(row_loc, root, nested_table_checks, _log)
         extracted = {**extracted, **nested_checks_result}
-        if id_val:
+        # If any check has filterParentWhenTrue and returned exists: false, skip this row
+        skip_parent = False
+        for nc in nested_table_checks:
+            if not nc.get("filterParentWhenTrue"):
+                continue
+            name = (nc.get("name") or "nested").strip() or "nested"
+            if not (nested_checks_result.get(name) or {}).get("exists", False):
+                skip_parent = True
+                break
+        if not skip_parent and id_val:
             ids.append(id_val)
             rows_data.append({"id": id_val, **extracted})
 
