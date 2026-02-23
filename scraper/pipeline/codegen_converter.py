@@ -145,19 +145,27 @@ class CodegenConverter:
     
     def _extract_selector(self, line: str) -> Optional[str]:
         """Extract CSS/XPath selector from line. When line has .content_frame (iframe), use the innermost selector after it."""
-        # When there are multiple .locator(...) (e.g. page.locator("iframe").content_frame.locator("#tbSearch4")), use the last one
         locator_matches = re.findall(r'\.locator\(["\'](.+?)["\']\)', line)
+        role_matches = list(re.finditer(r'\.get_by_role\(["\'](.+?)["\'](?:, name=["\'](.+?)["\'])?\)', line))
+        text_matches = re.findall(r'\.get_by_text\(["\'](.+?)["\']\)', line)
+        # If the only .locator() is the iframe and there is get_by_role/get_by_text, use the inner selector so we keep e.g. "Civil Search" link click
+        last_loc = locator_matches[-1] if locator_matches else None
+        is_iframe_only = last_loc and (last_loc.strip() == "iframe" or last_loc.strip().startswith("iframe"))
+        if locator_matches and is_iframe_only and (role_matches or text_matches):
+            if role_matches:
+                m = role_matches[-1]
+                role = m.group(1)
+                name = m.group(2) if m.group(2) else ''
+                return f'[role="{role}"][name*="{name}"]'
+            if text_matches:
+                return f':text("{text_matches[-1]}")'
         if locator_matches:
             return locator_matches[-1]
-        # get_by_role (take last if multiple, e.g. after content_frame)
-        role_matches = list(re.finditer(r'\.get_by_role\(["\'](.+?)["\'](?:, name=["\'](.+?)["\'])?\)', line))
         if role_matches:
             m = role_matches[-1]
             role = m.group(1)
             name = m.group(2) if m.group(2) else ''
             return f'[role="{role}"][name*="{name}"]'
-        # get_by_text
-        text_matches = re.findall(r'\.get_by_text\(["\'](.+?)["\']\)', line)
         if text_matches:
             return f':text("{text_matches[-1]}")'
         return None

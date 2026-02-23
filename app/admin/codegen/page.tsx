@@ -12,6 +12,15 @@ type SavedPresetRow = { id: string; name: string; description?: string; flow_jso
 type CodegenNavStep = { type: string; url?: string; selector?: string; value?: string; iframe?: string; duration?: number };
 type Phase1Blob = { flow: { name: string; steps: Array<{ type: string; config?: Record<string, unknown> }> }; siteConfig: { resultTable: ResultTableConfig; siteId: string; baseUrl: string } };
 
+const PHASE1_STEP_LABELS: Record<string, string> = {
+  navigate: 'Go to URL',
+  switch_frame: 'Switch to iframe',
+  fill_field: 'Fill text field',
+  click: 'Click',
+  checkbox: 'Check / uncheck box',
+  delay: 'Delay',
+};
+
 type County = {
   id: string;
   name: string;
@@ -481,6 +490,46 @@ export default function CodegenPage() {
                   onChange={(v) => setResultsTable(v)}
                 />
               )}
+              {(() => {
+                const phase1Steps = loadedPhase1Preset ? loadedPhase1Preset.flow.steps : codegenStepsToPhase1Steps(navigationSteps);
+                return phase1Steps.length > 0 ? (
+                  <div className="pt-4 border-t border-[var(--border)]">
+                    <h4 className="font-semibold text-sm mb-2" style={{ color: 'var(--text-primary)' }}>Review Phase 1 steps</h4>
+                    <p className="text-sm admin-text-muted mb-3">Confirm these steps before downloading or saving for Phase 1.</p>
+                    <ul className="list-none p-0 m-0 space-y-3">
+                      {phase1Steps.map((step, i) => {
+                        const cfg = step.config ?? {};
+                        const typeLabel = PHASE1_STEP_LABELS[step.type] ?? step.type;
+                        return (
+                          <li
+                            key={i}
+                            className="rounded-xl border border-[var(--border)] overflow-hidden"
+                            style={{ background: 'var(--bg-elevated)' }}
+                          >
+                            <div className="px-4 py-3 flex items-center gap-2">
+                              <span className="text-[var(--text-muted)] text-sm" style={{ transition: 'transform 0.2s' }}>▶</span>
+                              <span className="font-semibold text-[0.9375rem]">{i + 1}. {typeLabel}</span>
+                            </div>
+                            <div className="px-4 pb-3 pt-0 border-t border-[var(--border)] grid gap-2" style={{ fontSize: '0.875rem' }}>
+                              {step.type === 'navigate' && cfg.url != null && <div><span className="text-[var(--text-secondary)]">URL:</span> <code className="text-[var(--text-primary)] break-all">{String(cfg.url)}</code></div>}
+                              {step.type === 'switch_frame' && cfg.selector != null && <div><span className="text-[var(--text-secondary)]">Selector:</span> <code className="text-[var(--text-primary)] break-all">{String(cfg.selector)}</code></div>}
+                              {step.type === 'fill_field' && (
+                                <>
+                                  {cfg.selector != null && <div><span className="text-[var(--text-secondary)]">Selector:</span> <code className="text-[var(--text-primary)] break-all">{String(cfg.selector)}</code></div>}
+                                  {cfg.value != null && <div><span className="text-[var(--text-secondary)]">Value:</span> <code className="text-[var(--text-primary)] break-all">{String(cfg.value)}</code></div>}
+                                </>
+                              )}
+                              {(step.type === 'click' || step.type === 'checkbox') && cfg.selector != null && <div><span className="text-[var(--text-secondary)]">Selector:</span> <code className="text-[var(--text-primary)] break-all">{String(cfg.selector)}</code></div>}
+                              {step.type === 'checkbox' && cfg.state != null && <div><span className="text-[var(--text-secondary)]">State:</span> {String(cfg.state)}</div>}
+                              {step.type === 'delay' && cfg.ms != null && <div><span className="text-[var(--text-secondary)]">Delay:</span> {String(cfg.ms)} ms</div>}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                ) : null;
+              })()}
               <div className="flex flex-wrap items-center gap-2 pt-2">
                 <Button size="sm" onClick={handleSaveResultsTable} disabled={loadingResultsTable || !resultsTable}>
                   {loadingResultsTable ? 'Saving…' : 'Save to county'}
@@ -492,13 +541,13 @@ export default function CodegenPage() {
                   Save as preset
                 </Button>
                 <span style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 2px' }} />
-                <Button size="sm" variant="ghost" onClick={downloadPhase1}>
+                <Button size="sm" variant="ghost" onClick={downloadPhase1} disabled={!buildPhase1Blob()}>
                   Download for Phase 1
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => setLoadPhase1ModalOpen(true)}>
                   Load for Phase 1
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => { setSavePhase1Name(loadedPhase1Name ?? ''); setSavePhase1Description(''); setSavePhase1Error(null); setSavePhase1ModalOpen(true); }}>
+                <Button size="sm" variant="ghost" onClick={() => { setSavePhase1Name(loadedPhase1Name ?? ''); setSavePhase1Description(''); setSavePhase1Error(null); setSavePhase1ModalOpen(true); }} disabled={!buildPhase1Blob()}>
                   Save for Phase 1
                 </Button>
                 {loadedPhase1Preset && <span className="text-sm admin-text-muted">Phase 1 preset loaded</span>}

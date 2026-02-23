@@ -87,14 +87,24 @@ class CodegenConverter:
     def _extract_selector(self, line: str) -> Optional[str]:
         # When line has .content_frame (iframe), use innermost selector (last .locator / .get_by_role / .get_by_text)
         locator_matches = re.findall(r'\.locator\(["\'](.+?)["\']\)', line)
+        role_matches = list(re.finditer(r'\.get_by_role\(["\'](.+?)["\'](?:, name=["\'](.+?)["\'])?\)', line))
+        text_matches = re.findall(r'\.get_by_text\(["\'](.+?)["\']\)', line)
+        # If the only .locator() is the iframe and there is get_by_role/get_by_text, use the inner selector so we keep e.g. "Civil Search" link click
+        last_loc = locator_matches[-1] if locator_matches else None
+        is_iframe_only = last_loc and (last_loc.strip() == "iframe" or last_loc.strip().startswith("iframe"))
+        if locator_matches and is_iframe_only and (role_matches or text_matches):
+            if role_matches:
+                m = role_matches[-1]
+                role, name = m.group(1), (m.group(2) or "")
+                return f'[role="{role}"][name*="{name}"]'
+            if text_matches:
+                return f':text("{text_matches[-1]}")'
         if locator_matches:
             return locator_matches[-1]
-        role_matches = list(re.finditer(r'\.get_by_role\(["\'](.+?)["\'](?:, name=["\'](.+?)["\'])?\)', line))
         if role_matches:
             m = role_matches[-1]
             role, name = m.group(1), (m.group(2) or "")
             return f'[role="{role}"][name*="{name}"]'
-        text_matches = re.findall(r'\.get_by_text\(["\'](.+?)["\']\)', line)
         if text_matches:
             return f':text("{text_matches[-1]}")'
         return None
