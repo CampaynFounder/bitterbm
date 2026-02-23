@@ -497,8 +497,14 @@ def run_nested_table_extract(row_locator, root, nested_extract_list, log):
         cond_op = ne.get("conditionOperator", "equals")
         cond_val = ne.get("conditionValue")
         if cond_op == "in":
-            vals = cond_val if isinstance(cond_val, list) else [cond_val] if cond_val is not None else []
-            cond_vals = [_norm(v) for v in vals]
+            if isinstance(cond_val, list):
+                cond_vals = [_norm(v) for v in cond_val]
+            elif isinstance(cond_val, str):
+                cond_vals = [_norm(s) for s in cond_val.split(",") if s.strip()]
+            elif cond_val is not None:
+                cond_vals = [_norm(cond_val)]
+            else:
+                cond_vals = []
         else:
             cond_vals = [_norm(cond_val)] if cond_val is not None else []
         extract_cols = ne.get("extractColumns") or []

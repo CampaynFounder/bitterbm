@@ -155,6 +155,98 @@ async def _extract_row_id_and_data_async(row_locator, rt: Dict) -> Tuple[str, Di
     return id_val, extracted
 
 
+async def _run_nested_table_checks_async(
+    row_locator, root: Root, nested_checks: List[Dict], log: Optional[Callable[[str], None]] = None
+) -> Dict[str, Any]:
+    """
+    Run nestedTableChecks: for each check, resolve scope (row vs page), then
+    - operator 'exists': table (and optional rowSelector) has at least one match.
+    - operator 'equals' / 'in' / 'all_in': at least one row has cell text matching value(s).
+    Returns dict to merge into row extracted data (only checks with outputInRow: true).
+    """
+    out: Dict[str, Any] = {}
+    if not nested_checks:
+        return out
+
+    def _log(msg: str) -> None:
+        if log:
+            log(msg)
+
+    for nc in nested_checks:
+        if not nc.get("outputInRow"):
+            continue
+        name = (nc.get("name") or "nested").strip() or "nested"
+        scope = nc.get("scope", "row")
+        base = row_locator if scope == "row" else root
+        table_sel = (nc.get("tableSelector") or "").strip()
+        if not table_sel:
+            out[name] = {"exists": False}
+            continue
+        row_sel = (nc.get("rowSelector") or "").strip() or None
+        operator = nc.get("operator", "exists")
+        if operator == "exists" and row_sel and " " in row_sel and not any(c in row_sel for c in "#.[]:>"):
+            row_sel = None
+        value = nc.get("value")
+        col_idx = max(0, int(nc.get("columnIndex", 0)))
+        exists = False
+        row_index: Optional[int] = None
+        try:
+            table_loc = base.locator(table_sel)
+            if operator == "exists":
+                loc = table_loc.locator(row_sel) if row_sel else table_loc
+                count = await loc.count()
+                exists = count > 0
+            else:
+                rows_loc = table_loc.locator(row_sel or "tr")
+                n = await rows_loc.count()
+                if operator in ("in", "all_in"):
+                    if isinstance(value, list):
+                        vals = [_norm_val(v) for v in value if v is not None and str(v).strip()]
+                    elif isinstance(value, str):
+                        vals = [_norm_val(s) for s in value.split(",") if s.strip()]
+                    else:
+                        vals = [_norm_val(value)] if value is not None else []
+                else:
+                    if isinstance(value, list) and value:
+                        vals = [_norm_val(value[0])]
+                    elif value is not None and str(value).strip():
+                        vals = [_norm_val(value)]
+                    else:
+                        vals = []
+                if operator == "all_in":
+                    found_vals: set = set()
+                    for r in range(n):
+                        nested_row = rows_loc.nth(r)
+                        cell_text = await _get_cell_text_for_column_async(nested_row, col_idx)
+                        cell_norm = _norm_val(cell_text)
+                        if cell_norm in vals:
+                            found_vals.add(cell_norm)
+                            if row_index is None:
+                                row_index = r
+                    exists = len(found_vals) == len(vals) if vals else False
+                else:
+                    for r in range(n):
+                        nested_row = rows_loc.nth(r)
+                        cell_text = await _get_cell_text_for_column_async(nested_row, col_idx)
+                        cell_norm = _norm_val(cell_text)
+                        if operator == "equals":
+                            if vals and cell_norm == _norm_val(vals[0]):
+                                exists = True
+                                row_index = r
+                                break
+                        else:
+                            if cell_norm in vals:
+                                exists = True
+                                row_index = r
+                                break
+        except Exception:
+            exists = False
+        out[name] = {"exists": exists}
+        if row_index is not None:
+            out[name]["rowIndex"] = row_index
+    return out
+
+
 async def _run_nested_table_extract_async(
     row_locator, root: Root, nested_extract_list: List[Dict], log: Optional[Callable[[str], None]] = None
 ) -> Dict[str, Any]:
@@ -181,8 +273,14 @@ async def _run_nested_table_extract_async(
         cond_op = ne.get("conditionOperator", "equals")
         cond_val = ne.get("conditionValue")
         if cond_op == "in":
-            vals = cond_val if isinstance(cond_val, list) else [cond_val] if cond_val is not None else []
-            cond_vals = [_norm_val(v) for v in vals]
+            if isinstance(cond_val, list):
+                cond_vals = [_norm_val(v) for v in cond_val]
+            elif isinstance(cond_val, str):
+                cond_vals = [_norm_val(s) for s in cond_val.split(",") if s.strip()]
+            elif cond_val is not None:
+                cond_vals = [_norm_val(cond_val)]
+            else:
+                cond_vals = []
         else:
             cond_vals = [_norm_val(cond_val)] if cond_val is not None else []
         extract_cols = ne.get("extractColumns") or []
@@ -299,25 +397,9 @@ async def extract_from_result_table_async(
         # Nested table extract: extract column values from nested tables when condition matches
         nested_extracted = await _run_nested_table_extract_async(row_loc, root, nested_table_extract, _log)
         extracted = {**extracted, **nested_extracted}
-        # Optional: run nested table checks (exists only for now; no expand)
-        for nc in nested_table_checks:
-            if not nc.get("outputInRow"):
-                continue
-            name = (nc.get("name") or "nested").strip() or "nested"
-            scope = nc.get("scope", "row")
-            base = row_loc if scope == "row" else root
-            table_sel = (nc.get("tableSelector") or "").strip()
-            if not table_sel:
-                extracted[name] = {"exists": False}
-                continue
-            try:
-                loc = base.locator(table_sel)
-                if nc.get("rowSelector"):
-                    loc = loc.locator(nc.get("rowSelector") or "tr")
-                count = loc.count()
-                extracted[name] = {"exists": count > 0}
-            except Exception:
-                extracted[name] = {"exists": False}
+        # Nested table checks: exists, or equals/in/all_in (value in column)
+        nested_checks_result = await _run_nested_table_checks_async(row_loc, root, nested_table_checks, _log)
+        extracted = {**extracted, **nested_checks_result}
         if id_val:
             ids.append(id_val)
             rows_data.append({"id": id_val, **extracted})
